@@ -193,6 +193,69 @@ func TestNextInstanceWraps(t *testing.T) {
 	}
 }
 
+func TestCtrlKOpensPalette(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	m = updated.(*AppModel)
+
+	// Assert
+	if !m.palette.Active() {
+		t.Fatal("expected palette active after ctrl+k")
+	}
+	if !strings.Contains(m.View().Content, "Command palette") {
+		t.Error("view should render the palette overlay")
+	}
+}
+
+func TestPaletteCapturesKeysWhileOpen(t *testing.T) {
+	// Arrange: open the palette, then send a key that would otherwise quit.
+	m := sized(t, newTestModel(t), 100, 30)
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	m = updated.(*AppModel)
+
+	// Act: 'q' should be typed into the palette, not quit the app.
+	_, cmd := m.Update(keyPress("q", 'q'))
+
+	// Assert: no quit command was produced.
+	if cmd != nil {
+		if _, ok := cmd().(tea.QuitMsg); ok {
+			t.Fatal("q should not quit while the palette is open")
+		}
+	}
+	if !m.palette.Active() {
+		t.Fatal("palette should still be open")
+	}
+}
+
+func TestPaletteCommandsIncludeNavigationAndThemes(t *testing.T) {
+	// Arrange
+	m := newTestModel(t)
+
+	// Act
+	cmds := m.paletteCommands()
+
+	// Assert: at least one nav command, one blocking, one theme, one instance.
+	var hasNav, hasBlock, hasTheme, hasInstance bool
+	for _, c := range cmds {
+		switch {
+		case strings.HasPrefix(c.Title, "Go to "):
+			hasNav = true
+		case strings.Contains(c.Title, "blocking"):
+			hasBlock = true
+		case strings.HasPrefix(c.Title, "Theme: "):
+			hasTheme = true
+		case strings.HasPrefix(c.Title, "Switch to "):
+			hasInstance = true
+		}
+	}
+	if !hasNav || !hasBlock || !hasTheme || !hasInstance {
+		t.Fatalf("missing command kinds: nav=%v block=%v theme=%v instance=%v", hasNav, hasBlock, hasTheme, hasInstance)
+	}
+}
+
 type errBoom struct{}
 
 func (errBoom) Error() string { return "boom" }
