@@ -1,0 +1,198 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/zackkitzmiller/tihole/internal/config"
+	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/core"
+)
+
+// newTestModel builds a root model without touching the network. The client is
+// constructed but never logged in; no test here executes API commands.
+func newTestModel(t *testing.T) *AppModel {
+	t.Helper()
+	verify := true
+	cfg := &config.Config{
+		Active: "home",
+		Theme:  "deep-night",
+		Instances: []config.Instance{
+			{Name: "home", URL: "http://192.168.1.2", Password: "pw", VerifyTLS: &verify},
+			{Name: "office", URL: "http://10.0.0.2", Password: "pw2", VerifyTLS: &verify},
+		},
+	}
+	api := pihole.New("http://192.168.1.2", "pw")
+	return New(cfg, "/tmp/tihole.yaml", api, theme.DeepNight())
+}
+
+// sized returns the model after an initial window-size message.
+func sized(t *testing.T, m *AppModel, w, h int) *AppModel {
+	t.Helper()
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return updated.(*AppModel)
+}
+
+func keyPress(s string, code rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: code, Text: s}
+}
+
+func TestNewBuildsAllScreensWithDashboardActive(t *testing.T) {
+	// Arrange / Act
+	m := newTestModel(t)
+
+	// Assert
+	if got := len(m.screens); got != len(core.PageOrder()) {
+		t.Fatalf("expected %d screens, got %d", len(core.PageOrder()), got)
+	}
+	if m.active != core.PageDashboard {
+		t.Fatalf("expected Dashboard active, got %v", m.active)
+	}
+}
+
+func TestViewRendersChromeAndActiveTitle(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	out := m.View().Content
+
+	// Assert
+	if out == "" {
+		t.Fatal("view is empty")
+	}
+	for _, want := range []string{"tihole", "Dashboard", "home"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("view missing %q", want)
+		}
+	}
+}
+
+func TestTabSwitchesToNextPage(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	m = updated.(*AppModel)
+
+	// Assert
+	if m.active != core.PageQueryLog {
+		t.Fatalf("expected QueryLog after tab, got %v", m.active)
+	}
+}
+
+func TestDigitKeyJumpsToPage(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act: "3" -> third page (Domains)
+	updated, _ := m.Update(keyPress("3", '3'))
+	m = updated.(*AppModel)
+
+	// Assert
+	if m.active != core.PageDomains {
+		t.Fatalf("expected Domains after '3', got %v", m.active)
+	}
+}
+
+func TestShiftTabWrapsToLastPage(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act: shift+tab from the first page wraps backwards.
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	m = updated.(*AppModel)
+
+	// Assert: Dashboard -> System (last).
+	if m.active != core.PageSystem {
+		t.Fatalf("expected System after shift+tab wrap, got %v", m.active)
+	}
+}
+
+func TestBlockingResultUpdatesStatusBar(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	updated, _ := m.Update(blockingResultMsg{status: pihole.BlockingStatus{Blocking: true}})
+	m = updated.(*AppModel)
+
+	// Assert
+	if !m.block.Known || !m.block.Enabled {
+		t.Fatalf("expected known+enabled blocking state, got %+v", m.block)
+	}
+	if !strings.Contains(m.View().Content, "blocking on") {
+		t.Error("status bar should show 'blocking on'")
+	}
+}
+
+func TestBlockingErrorSurfacesBanner(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	updated, _ := m.Update(blockingErrMsg{err: errBoom{}})
+	m = updated.(*AppModel)
+
+	// Assert
+	if m.err == "" {
+		t.Fatal("expected error banner text to be set")
+	}
+	if !strings.Contains(m.View().Content, "boom") {
+		t.Error("help bar should render the error banner")
+	}
+}
+
+func TestQuitKeyReturnsQuitCommand(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	_, cmd := m.Update(keyPress("q", 'q'))
+
+	// Assert
+	if cmd == nil {
+		t.Fatal("expected a command from quit key")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("expected tea.QuitMsg from quit key")
+	}
+}
+
+func TestContentSizeSubtractsChrome(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act
+	cw, ch := m.contentSize()
+
+	// Assert
+	if ch != 30-chromeTop-chromeBottom {
+		t.Errorf("content height = %d, want %d", ch, 30-chromeTop-chromeBottom)
+	}
+	if cw <= 0 || cw >= 100 {
+		t.Errorf("content width %d out of expected range", cw)
+	}
+}
+
+func TestNextInstanceWraps(t *testing.T) {
+	// Arrange
+	m := newTestModel(t)
+
+	// Act / Assert
+	if got := m.nextInstance(); got != "office" {
+		t.Fatalf("nextInstance from home = %q, want office", got)
+	}
+	m.ctx.InstanceName = "office"
+	if got := m.nextInstance(); got != "home" {
+		t.Fatalf("nextInstance from office = %q, want home", got)
+	}
+}
+
+type errBoom struct{}
+
+func (errBoom) Error() string { return "boom" }
