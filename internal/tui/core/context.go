@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/zackkitzmiller/tihole/internal/config"
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 	"github.com/zackkitzmiller/tihole/internal/theme"
 )
@@ -17,6 +18,19 @@ type AppContext struct {
 	Keys KeyMap
 	// InstanceName is the name of the currently active instance.
 	InstanceName string
+	// Config is the loaded configuration (held behind a pointer so the
+	// Settings screen and root see the same instance list). Nil in unit tests
+	// that don't exercise config-backed screens.
+	Config *config.Config
+	// ConfigPath is where Config is persisted (0600). Empty in such tests.
+	ConfigPath string
+}
+
+// InstancesChangedMsg is emitted by Settings → Connections after the instance
+// list is edited and persisted. The root swaps in the new config and, if the
+// active instance was removed, activates another.
+type InstancesChangedMsg struct {
+	Config *config.Config
 }
 
 // SetThemeMsg requests a live re-theme across all screens.
