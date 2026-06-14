@@ -16,7 +16,11 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/theme"
 	"github.com/zackkitzmiller/tihole/internal/tui/components"
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/adlists"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/clients"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/dashboard"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/domains"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/groups"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/placeholder"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/querylog"
 )
@@ -84,6 +88,10 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 	// Replace placeholders with real screens as they're implemented.
 	screens[core.PageDashboard] = dashboard.New(ctx)
 	screens[core.PageQueryLog] = querylog.New(ctx)
+	screens[core.PageDomains] = domains.New(ctx)
+	screens[core.PageGroups] = groups.New(ctx)
+	screens[core.PageClients] = clients.New(ctx)
+	screens[core.PageAdlists] = adlists.New(ctx)
 	return screens
 }
 
