@@ -256,6 +256,60 @@ func TestPaletteCommandsIncludeNavigationAndThemes(t *testing.T) {
 	}
 }
 
+func TestHelpKeyOpensAndRendersOverlay(t *testing.T) {
+	// Arrange
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act: "?" toggles the help overlay on.
+	updated, _ := m.Update(keyPress("?", '?'))
+	m = updated.(*AppModel)
+
+	// Assert
+	if !m.showHelp {
+		t.Fatal("expected showHelp true after '?'")
+	}
+	out := m.View().Content
+	if !strings.Contains(out, "Keyboard shortcuts") || !strings.Contains(out, "Global") {
+		t.Error("view should render the help overlay")
+	}
+}
+
+func TestAnyKeyDismissesHelpOverlay(t *testing.T) {
+	// Arrange: open help.
+	m := sized(t, newTestModel(t), 100, 30)
+	updated, _ := m.Update(keyPress("?", '?'))
+	m = updated.(*AppModel)
+
+	// Act: a key that would otherwise navigate just closes the overlay.
+	updated, cmd := m.Update(keyPress("3", '3'))
+	m = updated.(*AppModel)
+
+	// Assert: help closed, no page change occurred.
+	if m.showHelp {
+		t.Fatal("expected help dismissed by any key")
+	}
+	if m.active != core.PageDashboard {
+		t.Fatalf("dismiss key should not navigate, got %v", m.active)
+	}
+	_ = cmd
+}
+
+func TestHelpSectionsIncludeGlobalAndActiveScreen(t *testing.T) {
+	// Arrange
+	m := newTestModel(t)
+
+	// Act
+	secs := m.helpSections()
+
+	// Assert: first section is Global; it carries at least one binding.
+	if len(secs) == 0 || secs[0].Title != "Global" {
+		t.Fatalf("expected Global section first, got %+v", secs)
+	}
+	if len(secs[0].Keys) == 0 {
+		t.Fatal("Global section should have key bindings")
+	}
+}
+
 type errBoom struct{}
 
 func (errBoom) Error() string { return "boom" }

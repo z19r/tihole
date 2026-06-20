@@ -135,6 +135,11 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.palette, cmd = m.palette.Update(msg)
 			return m, cmd
 		}
+		// The help overlay is modal: any key dismisses it.
+		if m.showHelp {
+			m.showHelp = false
+			return m, nil
+		}
 		if cmd, handled := m.handleGlobalKey(msg); handled {
 			return m, cmd
 		}
@@ -425,10 +430,14 @@ func (m *AppModel) View() tea.View {
 	}.Render(th)
 
 	var middle string
-	if m.palette.Active() {
+	switch {
+	case m.palette.Active():
 		// The palette takes over the body area as a centered modal.
 		middle = m.palette.Render(th, m.width, ch)
-	} else {
+	case m.showHelp:
+		// The help cheat-sheet overlays the body area.
+		middle = components.HelpSheet{Sections: m.helpSections()}.Render(th, m.width, ch)
+	default:
 		content := m.screens[m.active].View().Content
 		middle = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
 	}
@@ -439,6 +448,35 @@ func (m *AppModel) View() tea.View {
 	v := tea.NewView(full)
 	v.AltScreen = true
 	return v
+}
+
+// helpSections builds the "?" cheat-sheet from the global key map plus the
+// active screen's own bindings, so the overlay always reflects the current
+// context.
+func (m *AppModel) helpSections() []components.HelpSection {
+	global := components.HelpSection{Title: "Global"}
+	for _, b := range m.ctx.Keys.ShortHelp() {
+		h := b.Help()
+		if h.Key == "" && h.Desc == "" {
+			continue
+		}
+		global.Keys = append(global.Keys, components.HelpKey{Key: h.Key, Desc: h.Desc})
+	}
+
+	screen := components.HelpSection{Title: m.screens[m.active].Title()}
+	for _, b := range m.screens[m.active].Help() {
+		h := b.Help()
+		if h.Key == "" && h.Desc == "" {
+			continue
+		}
+		screen.Keys = append(screen.Keys, components.HelpKey{Key: h.Key, Desc: h.Desc})
+	}
+
+	sections := []components.HelpSection{global}
+	if len(screen.Keys) > 0 {
+		sections = append(sections, screen)
+	}
+	return sections
 }
 
 // helpBar renders the bottom key hints (or an error banner when present).
