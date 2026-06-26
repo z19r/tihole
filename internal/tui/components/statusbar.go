@@ -82,6 +82,9 @@ func orDash(s string) string {
 
 // humanCountdown formats seconds as a compact mm:ss / Ns countdown.
 func humanCountdown(secs int) string {
+	if secs < 0 {
+		secs = 0
+	}
 	if secs < 60 {
 		return fmt.Sprintf("(%ds)", secs)
 	}
