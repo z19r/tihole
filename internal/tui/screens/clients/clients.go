@@ -142,13 +142,19 @@ func (m *Model) SetSize(w, h int) {
 	m.table.SetColumns(tableColumns(widths))
 	m.table.SetWidth(w)
 
-	tableH := h - headerHeight - footerHeight
-	if tableH < 1 {
-		tableH = 1
-	}
-	m.table.SetHeight(tableH)
+	m.table.SetHeight(m.bodyHeight())
 
 	m.form.setWidth(minInt(w, 64))
+}
+
+// bodyHeight returns the height available for the table/overlay body, i.e. the
+// inner area minus the header and footer, clamped to at least one line.
+func (m *Model) bodyHeight() int {
+	h := m.h - headerHeight - footerHeight
+	if h < 1 {
+		return 1
+	}
+	return h
 }
 
 // newCtx cancels any prior in-flight request and returns a fresh timeout
@@ -338,10 +344,7 @@ func (m *Model) errBanner(th *theme.Theme) string {
 }
 
 func (m *Model) renderBody(th *theme.Theme) string {
-	bodyH := m.h - headerHeight - footerHeight
-	if bodyH < 1 {
-		bodyH = 1
-	}
+	bodyH := m.bodyHeight()
 
 	if m.confirm.Active {
 		return m.confirm.Render(th, m.w, bodyH)
