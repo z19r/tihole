@@ -114,6 +114,12 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Settings" }
 
+// CapturesInput reports whether a text field or modal is focused, so the root
+// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool {
+	return m.filtering || m.edit != nil || m.connForm != nil || m.themePicker != nil
+}
+
 // Focus activates the screen and fetches the live config tree.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true

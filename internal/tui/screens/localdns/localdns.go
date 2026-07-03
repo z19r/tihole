@@ -108,6 +108,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Local DNS" }
 
+// CapturesInput reports whether the add form is open, so the root delivers raw
+// keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool { return m.form != nil }
+
 // Focus activates the screen and fetches both record lists.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true

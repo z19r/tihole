@@ -96,6 +96,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Query Log" }
 
+// CapturesInput reports whether the search field is focused, so the root
+// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool { return m.searching }
+
 // Focus activates the screen: start the poller and fetch a fresh page.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
