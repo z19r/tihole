@@ -23,6 +23,10 @@ type Sidebar struct {
 	Selected int
 	Width    int
 	Height   int
+	// Focused is true when the rail owns keyboard input (Nav focus). It drives
+	// the visual: a live accent border and a bright selection when focused, a
+	// muted treatment when the active screen holds focus instead.
+	Focused bool
 }
 
 // SidebarWidth is the default rail width in columns.
@@ -35,23 +39,30 @@ func (s Sidebar) Render(th *theme.Theme) string {
 		width = SidebarWidth
 	}
 
-	brand := lipgloss.NewStyle().
-		Foreground(th.Accent).
-		Bold(true).
-		Padding(0, 2).
-		MarginBottom(1).
-		Render("● tihole")
+	brand := gradientWordmark(th, s.Focused)
 
 	var rows []string
 	rows = append(rows, brand)
 
-	itemBase := lipgloss.NewStyle().Width(width-2).Padding(0, 1)
+	// The selection glows on the accent when the rail is focused; when the panel
+	// owns input the rail steps back to a muted, bordered pill so it's clear
+	// where the keyboard is going.
+	selFg, selBg := th.Surface, th.Accent
+	if !s.Focused {
+		selFg, selBg = th.Text, th.Border
+	}
+
+	itemBase := lipgloss.NewStyle().Width(width - 2).Padding(0, 1)
 	for i, item := range s.Items {
-		label := item.Icon + "  " + item.Title
+		marker := "  "
+		if i == s.Selected {
+			marker = "▎ "
+		}
+		label := marker + item.Icon + " " + item.Title
 		if i == s.Selected {
 			rows = append(rows, itemBase.
-				Foreground(th.Surface).
-				Background(th.Accent).
+				Foreground(selFg).
+				Background(selBg).
 				Bold(true).
 				Render(label))
 		} else {
@@ -63,12 +74,19 @@ func (s Sidebar) Render(th *theme.Theme) string {
 
 	body := strings.Join(rows, "\n")
 
+	// A live accent border signals the rail has focus; otherwise the quiet
+	// panel border.
+	border := th.Border
+	if s.Focused {
+		border = th.Accent
+	}
+
 	return lipgloss.NewStyle().
 		Width(width).
 		Height(s.Height).
 		Background(th.Panel).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderRight(true).
-		BorderForeground(th.Border).
+		BorderForeground(border).
 		Render(body)
 }

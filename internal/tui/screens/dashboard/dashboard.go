@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/zackkitzmiller/tihole/internal/theme"
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
 )
 
@@ -71,9 +73,11 @@ type Model struct {
 	epoch   int
 	loaded  bool
 
-	spinner spinner.Model
-	cancel  context.CancelFunc
-	baseCtx context.Context
+	spinner  spinner.Model
+	blockBar progress.Model
+	barTheme string // theme name the gauge's gradient was built for
+	cancel   context.CancelFunc
+	baseCtx  context.Context
 
 	summary   pihole.Summary
 	history   pihole.History
@@ -99,7 +103,33 @@ var _ core.Screen = (*Model)(nil)
 func New(ctx *core.AppContext) *Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	return &Model{ctx: ctx, spinner: sp}
+
+	// A gradient meter that springs to the current block rate — the "blocked %"
+	// tile's bit of whimsy. Colors come from the active theme so it tracks the
+	// palette (accent → allow) instead of hardcoding a look.
+	return &Model{ctx: ctx, spinner: sp, blockBar: newBlockBar(ctx.Theme), barTheme: ctx.Theme.Name}
+}
+
+// newBlockBar builds the gradient gauge for the current theme (accent → allow).
+func newBlockBar(th *theme.Theme) progress.Model {
+	return progress.New(
+		progress.WithColors(th.Accent, th.Allow),
+		progress.WithoutPercentage(),
+	)
+}
+
+// syncBarTheme rebuilds the gauge's gradient when the active theme changes
+// (e.g. the Auto theme resolving after background detection, or a manual theme
+// switch) so its colors always track the live palette. The current target
+// percent is preserved so the value doesn't jump.
+func (m *Model) syncBarTheme() {
+	if m.barTheme == m.ctx.Theme.Name {
+		return
+	}
+	pct := m.blockBar.Percent()
+	m.blockBar = newBlockBar(m.ctx.Theme)
+	m.blockBar.SetPercent(pct)
+	m.barTheme = m.ctx.Theme.Name
 }
 
 // Init is a no-op: fetching starts on Focus.
@@ -174,10 +204,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		if msg.err != nil {
 			m.errSummary = msg.err.Error()
-		} else {
-			m.errSummary, m.summary = "", msg.data
+			return m, nil
 		}
-		return m, nil
+		m.errSummary, m.summary = "", msg.data
+		// Spring the blocked-percentage gauge toward the fresh value.
+		return m, m.blockBar.SetPercent(m.summary.Queries.PercentBlocked / 100)
 
 	case historyMsg:
 		if msg.epoch != m.epoch {
@@ -236,6 +267,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
+	case progress.FrameMsg:
+		var cmd tea.Cmd
+		m.blockBar, cmd = m.blockBar.Update(msg)
 		return m, cmd
 	}
 

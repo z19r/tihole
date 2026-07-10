@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zackkitzmiller/tihole/internal/config"
 	"github.com/zackkitzmiller/tihole/internal/pihole"
@@ -57,8 +58,8 @@ func TestViewRendersChromeAndActiveTitle(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act
-	out := m.View().Content
+	// Act: strip ANSI so the per-rune gradient wordmark matches as plain text.
+	out := ansi.Strip(m.View().Content)
 
 	// Assert
 	if out == "" {
@@ -71,17 +72,20 @@ func TestViewRendersChromeAndActiveTitle(t *testing.T) {
 	}
 }
 
-func TestTabSwitchesToNextPage(t *testing.T) {
-	// Arrange
+func TestTabDescendsToPanel(t *testing.T) {
+	// Arrange: fresh model starts on the rail (Nav focus).
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act
+	// Act: tab descends into the active screen rather than cycling pages.
 	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)
 
-	// Assert
-	if m.active != core.PageQueryLog {
-		t.Fatalf("expected QueryLog after tab, got %v", m.active)
+	// Assert: focus moved to the panel, the page did not change.
+	if m.focus != focusPanel {
+		t.Fatalf("expected panel focus after tab, got %v", m.focus)
+	}
+	if m.active != core.PageDashboard {
+		t.Fatalf("tab must not change the page, got %v", m.active)
 	}
 }
 
@@ -89,7 +93,7 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act: "3" -> third page (Domains)
+	// Act: "3" -> third page (Domains), staying on the rail for fast browsing.
 	updated, _ := m.Update(keyPress("3", '3'))
 	m = updated.(*AppModel)
 
@@ -97,19 +101,44 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 	if m.active != core.PageDomains {
 		t.Fatalf("expected Domains after '3', got %v", m.active)
 	}
+	if m.focus != focusNav {
+		t.Fatalf("digit jump should stay on the rail, got focus %v", m.focus)
+	}
 }
 
-func TestShiftTabWrapsToLastPage(t *testing.T) {
-	// Arrange
+func TestEscClimbsFromPanelBackToNav(t *testing.T) {
+	// Arrange: descend into the panel first.
 	m := sized(t, newTestModel(t), 100, 30)
+	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	m = updated.(*AppModel)
+	if m.focus != focusPanel {
+		t.Fatalf("precondition: expected panel focus, got %v", m.focus)
+	}
 
-	// Act: shift+tab from the first page wraps backwards.
-	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+	// Act: esc climbs back to the rail.
+	updated, _ = m.Update(keyPress("esc", tea.KeyEsc))
 	m = updated.(*AppModel)
 
-	// Assert: Dashboard -> System (last).
-	if m.active != core.PageSystem {
-		t.Fatalf("expected System after shift+tab wrap, got %v", m.active)
+	// Assert
+	if m.focus != focusNav {
+		t.Fatalf("expected nav focus after esc, got %v", m.focus)
+	}
+}
+
+func TestArrowsCycleSidebarInNavFocus(t *testing.T) {
+	// Arrange: on the rail.
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act: down arrow moves the selection to the next page.
+	updated, _ := m.Update(keyPress("down", tea.KeyDown))
+	m = updated.(*AppModel)
+
+	// Assert
+	if m.active != core.PageQueryLog {
+		t.Fatalf("expected QueryLog after down in nav, got %v", m.active)
+	}
+	if m.focus != focusNav {
+		t.Fatalf("nav arrows should keep rail focus, got %v", m.focus)
 	}
 }
 

@@ -4,10 +4,28 @@ import "charm.land/lipgloss/v2"
 
 // Built-in theme names.
 const (
+	NameAuto          = "auto"
 	NameDeepNight     = "deep-night"
 	NameLightLuxury   = "light-luxury"
 	NamePiholeClassic = "pihole-classic"
 )
+
+// Auto is the default theme. It commits to no single mode; instead it resolves
+// to DeepNight on a dark terminal or LightLuxury on a light one the moment the
+// background is known (a tea.BackgroundColorMsg drives Theme.Adapt). Before
+// detection it renders as DeepNight — the safe choice for the common dark
+// terminal, and the reason a light-terminal user never gets a wall of ivory.
+func Auto() *Theme {
+	t := DeepNight()
+	t.Name = NameAuto
+	t.adapt = func(isDark bool) *Theme {
+		if isDark {
+			return DeepNight()
+		}
+		return LightLuxury()
+	}
+	return t
+}
 
 // DeepNight is the signature dark theme: a deep midnight-navy surface with a
 // soft periwinkle accent and warm signal colors.
@@ -63,6 +81,7 @@ func PiholeClassic() *Theme {
 // builtinFactories maps each built-in name to its constructor. Constructors
 // return fresh pointers so callers can never mutate a shared instance.
 var builtinFactories = map[string]func() *Theme{
+	NameAuto:          Auto,
 	NameDeepNight:     DeepNight,
 	NameLightLuxury:   LightLuxury,
 	NamePiholeClassic: PiholeClassic,
@@ -78,7 +97,8 @@ func Builtin(name string) (*Theme, bool) {
 	return factory(), true
 }
 
-// Names returns the built-in theme names in a stable, display order.
+// Names returns the built-in theme names in a stable, display order. Auto leads
+// because it is the recommended default.
 func Names() []string {
-	return []string{NameDeepNight, NameLightLuxury, NamePiholeClassic}
+	return []string{NameAuto, NameDeepNight, NameLightLuxury, NamePiholeClassic}
 }
