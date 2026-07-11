@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -449,22 +448,19 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) renderHeader(th *theme.Theme) string {
-	title := th.AccentStyle().Bold(true).Render(m.Title())
-
-	chip := lipgloss.NewStyle().
-		Foreground(th.Surface).
-		Background(th.Accent).
-		Padding(0, 1).
-		Render(m.filter.label())
-
+	labels := make([]string, 0, filterCount)
+	for f := filterTab(0); f < filterCount; f++ {
+		labels = append(labels, f.label())
+	}
 	count := th.SubtleStyle().Render(fmt.Sprintf("%d shown · %d total", len(m.visible), len(m.domains)))
 
-	left := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", chip)
-	gap := m.w - lipgloss.Width(left) - lipgloss.Width(count)
-	if gap < 1 {
-		gap = 1
-	}
-	line := left + strings.Repeat(" ", gap) + count
+	line := components.SectionTabs{
+		Title:  m.Title(),
+		Labels: labels,
+		Active: int(m.filter),
+		Right:  count,
+		Width:  m.w,
+	}.Render(th)
 
 	second := ""
 	if m.err != nil {
