@@ -232,6 +232,12 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title implements core.Screen.
 func (m *Model) Title() string { return "Dashboard" }
 
+// Interactive reports false: the dashboard is a read-only overview with nothing
+// to select or edit, so the nav rail never descends into it (see
+// core.PanelInteractor). This keeps enter/tab/→ from dropping focus into a panel
+// where no key would do anything.
+func (m *Model) Interactive() bool { return false }
+
 // SetSize records the inner content area.
 func (m *Model) SetSize(w, h int) { m.w, m.h = w, h }
 
