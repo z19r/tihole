@@ -18,6 +18,7 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/tui/components"
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/adlists"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/blocking"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/clients"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/dashboard"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/domains"
@@ -118,6 +119,7 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 	}
 	// Replace placeholders with real screens as they're implemented.
 	screens[core.PageDashboard] = dashboard.New(ctx)
+	screens[core.PageBlocking] = blocking.New(ctx)
 	screens[core.PageQueryLog] = querylog.New(ctx)
 	screens[core.PageDomains] = domains.New(ctx)
 	screens[core.PageGroups] = groups.New(ctx)
@@ -282,6 +284,8 @@ func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return cmd, true
 	case key.Matches(msg, k.ToggleBlock):
 		return m.toggleBlocking(), true
+	case key.Matches(msg, k.CycleTheme):
+		return m.cycleTheme(), true
 	case key.Matches(msg, k.SwitchInst):
 		return m.switchInstance(m.nextInstance()), true
 	case key.Matches(msg, k.Splash):
@@ -461,6 +465,24 @@ func (m *AppModel) paletteCommands() []components.Command {
 	return cmds
 }
 
+// cycleTheme advances to the next built-in theme (wrapping) and applies it, so
+// theming is a one-key affordance instead of a palette dive. The status bar
+// shows the resulting theme name.
+func (m *AppModel) cycleTheme() tea.Cmd {
+	names := theme.Names()
+	if len(names) == 0 {
+		return nil
+	}
+	cur := 0
+	for i, n := range names {
+		if n == m.ctx.Theme.Name {
+			cur = i
+			break
+		}
+	}
+	return themeCmd(names[(cur+1)%len(names)])
+}
+
 // themeCmd resolves a theme by name and emits a SetThemeMsg (or an ErrorMsg).
 func themeCmd(name string) tea.Cmd {
 	return func() tea.Msg {
@@ -559,7 +581,6 @@ func (m *AppModel) View() tea.View {
 		Selected: activeIndex(m.active),
 		Height:   ch,
 		Focused:  m.focus == focusNav,
-		Block:    m.block,
 	}.Render(th)
 
 	var middle string

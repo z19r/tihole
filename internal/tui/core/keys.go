@@ -14,6 +14,7 @@ type KeyMap struct {
 	Palette     key.Binding
 	SwitchInst  key.Binding
 	ToggleBlock key.Binding
+	CycleTheme  key.Binding
 	Refresh     key.Binding
 	Splash      key.Binding
 	Help        key.Binding
@@ -57,7 +58,11 @@ func DefaultKeyMap() KeyMap {
 		),
 		ToggleBlock: key.NewBinding(
 			key.WithKeys("d"),
-			key.WithHelp("d", "blocking"),
+			key.WithHelp("d", "toggle blocking"),
+		),
+		CycleTheme: key.NewBinding(
+			key.WithKeys("ctrl+t"),
+			key.WithHelp("ctrl+t", "theme"),
 		),
 		Refresh: key.NewBinding(
 			key.WithKeys("r"),
@@ -80,14 +85,14 @@ func DefaultKeyMap() KeyMap {
 
 // ShortHelp implements help.KeyMap for the compact help bar.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Palette, k.SwitchInst, k.ToggleBlock, k.Help, k.Quit}
+	return []key.Binding{k.Palette, k.SwitchInst, k.ToggleBlock, k.CycleTheme, k.Help, k.Quit}
 }
 
 // FullHelp implements help.KeyMap for the expanded help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Enter, k.Back},
-		{k.Palette, k.SwitchInst, k.ToggleBlock, k.Refresh, k.Splash},
+		{k.Palette, k.SwitchInst, k.ToggleBlock, k.CycleTheme, k.Refresh, k.Splash},
 		{k.Help, k.Quit},
 	}
 }
