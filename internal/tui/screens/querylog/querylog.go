@@ -18,6 +18,7 @@ import (
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
 )
 
@@ -40,6 +41,24 @@ type queriesMsg struct {
 	err   error
 }
 
+// classifyMsg reports the result of a quick allow/block. verb is the past-tense
+// label for the success toast ("allowed"/"blocked").
+type classifyMsg struct {
+	domain string
+	verb   string
+	err    error
+}
+
+// noteExpireMsg clears the transient success toast.
+type noteExpireMsg struct{}
+
+// noteTTL is how long a quick-classify success toast stays on screen.
+const noteTTL = 4 * time.Second
+
+// classifyComment tags entries added from the query log so their origin is
+// obvious in the Domains screen.
+const classifyComment = "added from query log (tihole)"
+
 // Model is the query-log screen.
 type Model struct {
 	ctx *core.AppContext
@@ -52,6 +71,12 @@ type Model struct {
 
 	queries []pihole.Query // raw rows, parallel to the table
 	detail  *pihole.Query  // non-nil while the detail pane is open
+
+	// Quick-classify: allow/block the selected domain straight from the log.
+	confirm       components.ConfirmDialog
+	pendingType   pihole.DomainType // allow/deny awaiting confirmation
+	pendingDomain string            // the domain awaiting confirmation
+	note          string            // transient success toast (e.g. "allowed x")
 
 	filterDomain string
 	filtered     int
@@ -96,9 +121,11 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Query Log" }
 
-// CapturesInput reports whether the search field is focused, so the root
-// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
-func (m *Model) CapturesInput() bool { return m.searching }
+// CapturesInput reports whether the screen wants raw keys instead of the root's
+// global single-key shortcuts (see core.InputCapturer): while the search field
+// is focused, or while the quick-classify confirm is up so y/n/esc stay local
+// rather than firing d=toggle-block or the esc-to-rail climb.
+func (m *Model) CapturesInput() bool { return m.searching || m.confirm.Active }
 
 // Focus activates the screen: start the poller and fetch a fresh page.
 func (m *Model) Focus() tea.Cmd {
@@ -125,6 +152,8 @@ func (m *Model) Help() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "detail")),
+		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "allow")),
+		key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "block")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 	}
 }
@@ -202,6 +231,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncRows()
 		return m, nil
 
+	case classifyMsg:
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
+		}
+		m.err = nil
+		m.note = msg.verb + " " + msg.domain
+		return m, m.expireNote()
+
+	case noteExpireMsg:
+		m.note = ""
+		return m, nil
+
 	case spinner.TickMsg:
 		if !m.loading {
 			return m, nil
@@ -215,6 +257,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// expireNote schedules the success toast to clear after noteTTL.
+func (m *Model) expireNote() tea.Cmd {
+	return tea.Tick(noteTTL, func(time.Time) tea.Msg { return noteExpireMsg{} })
 }
 
 // handleKey routes keystrokes through the search box, detail pane, and table.
@@ -238,6 +285,18 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.search, cmd = m.search.Update(msg)
 		return m, cmd
+	}
+
+	if m.confirm.Active {
+		return m.handleConfirmKey(msg)
+	}
+
+	// Quick-classify works from both the table and the detail pane.
+	switch msg.String() {
+	case "a":
+		return m.promptClassify(pihole.DomainAllow)
+	case "b":
+		return m.promptClassify(pihole.DomainDeny)
 	}
 
 	if m.detail != nil {
@@ -265,6 +324,73 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
+}
+
+// selectedDomain resolves the domain the quick actions target: the detail
+// pane's domain when it's open, otherwise the highlighted table row.
+func (m *Model) selectedDomain() (string, bool) {
+	if m.detail != nil {
+		d := strings.TrimSpace(m.detail.Domain)
+		return d, d != ""
+	}
+	idx := m.table.Cursor()
+	if idx >= 0 && idx < len(m.queries) {
+		d := strings.TrimSpace(m.queries[idx].Domain)
+		return d, d != ""
+	}
+	return "", false
+}
+
+// promptClassify opens the confirm dialog for allowing/blocking the selected
+// domain. A blank selection is a no-op.
+func (m *Model) promptClassify(dt pihole.DomainType) (tea.Model, tea.Cmd) {
+	domain, ok := m.selectedDomain()
+	if !ok {
+		return m, nil
+	}
+	m.pendingType = dt
+	m.pendingDomain = domain
+
+	title, danger := "Allow domain?", false
+	if dt == pihole.DomainDeny {
+		title, danger = "Block domain?", true
+	}
+	m.confirm = m.confirm.Show(title, domain, danger)
+	return m, nil
+}
+
+// handleConfirmKey interprets y/n on the quick-classify confirmation.
+func (m *Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "enter":
+		dt, domain := m.pendingType, m.pendingDomain
+		m.confirm = m.confirm.Hide()
+		m.pendingDomain = ""
+		if domain == "" {
+			return m, nil
+		}
+		return m, m.classify(dt, domain)
+	case "n", "esc":
+		m.confirm = m.confirm.Hide()
+		m.pendingDomain = ""
+	}
+	return m, nil
+}
+
+// classify dispatches the allow/deny add as an exact-match domain. It runs on a
+// self-contained context so it never disturbs the live poll's cancel handle.
+func (m *Model) classify(dt pihole.DomainType, domain string) tea.Cmd {
+	api := m.ctx.API
+	verb := "allowed"
+	if dt == pihole.DomainDeny {
+		verb = "blocked"
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		defer cancel()
+		_, err := api.AddDomain(ctx, dt, pihole.KindExact, domain, classifyComment, nil)
+		return classifyMsg{domain: domain, verb: verb, err: err}
+	}
 }
 
 // syncRows rebuilds the table rows from the current queries and theme,
@@ -327,10 +453,13 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	line := left + strings.Repeat(" ", gap) + count
 
 	searchLine := ""
-	if m.searching {
+	switch {
+	case m.searching:
 		searchLine = m.search.View()
-	} else if m.err != nil {
+	case m.err != nil:
 		searchLine = m.errBanner(th)
+	case m.note != "":
+		searchLine = th.AllowStyle().Bold(true).Render(truncate("✓ "+m.note, maxInt(m.w-2, 8)))
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, line, searchLine)
 }
@@ -344,6 +473,10 @@ func (m *Model) renderBody(th *theme.Theme) string {
 	bodyH := m.h - headerHeight - footerHeight
 	if bodyH < 1 {
 		bodyH = 1
+	}
+
+	if m.confirm.Active {
+		return m.confirm.Render(th, m.w, bodyH)
 	}
 
 	if m.detail != nil {
@@ -404,7 +537,7 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 }
 
 func (m *Model) renderFooter(th *theme.Theme) string {
-	hint := "↑↓ navigate · / search · enter detail · esc close"
+	hint := "↑↓ navigate · / search · enter detail · a allow · b block · esc close"
 	return th.SubtleStyle().Render(truncate(hint, maxInt(m.w, 8)))
 }
 
