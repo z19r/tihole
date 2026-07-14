@@ -22,8 +22,18 @@ func newTestModel(t *testing.T) *AppModel {
 		Active: "home",
 		Theme:  "deep-night",
 		Instances: []config.Instance{
-			{Name: "home", URL: "http://192.168.1.2", Password: "pw", VerifyTLS: &verify},
-			{Name: "office", URL: "http://10.0.0.2", Password: "pw2", VerifyTLS: &verify},
+			{
+				Name:      "home",
+				URL:       "http://192.168.1.2",
+				Password:  "pw",
+				VerifyTLS: &verify,
+			},
+			{
+				Name:      "office",
+				URL:       "http://10.0.0.2",
+				Password:  "pw2",
+				VerifyTLS: &verify,
+			},
 		},
 	}
 	api := pihole.New("http://192.168.1.2", "pw")
@@ -97,7 +107,8 @@ func TestDashboardIsNotInteractiveSoRailKeepsFocus(t *testing.T) {
 	// Arrange: fresh model starts on the read-only dashboard, rail focused.
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act / Assert: enter, tab, and → all refuse to descend into the dashboard —
+	// Act / Assert: enter, tab, and → all refuse to descend into the
+	// dashboard —
 	// there is nothing actionable there, so focus stays on the rail.
 	for _, k := range []struct {
 		text string
@@ -106,7 +117,11 @@ func TestDashboardIsNotInteractiveSoRailKeepsFocus(t *testing.T) {
 		updated, _ := m.Update(keyPress(k.text, k.code))
 		m = updated.(*AppModel)
 		if m.focus != focusNav {
-			t.Fatalf("%q should leave focus on the rail for the dashboard, got %v", k.text, m.focus)
+			t.Fatalf(
+				"%q should leave focus on the rail for the dashboard, got %v",
+				k.text,
+				m.focus,
+			)
 		}
 	}
 }
@@ -132,7 +147,8 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act: "3" -> third page (Query Log), staying on the rail for fast browsing.
+	// Act: "3" -> third page (Query Log), staying on the rail for fast
+	// browsing.
 	updated, _ := m.Update(keyPress("3", '3'))
 	m = updated.(*AppModel)
 
@@ -187,8 +203,11 @@ func TestBlockingResultUpdatesState(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act: a fresh status arrives (drives what the global "d" toggle will flip).
-	updated, _ := m.Update(blockingResultMsg{status: pihole.BlockingStatus{Blocking: true}})
+	// Act: a fresh status arrives (drives what the global "d" toggle will
+	// flip).
+	updated, _ := m.Update(
+		blockingResultMsg{status: pihole.BlockingStatus{Blocking: true}},
+	)
 	m = updated.(*AppModel)
 
 	// Assert: the app tracks the known+enabled state for the quick-toggle.
@@ -319,7 +338,13 @@ func TestPaletteCommandsIncludeNavigationAndThemes(t *testing.T) {
 		}
 	}
 	if !hasNav || !hasBlock || !hasTheme || !hasInstance {
-		t.Fatalf("missing command kinds: nav=%v block=%v theme=%v instance=%v", hasNav, hasBlock, hasTheme, hasInstance)
+		t.Fatalf(
+			"missing command kinds: nav=%v block=%v theme=%v instance=%v",
+			hasNav,
+			hasBlock,
+			hasTheme,
+			hasInstance,
+		)
 	}
 }
 
@@ -336,7 +361,8 @@ func TestHelpKeyOpensAndRendersOverlay(t *testing.T) {
 		t.Fatal("expected showHelp true after '?'")
 	}
 	out := m.View().Content
-	if !strings.Contains(out, "Keyboard shortcuts") || !strings.Contains(out, "Global") {
+	if !strings.Contains(out, "Keyboard shortcuts") ||
+		!strings.Contains(out, "Global") {
 		t.Error("view should render the help overlay")
 	}
 }

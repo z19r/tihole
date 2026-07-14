@@ -20,7 +20,12 @@ func bootingModel(t *testing.T) *AppModel {
 		Active: "home",
 		Theme:  "deep-night",
 		Instances: []config.Instance{
-			{Name: "home", URL: "http://192.168.1.2", Password: "pw", VerifyTLS: &verify},
+			{
+				Name:      "home",
+				URL:       "http://192.168.1.2",
+				Password:  "pw",
+				VerifyTLS: &verify,
+			},
 		},
 	}
 	api := pihole.New("http://192.168.1.2", "pw")
@@ -39,7 +44,10 @@ func TestBootShowsSplashBeforeDashboard(t *testing.T) {
 		t.Errorf("expected boot splash, got:\n%s", out)
 	}
 	if strings.Contains(out, "Dashboard") {
-		t.Errorf("dashboard chrome should be hidden behind the splash:\n%s", out)
+		t.Errorf(
+			"dashboard chrome should be hidden behind the splash:\n%s",
+			out,
+		)
 	}
 }
 

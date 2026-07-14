@@ -61,7 +61,8 @@ func TestBlurClearsOverlaysAndCancels(t *testing.T) {
 	if m.focused {
 		t.Fatalf("Blur should clear focus")
 	}
-	if m.filtering || m.edit != nil || m.connForm != nil || m.themePicker != nil {
+	if m.filtering || m.edit != nil || m.connForm != nil ||
+		m.themePicker != nil {
 		t.Fatalf("Blur should tear down all overlays")
 	}
 	if m.pendingDel != -1 {
@@ -107,7 +108,10 @@ func TestViewConfigEmptyFilterShowsNoMatch(t *testing.T) {
 	m.filter = "zzz-nothing-matches"
 	m.applyFilter()
 	if out := m.View().Content; !strings.Contains(out, "no config keys match") {
-		t.Fatalf("filtered-to-empty should render the no-match message:\n%s", out)
+		t.Fatalf(
+			"filtered-to-empty should render the no-match message:\n%s",
+			out,
+		)
 	}
 }
 
@@ -156,7 +160,10 @@ func TestViewConnEmptyInstances(t *testing.T) {
 	m := bigModel(t)
 	_, _ = m.Update(keyPress("c"))
 	m.ctx.Config.Instances = nil
-	if out := m.View().Content; !strings.Contains(out, "no instances configured") {
+	if out := m.View().Content; !strings.Contains(
+		out,
+		"no instances configured",
+	) {
 		t.Fatalf("zero instances should render the empty message:\n%s", out)
 	}
 }
@@ -262,7 +269,10 @@ func TestLeafEditTextTypingEditsInput(t *testing.T) {
 	_, _ = m.Update(keyPress("enter"))
 	_, _ = m.Update(keyPress("z"))
 	if !strings.Contains(m.edit.input.Value(), "z") {
-		t.Fatalf("typing should edit the text input, got %q", m.edit.input.Value())
+		t.Fatalf(
+			"typing should edit the text input, got %q",
+			m.edit.input.Value(),
+		)
 	}
 }
 
@@ -298,7 +308,10 @@ func TestFilterTypingThenEscRestores(t *testing.T) {
 		t.Fatalf("esc should not change the applied filter, got %q", m.filter)
 	}
 	if m.filterInput.Value() != "dns" {
-		t.Fatalf("esc should reset the box to the applied filter, got %q", m.filterInput.Value())
+		t.Fatalf(
+			"esc should reset the box to the applied filter, got %q",
+			m.filterInput.Value(),
+		)
 	}
 }
 
@@ -367,10 +380,16 @@ func TestDeleteActiveInstanceReassignsActive(t *testing.T) {
 	_, _ = m.Update(keyPress("x"))
 	_, cmd := m.Update(keyPress("y"))
 	if len(m.ctx.Config.Instances) != 1 {
-		t.Fatalf("expected 1 instance after delete, got %d", len(m.ctx.Config.Instances))
+		t.Fatalf(
+			"expected 1 instance after delete, got %d",
+			len(m.ctx.Config.Instances),
+		)
 	}
 	if m.ctx.Config.Active != "secondary" {
-		t.Fatalf("deleting the active instance should reassign Active, got %q", m.ctx.Config.Active)
+		t.Fatalf(
+			"deleting the active instance should reassign Active, got %q",
+			m.ctx.Config.Active,
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("delete should emit a command")
@@ -390,7 +409,10 @@ func TestEditActiveInstanceRenamesActivePointer(t *testing.T) {
 		t.Fatalf("valid rename should not error: %v", m.err)
 	}
 	if m.ctx.Config.Active != "primary-renamed" {
-		t.Fatalf("renaming the active instance should follow the Active pointer, got %q", m.ctx.Config.Active)
+		t.Fatalf(
+			"renaming the active instance should follow the Active pointer, got %q",
+			m.ctx.Config.Active,
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("valid edit should emit a command")
@@ -430,7 +452,10 @@ func TestConnFormTypingRoutesToFocusedInput(t *testing.T) {
 	_, _ = m.Update(keyPress("a"))
 	_, _ = m.Update(keyPress("q")) // focus is name
 	if !strings.Contains(m.connForm.name.Value(), "q") {
-		t.Fatalf("typing should route to the focused input, got %q", m.connForm.name.Value())
+		t.Fatalf(
+			"typing should route to the focused input, got %q",
+			m.connForm.name.Value(),
+		)
 	}
 }
 
@@ -548,7 +573,10 @@ func TestNewLeafEditTextPath(t *testing.T) {
 		t.Fatalf("string leaf should not be a bool editor")
 	}
 	if e.input.Value() != "pi.hole" {
-		t.Fatalf("editor should pre-fill the current value, got %q", e.input.Value())
+		t.Fatalf(
+			"editor should pre-fill the current value, got %q",
+			e.input.Value(),
+		)
 	}
 }
 
@@ -634,7 +662,8 @@ func TestThemePickerRenderMarksCurrent(t *testing.T) {
 }
 
 func TestThemePickerBoundsAndSelected(t *testing.T) {
-	p := newThemePicker(theme.NameDeepNight)
+	// NameAuto is the first entry, so the cursor starts at the top.
+	p := newThemePicker(theme.NameAuto)
 	p.up() // already at top; no move
 	if p.cursor != 0 {
 		t.Fatalf("up at top should stay at 0")

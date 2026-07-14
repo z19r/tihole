@@ -31,15 +31,19 @@ func (m *Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.pendingCNAME = nil
 		if host != nil {
 			h := *host
-			return m, m.mutate(func(ctx context.Context, api *pihole.Client) error {
-				return api.DeleteHostRecord(ctx, h.IP, h.Domain)
-			})
+			return m, m.mutate(
+				func(ctx context.Context, api *pihole.Client) error {
+					return api.DeleteHostRecord(ctx, h.IP, h.Domain)
+				},
+			)
 		}
 		if cname != nil {
 			c := *cname
-			return m, m.mutate(func(ctx context.Context, api *pihole.Client) error {
-				return api.DeleteCNAMERecord(ctx, c.Domain, c.Target, c.TTL)
-			})
+			return m, m.mutate(
+				func(ctx context.Context, api *pihole.Client) error {
+					return api.DeleteCNAMERecord(ctx, c.Domain, c.Target, c.TTL)
+				},
+			)
 		}
 		return m, nil
 	case "n", "esc":
@@ -145,7 +149,11 @@ func (m *Model) requestDelete() (tea.Model, tea.Cmd) {
 		if idx >= 0 && idx < len(m.cnames) {
 			r := m.cnames[idx]
 			m.pendingCNAME = &r
-			m.confirm = m.confirm.Show("Delete CNAME record?", displayCNAME(r), true)
+			m.confirm = m.confirm.Show(
+				"Delete CNAME record?",
+				displayCNAME(r),
+				true,
+			)
 		}
 		return m, nil
 	}

@@ -27,8 +27,13 @@ func TestConcurrentRequestsLoginOnce(t *testing.T) {
 			authOK(w, sid)
 			return
 		}
-		if r.Header.Get("X-FTL-SID") == validSID.Load().(string) && validSID.Load().(string) != "" {
-			writeJSON(w, http.StatusOK, `{"blocking":"enabled","timer":null,"took":0.0}`)
+		if r.Header.Get("X-FTL-SID") == validSID.Load().(string) &&
+			validSID.Load().(string) != "" {
+			writeJSON(
+				w,
+				http.StatusOK,
+				`{"blocking":"enabled","timer":null,"took":0.0}`,
+			)
 			return
 		}
 		writeJSON(w, http.StatusUnauthorized,

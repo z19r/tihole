@@ -118,7 +118,10 @@ func TestPanelFocusDelegatesNonEscToScreen(t *testing.T) {
 
 	// Assert
 	if m.active != before {
-		t.Fatalf("panel focus must not honor digit page-jumps, moved to %v", m.active)
+		t.Fatalf(
+			"panel focus must not honor digit page-jumps, moved to %v",
+			m.active,
+		)
 	}
 	if m.focus != focusPanel {
 		t.Fatalf("expected to remain in panel focus, got %v", m.focus)
@@ -136,7 +139,11 @@ func TestSetThemeMsgSwapsTheme(t *testing.T) {
 	m = updated.(*AppModel)
 
 	if m.ctx.Theme.Name != theme.NameLightLuxury {
-		t.Fatalf("expected theme %q, got %q", theme.NameLightLuxury, m.ctx.Theme.Name)
+		t.Fatalf(
+			"expected theme %q, got %q",
+			theme.NameLightLuxury,
+			m.ctx.Theme.Name,
+		)
 	}
 }
 
@@ -178,7 +185,11 @@ func TestBlockingResultWithTimerSetsCountdown(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	secs := 42.0
 
-	updated, _ := m.Update(blockingResultMsg{status: pihole.BlockingStatus{Blocking: false, Timer: &secs}})
+	updated, _ := m.Update(
+		blockingResultMsg{
+			status: pihole.BlockingStatus{Blocking: false, Timer: &secs},
+		},
+	)
 	m = updated.(*AppModel)
 
 	if !m.block.Known {
@@ -196,9 +207,24 @@ func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
 	cfg2 := &config.Config{
 		Active: "home",
 		Instances: []config.Instance{
-			{Name: "home", URL: "http://192.168.1.2", Password: "pw", VerifyTLS: &verify},
-			{Name: "office", URL: "http://10.0.0.2", Password: "pw2", VerifyTLS: &verify},
-			{Name: "cabin", URL: "http://10.0.0.3", Password: "pw3", VerifyTLS: &verify},
+			{
+				Name:      "home",
+				URL:       "http://192.168.1.2",
+				Password:  "pw",
+				VerifyTLS: &verify,
+			},
+			{
+				Name:      "office",
+				URL:       "http://10.0.0.2",
+				Password:  "pw2",
+				VerifyTLS: &verify,
+			},
+			{
+				Name:      "cabin",
+				URL:       "http://10.0.0.3",
+				Password:  "pw3",
+				VerifyTLS: &verify,
+			},
 		},
 	}
 
@@ -209,7 +235,10 @@ func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
 		t.Fatal("config should be swapped in")
 	}
 	if m.ctx.InstanceName != "home" {
-		t.Fatalf("active instance should remain home, got %q", m.ctx.InstanceName)
+		t.Fatalf(
+			"active instance should remain home, got %q",
+			m.ctx.InstanceName,
+		)
 	}
 	if cmd != nil {
 		t.Fatal("surviving active instance should not trigger a switch cmd")
@@ -245,7 +274,12 @@ func TestApplyInstancesChangeDropsActiveInstance(t *testing.T) {
 	cfg2 := &config.Config{
 		Active: "office",
 		Instances: []config.Instance{
-			{Name: "office", URL: "http://127.0.0.1:1", Password: "pw2", VerifyTLS: &verify},
+			{
+				Name:      "office",
+				URL:       "http://127.0.0.1:1",
+				Password:  "pw2",
+				VerifyTLS: &verify,
+			},
 		},
 	}
 
@@ -255,7 +289,10 @@ func TestApplyInstancesChangeDropsActiveInstance(t *testing.T) {
 		t.Fatal("config should be swapped in even when active is dropped")
 	}
 	if m.ctx.InstanceName != "office" {
-		t.Fatalf("surviving instance should be re-activated, got %q", m.ctx.InstanceName)
+		t.Fatalf(
+			"surviving instance should be re-activated, got %q",
+			m.ctx.InstanceName,
+		)
 	}
 	if m.err != "" {
 		t.Fatalf("re-activation should not synchronously error, got %q", m.err)
@@ -265,7 +302,8 @@ func TestApplyInstancesChangeDropsActiveInstance(t *testing.T) {
 func TestSwitchInstanceProceedsWithoutBlocking(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	// Even pointed at a closed port, switching must not block on auth: it
-	// activates the instance and returns a fetch command; failures surface later.
+	// activates the instance and returns a fetch command; failures surface
+	// later.
 	m.cfg.Instances[1].URL = "http://127.0.0.1:1"
 
 	cmd := m.switchInstance("office")
@@ -277,14 +315,18 @@ func TestSwitchInstanceProceedsWithoutBlocking(t *testing.T) {
 		t.Fatalf("switch should not synchronously error, got %q", m.err)
 	}
 	if m.ctx.InstanceName != "office" {
-		t.Fatalf("instance name should advance to office, got %q", m.ctx.InstanceName)
+		t.Fatalf(
+			"instance name should advance to office, got %q",
+			m.ctx.InstanceName,
+		)
 	}
 }
 
 func TestSwitchInstanceStructuralErrorSetsBanner(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	// Give office an unset password_env: clientFor can't resolve it, which is a
-	// structural config error that must still surface as a banner (not a crash),
+	// structural config error that must still surface as a banner (not a
+	// crash),
 	// leaving the active instance unchanged.
 	m.cfg.Instances[1].Password = ""
 	m.cfg.Instances[1].PasswordEnv = "TIHOLE_TEST_UNSET_PW"
@@ -298,7 +340,10 @@ func TestSwitchInstanceStructuralErrorSetsBanner(t *testing.T) {
 		t.Fatal("structural config error should surface a banner")
 	}
 	if m.ctx.InstanceName != "home" {
-		t.Fatalf("active instance should remain home, got %q", m.ctx.InstanceName)
+		t.Fatalf(
+			"active instance should remain home, got %q",
+			m.ctx.InstanceName,
+		)
 	}
 }
 
@@ -344,7 +389,12 @@ func TestPaletteCommandRunsEmitExpectedMessages(t *testing.T) {
 		}
 	}
 	if navRun == nil || themeRun == nil || instRun == nil {
-		t.Fatalf("missing palette commands: nav=%v theme=%v inst=%v", navRun != nil, themeRun != nil, instRun != nil)
+		t.Fatalf(
+			"missing palette commands: nav=%v theme=%v inst=%v",
+			navRun != nil,
+			themeRun != nil,
+			instRun != nil,
+		)
 	}
 
 	if _, ok := navRun().(core.NavigateMsg); !ok {
@@ -406,7 +456,10 @@ func TestSwitchInstanceKeyIsHandled(t *testing.T) {
 		t.Fatal("switch-instance key should be handled")
 	}
 	if m.ctx.InstanceName != "office" {
-		t.Fatalf("switch should activate the next instance, got %q", m.ctx.InstanceName)
+		t.Fatalf(
+			"switch should activate the next instance, got %q",
+			m.ctx.InstanceName,
+		)
 	}
 	if m.err != "" {
 		t.Fatalf("switch should not synchronously error, got %q", m.err)

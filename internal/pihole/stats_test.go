@@ -12,8 +12,11 @@ func TestSummary(t *testing.T) {
 		if r.URL.Path != "/api/stats/summary" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"queries":{"total":100,"blocked":25,"percent_blocked":25.0,"unique_domains":40},"clients":{"active":5,"total":8},"gravity":{"domains_being_blocked":1000},"took":0.1}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"queries":{"total":100,"blocked":25,"percent_blocked":25.0,"unique_domains":40},"clients":{"active":5,"total":8},"gravity":{"domains_being_blocked":1000},"took":0.1}`,
+		)
 	})
 	client.setSID("S")
 
@@ -34,8 +37,11 @@ func TestSummary(t *testing.T) {
 
 func TestUpstreams(t *testing.T) {
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK,
-			`{"upstreams":[{"ip":"1.1.1.1","name":"cloudflare","port":53,"count":42}],"forwarded_queries":42,"total_queries":100,"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"upstreams":[{"ip":"1.1.1.1","name":"cloudflare","port":53,"count":42}],"forwarded_queries":42,"total_queries":100,"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -43,7 +49,8 @@ func TestUpstreams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Upstreams error: %v", err)
 	}
-	if len(got.Upstreams) != 1 || got.Upstreams[0].IP != "1.1.1.1" || got.Upstreams[0].Count != 42 {
+	if len(got.Upstreams) != 1 || got.Upstreams[0].IP != "1.1.1.1" ||
+		got.Upstreams[0].Count != 42 {
 		t.Errorf("upstreams = %+v", got.Upstreams)
 	}
 }
@@ -68,8 +75,11 @@ func TestTopDomainsBuildsBlockedAndCountParams(t *testing.T) {
 	var gotQuery string
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
-		writeJSON(w, http.StatusOK,
-			`{"domains":[{"domain":"ads.example","count":9}],"total_queries":100,"blocked_queries":9,"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"domains":[{"domain":"ads.example","count":9}],"total_queries":100,"blocked_queries":9,"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -92,8 +102,11 @@ func TestTopClientsOmitsCountWhenZero(t *testing.T) {
 	var gotQuery string
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
-		writeJSON(w, http.StatusOK,
-			`{"clients":[{"ip":"10.0.0.5","name":"laptop","count":50}],"total_queries":100,"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"clients":[{"ip":"10.0.0.5","name":"laptop","count":50}],"total_queries":100,"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 

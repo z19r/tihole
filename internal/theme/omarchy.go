@@ -52,13 +52,17 @@ func loadOmarchyFrom(dir string) (*Theme, error) {
 	bg := firstNonEmpty(primary["background"])
 	fg := firstNonEmpty(primary["foreground"])
 	if bg == "" || fg == "" {
-		return nil, fmt.Errorf("omarchy: %s missing [colors.primary] background/foreground", path)
+		return nil, fmt.Errorf(
+			"omarchy: %s missing [colors.primary] background/foreground",
+			path,
+		)
 	}
 
 	// light.mode marker beside the toml nudges derivation of ambiguous tokens.
 	isLight := fileExists(filepath.Join(dir, "light.mode"))
 
-	// Panel is a slight shift of Surface: lighter in dark mode, darker in light.
+	// Panel is a slight shift of Surface: lighter in dark mode, darker in
+	// light.
 	panelDelta := 0.06
 	borderDelta := 0.14
 	if isLight {
@@ -70,7 +74,12 @@ func loadOmarchyFrom(dir string) (*Theme, error) {
 	green := firstNonEmpty(normal["green"], bright["green"])
 	yellow := firstNonEmpty(normal["yellow"], bright["yellow"])
 	// A bright accent: prefer bright blue, then bright magenta, then normals.
-	accent := firstNonEmpty(bright["blue"], bright["magenta"], normal["blue"], normal["magenta"])
+	accent := firstNonEmpty(
+		bright["blue"],
+		bright["magenta"],
+		normal["blue"],
+		normal["magenta"],
+	)
 	// Border from a neutral ANSI: normal white or bright black, else derived.
 	border := firstNonEmpty(normal["white"], bright["black"])
 
@@ -246,5 +255,10 @@ func mix(a, b string, t float64) string {
 		return a
 	}
 	lerp := func(x, y int) int { return clamp8(x + int(float64(y-x)*t)) }
-	return fmt.Sprintf("#%02x%02x%02x", lerp(ar, br), lerp(ag, bg), lerp(ab, bb))
+	return fmt.Sprintf(
+		"#%02x%02x%02x",
+		lerp(ar, br),
+		lerp(ag, bg),
+		lerp(ab, bb),
+	)
 }

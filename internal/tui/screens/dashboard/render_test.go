@@ -40,7 +40,9 @@ func sampleHistory() pihole.History {
 }
 
 func sampleTypes() pihole.QueryTypes {
-	return pihole.QueryTypes{Types: map[string]int{"A": 10, "AAAA": 5, "PTR": 1}}
+	return pihole.QueryTypes{
+		Types: map[string]int{"A": 10, "AAAA": 5, "PTR": 1},
+	}
 }
 
 func sampleUpstreams() pihole.Upstreams {
@@ -52,13 +54,23 @@ func sampleUpstreams() pihole.Upstreams {
 
 func sampleTopDomains() pihole.TopDomains {
 	var td pihole.TopDomains
-	_ = json.Unmarshal([]byte(`{"domains":[{"domain":"example.com","count":42},{"domain":"news.example.org","count":17}]}`), &td)
+	_ = json.Unmarshal(
+		[]byte(
+			`{"domains":[{"domain":"example.com","count":42},{"domain":"news.example.org","count":17}]}`,
+		),
+		&td,
+	)
 	return td
 }
 
 func sampleTopClients() pihole.TopClients {
 	var tc pihole.TopClients
-	_ = json.Unmarshal([]byte(`{"clients":[{"ip":"10.0.0.1","name":"laptop","count":80},{"ip":"10.0.0.2","name":"","count":30}]}`), &tc)
+	_ = json.Unmarshal(
+		[]byte(
+			`{"clients":[{"ip":"10.0.0.1","name":"laptop","count":80},{"ip":"10.0.0.2","name":"","count":30}]}`,
+		),
+		&tc,
+	)
 	return tc
 }
 
@@ -198,7 +210,8 @@ func TestDomainItems_MapsDomainAndCount(t *testing.T) {
 	items := domainItems(sampleTopDomains())
 
 	// Assert
-	if len(items) != 2 || items[0].label != "example.com" || items[0].count != 42 {
+	if len(items) != 2 || items[0].label != "example.com" ||
+		items[0].count != 42 {
 		t.Fatalf("unexpected domain items: %+v", items)
 	}
 }

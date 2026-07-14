@@ -57,7 +57,12 @@ func TestRenderHealth_TemperatureShownWithSensor(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	m.system = sampleSystem()
-	m.sensors = pihole.Sensors{HasTemp: true, CPUTemp: 48.2, HotLimit: 60, Unit: "C"}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		CPUTemp:  48.2,
+		HotLimit: 60,
+		Unit:     "C",
+	}
 
 	// Act
 	out := m.renderHealth()
@@ -122,7 +127,11 @@ func TestApplySystem_SpringsGaugesAndRecordsErrorsIndependently(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	msg := systemMsg{
-		system:  pihole.SystemInfo{CPUPercent: 50, MemUsedPercent: 25, NProcs: 4},
+		system: pihole.SystemInfo{
+			CPUPercent:     50,
+			MemUsedPercent: 25,
+			NProcs:         4,
+		},
 		sensors: pihole.Sensors{HasTemp: true, CPUTemp: 30, HotLimit: 60},
 		msgErr:  errors.New("boom"),
 	}

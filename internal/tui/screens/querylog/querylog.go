@@ -1,4 +1,5 @@
-// Package querylog implements the PiHole v6 query-log screen: a cursor-paginated
+// Package querylog implements the PiHole v6 query-log screen: a
+// cursor-paginated
 // results table with /-triggered domain search, a row-detail pane, live ~2s
 // polling while focused, and an inline error banner. It satisfies core.Screen.
 package querylog
@@ -388,7 +389,14 @@ func (m *Model) classify(dt pihole.DomainType, domain string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		_, err := api.AddDomain(ctx, dt, pihole.KindExact, domain, classifyComment, nil)
+		_, err := api.AddDomain(
+			ctx,
+			dt,
+			pihole.KindExact,
+			domain,
+			classifyComment,
+			nil,
+		)
 		return classifyMsg{domain: domain, verb: verb, err: err}
 	}
 }
@@ -398,6 +406,7 @@ func (m *Model) classify(dt pihole.DomainType, domain string) tea.Cmd {
 func (m *Model) syncRows() {
 	widths := columnWidthsFrom(m.table.Columns())
 	idx := m.table.Cursor()
+	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.table.SetRows(styledRows(m.ctx.Theme, m.queries, widths))
 	m.table.SetCursor(idx)
 }
@@ -425,7 +434,7 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
@@ -443,7 +452,8 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 		Padding(0, 1).
 		Render(chipLabel)
 
-	count := th.SubtleStyle().Render(fmt.Sprintf("%d shown · %d total", m.filtered, m.total))
+	count := th.SubtleStyle().
+		Render(fmt.Sprintf("%d shown · %d total", m.filtered, m.total))
 
 	left := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", chip)
 	gap := m.w - lipgloss.Width(left) - lipgloss.Width(count)
@@ -459,9 +469,11 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	case m.err != nil:
 		searchLine = m.errBanner(th)
 	case m.note != "":
-		searchLine = th.AllowStyle().Bold(true).Render(truncate("✓ "+m.note, maxInt(m.w-2, 8)))
+		searchLine = th.AllowStyle().
+			Bold(true).
+			Render(truncate("✓ "+m.note, maxInt(m.w-2, 8)))
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, searchLine)
+	return strings.Join([]string{line, searchLine}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -484,13 +496,28 @@ func (m *Model) renderBody(th *theme.Theme) string {
 	}
 
 	if m.loading && len(m.queries) == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading queries…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading queries…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if len(m.queries) == 0 {
 		empty := th.SubtleStyle().Render("no queries match this filter")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	return m.table.View()
@@ -505,7 +532,10 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 		{"Client", clientDetail(q.Client)},
 		{"Type", q.Type},
 		{"Status", q.Status},
-		{"Reply", fmt.Sprintf("%s (%.1fms)", orDash(q.Reply.Type), q.Reply.Time*1000)},
+		{
+			"Reply",
+			fmt.Sprintf("%s (%.1fms)", orDash(q.Reply.Type), q.Reply.Time*1000),
+		},
 		{"Upstream", orDash(q.Upstream)},
 		{"DNSSEC", orDash(q.DNSSEC)},
 		{"Time", formatQueryTime(q.Time)},
@@ -531,9 +561,16 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(maxInt(minInt(m.w-2, 60), 20)).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		m.w,
+		bodyH,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		th.SurfaceWhitespace(),
+	)
 }
 
 func (m *Model) renderFooter(th *theme.Theme) string {

@@ -2,6 +2,7 @@ package localdns
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -27,7 +28,7 @@ func (m *Model) View() tea.View {
 	}
 	body := m.renderBody(th, bodyH)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
@@ -51,7 +52,7 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	if m.err != nil {
 		second = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, second)
+	return strings.Join([]string{line, second}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -68,13 +69,28 @@ func (m *Model) renderBody(th *theme.Theme, bodyH int) string {
 	}
 
 	if m.loading && m.activeCount() == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading records…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading records…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if m.activeCount() == 0 {
 		empty := th.SubtleStyle().Render("no " + m.kind.label() + " records")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if m.kind == kindCNAMEs {

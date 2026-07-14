@@ -29,7 +29,8 @@ const (
 // columnTitles is the header row, in render order.
 var columnTitles = []string{"Name", "Comment", "Enabled", "ID"}
 
-// computeColumnWidths returns the content width of each column for a given total
+// computeColumnWidths returns the content width of each column for a given
+// total
 // width. Widths never sum past the available (padding-adjusted) space, and each
 // flexible column is clamped to a sane minimum so nothing collapses.
 func computeColumnWidths(total int) []int {
@@ -80,7 +81,8 @@ func columnWidthsFrom(cols []table.Column) []int {
 	return w
 }
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it must cut. Rune-aware so multibyte names are not split mid-rune.
 func truncate(s string, width int) string {
 	if width <= 0 {
@@ -122,7 +124,11 @@ func groupToRow(g pihole.Group, widths []int) []string {
 
 // styledRows builds table rows from groups, colouring the Enabled cell green
 // (allowed) or subtle (disabled) using the current theme. Read at View() time.
-func styledRows(th *theme.Theme, groups []pihole.Group, widths []int) []table.Row {
+func styledRows(
+	th *theme.Theme,
+	groups []pihole.Group,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(groups))
 	for i, g := range groups {
 		cells := groupToRow(g, widths)

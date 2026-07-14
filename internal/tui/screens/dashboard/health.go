@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/progress"
 	"charm.land/lipgloss/v2"
@@ -28,7 +29,12 @@ func (m *Model) renderHealth() string {
 	}
 
 	cells := []string{
-		m.gaugeCell("CPU", fmt.Sprintf("%.1f%%", m.system.CPUPercent), &m.cpuBar, inner),
+		m.gaugeCell(
+			"CPU",
+			fmt.Sprintf("%.1f%%", m.system.CPUPercent),
+			&m.cpuBar,
+			inner,
+		),
 		m.gaugeCell("Memory", memLabel(m.system), &m.memBar, inner),
 		m.tempCell(inner),
 		m.loadCell(inner),
@@ -38,12 +44,16 @@ func (m *Model) renderHealth() string {
 }
 
 // gaugeCell renders a labeled animated gauge with a value line above it.
-func (m *Model) gaugeCell(label, value string, bar *progress.Model, inner int) string {
+func (m *Model) gaugeCell(
+	label, value string,
+	bar *progress.Model,
+	inner int,
+) string {
 	th := m.ctx.Theme
 	lbl := th.SubtleStyle().Render(truncate(label, inner))
 	val := th.TextStyle().Bold(true).Render(truncate(value, inner))
 	bar.SetWidth(inner)
-	body := lipgloss.JoinVertical(lipgloss.Left, lbl, val, bar.View())
+	body := strings.Join([]string{lbl, val, bar.View()}, "\n")
 	return panelBox(th).Width(inner).Render(body)
 }
 
@@ -52,10 +62,11 @@ func (m *Model) gaugeCell(label, value string, bar *progress.Model, inner int) s
 func (m *Model) tempCell(inner int) string {
 	th := m.ctx.Theme
 	if !m.sensors.HasTemp {
-		body := lipgloss.JoinVertical(lipgloss.Left,
+		body := strings.Join([]string{
 			th.SubtleStyle().Render("Temp"),
 			th.SubtleStyle().Render("n/a"),
-			th.SubtleStyle().Render("no sensor"))
+			th.SubtleStyle().Render("no sensor"),
+		}, "\n")
 		return panelBox(th).Width(inner).Render(body)
 	}
 	unit := m.sensors.Unit
@@ -70,10 +81,18 @@ func (m *Model) tempCell(inner int) string {
 func (m *Model) loadCell(inner int) string {
 	th := m.ctx.Theme
 	lbl := th.SubtleStyle().Render("Load · Up")
-	load := th.TextStyle().Bold(true).Render(truncate(fmt.Sprintf("%.1f%%", m.system.Load1Percent), inner))
+	load := th.TextStyle().
+		Bold(true).
+		Render(truncate(fmt.Sprintf("%.1f%%", m.system.Load1Percent), inner))
 	sub := th.SubtleStyle().Render(truncate(
-		fmt.Sprintf("%dp · %s", m.system.Procs, humanUptime(m.system.Uptime)), inner))
-	body := lipgloss.JoinVertical(lipgloss.Left, lbl, load, sub)
+		fmt.Sprintf(
+			"%dp · %s",
+			m.system.Procs,
+			humanUptime(m.system.Uptime),
+		),
+		inner,
+	))
+	body := strings.Join([]string{lbl, load, sub}, "\n")
 	return panelBox(th).Width(inner).Render(body)
 }
 
@@ -87,16 +106,21 @@ func (m *Model) diagnosticsCell(inner int) string {
 	case m.errMessages != "":
 		val := th.WarnStyle().Bold(true).Render("? unknown")
 		sub := th.SubtleStyle().Render(truncate(m.errMessages, inner))
-		return panelBox(th).Width(inner).Render(lipgloss.JoinVertical(lipgloss.Left, lbl, val, sub))
+		body := strings.Join([]string{lbl, val, sub}, "\n")
+		return panelBox(th).Width(inner).Render(body)
 
 	case len(m.messages) == 0:
 		val := th.AllowStyle().Bold(true).Render("✓ All clear")
 		sub := th.SubtleStyle().Render("0 messages")
-		return panelBox(th).Width(inner).Render(lipgloss.JoinVertical(lipgloss.Left, lbl, val, sub))
+		body := strings.Join([]string{lbl, val, sub}, "\n")
+		return panelBox(th).Width(inner).Render(body)
 
 	default:
-		val := th.WarnStyle().Bold(true).Render(truncate(pluralIssues(len(m.messages)), inner))
+		val := th.WarnStyle().
+			Bold(true).
+			Render(truncate(pluralIssues(len(m.messages)), inner))
 		sub := th.BlockStyle().Render(truncate(m.messages[0].Plain, inner))
-		return panelBox(th).Width(inner).Render(lipgloss.JoinVertical(lipgloss.Left, lbl, val, sub))
+		body := strings.Join([]string{lbl, val, sub}, "\n")
+		return panelBox(th).Width(inner).Render(body)
 	}
 }

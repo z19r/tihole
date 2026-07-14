@@ -18,7 +18,8 @@ func TestConfirmShowActivatesWithText(t *testing.T) {
 	if !d.Active {
 		t.Fatal("expected dialog to be active after Show")
 	}
-	if d.Title != "Delete domain?" || d.Message != "ads.example.com" || !d.Danger {
+	if d.Title != "Delete domain?" || d.Message != "ads.example.com" ||
+		!d.Danger {
 		t.Fatalf("unexpected dialog state: %+v", d)
 	}
 }

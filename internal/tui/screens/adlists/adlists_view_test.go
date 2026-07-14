@@ -30,7 +30,8 @@ func TestHelpReturnsBindings(t *testing.T) {
 }
 
 func TestBlurClearsFocusAndCancelsInflight(t *testing.T) {
-	// Arrange: Focus arms a fetch cancel; a running gravity arms its own cancel.
+	// Arrange: Focus arms a fetch cancel; a running gravity arms its own
+	// cancel.
 	m := newTestModel()
 	m.Focus()
 	_, gravityCancel := context.WithCancel(context.Background())
@@ -78,7 +79,15 @@ func TestViewLoadedRendersHeaderChipAndFooter(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	m.Focus()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://a", Type: "block", Enabled: true, Status: 1, Number: 5}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{
+			Address: "https://a",
+			Type:    "block",
+			Enabled: true,
+			Status:  1,
+			Number:  5,
+		},
+	}
 	m.loading = false
 	m.syncRows()
 
@@ -155,7 +164,15 @@ func TestViewAddFormRendered(t *testing.T) {
 func TestViewEditFormRendersEnabledRow(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.form = m.form.openEdit(pihole.List{Address: "https://a", Comment: "c", Type: "block", Enabled: true, Groups: []int{0}})
+	m.form = m.form.openEdit(
+		pihole.List{
+			Address: "https://a",
+			Comment: "c",
+			Type:    "block",
+			Enabled: true,
+			Groups:  []int{0},
+		},
+	)
 	m.form.setWidth(m.w)
 
 	// Act
@@ -172,7 +189,9 @@ func TestViewEditFormRendersEnabledRow(t *testing.T) {
 func TestViewConfirmDialogRendered(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://gone", Type: "block"}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://gone", Type: "block"},
+	}
 	m.syncRows()
 	_, _ = m.Update(keyPress("x"))
 
@@ -272,7 +291,10 @@ func TestFormLeftRightTogglesTypeField(t *testing.T) {
 
 	// Assert
 	if m.form.listType != pihole.ListAllow {
-		t.Fatalf("left/right on the type field should toggle it, got %q", m.form.listType)
+		t.Fatalf(
+			"left/right on the type field should toggle it, got %q",
+			m.form.listType,
+		)
 	}
 }
 
@@ -289,7 +311,10 @@ func TestFormTypingEditsFocusedInput(t *testing.T) {
 
 	// Assert
 	if !strings.Contains(m.form.address.Value(), "z") {
-		t.Fatalf("typing should edit the focused input, got %q", m.form.address.Value())
+		t.Fatalf(
+			"typing should edit the focused input, got %q",
+			m.form.address.Value(),
+		)
 	}
 }
 
@@ -306,7 +331,14 @@ func TestFormCurrentDefaultsToTypeWhenOutOfRange(t *testing.T) {
 func TestSubmitFormEditClosureReturnsMutatedMsg(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.form = m.form.openEdit(pihole.List{Address: "https://a", Type: "block", Groups: []int{0}, Enabled: true})
+	m.form = m.form.openEdit(
+		pihole.List{
+			Address: "https://a",
+			Type:    "block",
+			Groups:  []int{0},
+			Enabled: true,
+		},
+	)
 	cmd := m.submitForm()
 	if cmd == nil {
 		t.Fatalf("edit submit should return an UpdateList cmd")
@@ -351,7 +383,9 @@ func TestToggleEnabledNoSelectionReturnsNil(t *testing.T) {
 func TestToggleEnabledClosureReturnsMutatedMsg(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://a", Type: "block", Enabled: true}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://a", Type: "block", Enabled: true},
+	}
 	m.syncRows()
 	cmd := m.toggleEnabled()
 
@@ -376,7 +410,10 @@ func TestDeleteSelectedClosureReturnsMutatedMsg(t *testing.T) {
 
 	// Assert
 	if _, ok := msg.(mutatedMsg); !ok {
-		t.Fatalf("deleteSelected closure should yield a mutatedMsg, got %T", msg)
+		t.Fatalf(
+			"deleteSelected closure should yield a mutatedMsg, got %T",
+			msg,
+		)
 	}
 }
 
@@ -415,7 +452,10 @@ func TestRunGravityClosureAgainstCancelledContext(t *testing.T) {
 	// Assert
 	dm, ok := msg.(gravityDoneMsg)
 	if !ok {
-		t.Fatalf("runGravity closure should yield a gravityDoneMsg, got %T", msg)
+		t.Fatalf(
+			"runGravity closure should yield a gravityDoneMsg, got %T",
+			msg,
+		)
 	}
 	if dm.epoch != 7 {
 		t.Fatalf("runGravity should carry its epoch, got %d", dm.epoch)

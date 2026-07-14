@@ -162,10 +162,17 @@ func (p Palette) Render(th *theme.Theme, width, height int) string {
 
 	start, end := windowBounds(p.cursor, len(p.filtered), paletteMaxRows)
 	for i := start; i < end; i++ {
-		rows = append(rows, p.renderRow(th, p.filtered[i], i == p.cursor, boxWidth-2))
+		rows = append(
+			rows,
+			p.renderRow(th, p.filtered[i], i == p.cursor, boxWidth-2),
+		)
 	}
 
-	rows = append(rows, "", th.SubtleStyle().Render("↑↓ move · enter run · esc close"))
+	rows = append(
+		rows,
+		"",
+		th.SubtleStyle().Render("↑↓ move · enter run · esc close"),
+	)
 
 	box := lipgloss.NewStyle().
 		Background(th.Panel).
@@ -179,7 +186,12 @@ func (p Palette) Render(th *theme.Theme, width, height int) string {
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
 }
 
-func (p Palette) renderRow(th *theme.Theme, c Command, selected bool, width int) string {
+func (p Palette) renderRow(
+	th *theme.Theme,
+	c Command,
+	selected bool,
+	width int,
+) string {
 	title := c.Title
 	desc := c.Desc
 	if selected {
@@ -191,7 +203,10 @@ func (p Palette) renderRow(th *theme.Theme, c Command, selected bool, width int)
 			Padding(0, 1).
 			Render(title)
 		if desc != "" {
-			row += "\n" + lipgloss.NewStyle().Foreground(th.Subtle).Padding(0, 1).Render(desc)
+			row += "\n" + lipgloss.NewStyle().
+				Foreground(th.Subtle).
+				Padding(0, 1).
+				Render(desc)
 		}
 		return row
 	}

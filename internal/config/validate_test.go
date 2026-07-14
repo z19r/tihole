@@ -49,7 +49,10 @@ func TestValidateRejectsActiveNotMatchingInstance(t *testing.T) {
 func TestValidateRejectsDuplicateNames(t *testing.T) {
 	// Arrange
 	c := validConfig()
-	c.Instances = append(c.Instances, Instance{Name: "home", URL: "https://10.0.0.2"})
+	c.Instances = append(
+		c.Instances,
+		Instance{Name: "home", URL: "https://10.0.0.2"},
+	)
 
 	// Act
 	err := Validate(c)

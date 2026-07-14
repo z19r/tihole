@@ -13,7 +13,11 @@ func TestGroupsListDecodes(t *testing.T) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/groups" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK, `{"groups":[{"name":"kids","comment":"c","enabled":true,"id":2}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"groups":[{"name":"kids","comment":"c","enabled":true,"id":2}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -34,7 +38,11 @@ func TestAddGroupPostsBody(t *testing.T) {
 		}
 		data, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(data, &gotBody)
-		writeJSON(w, http.StatusCreated, `{"groups":[{"name":"kids","enabled":true,"id":5}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusCreated,
+			`{"groups":[{"name":"kids","enabled":true,"id":5}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -45,7 +53,8 @@ func TestAddGroupPostsBody(t *testing.T) {
 	if got.ID != 5 {
 		t.Errorf("got id = %d, want 5", got.ID)
 	}
-	if gotBody.Name != "kids" || gotBody.Comment != "family" || !gotBody.Enabled {
+	if gotBody.Name != "kids" || gotBody.Comment != "family" ||
+		!gotBody.Enabled {
 		t.Errorf("body = %+v, want name=kids comment=family enabled", gotBody)
 	}
 }
@@ -58,7 +67,11 @@ func TestUpdateGroupPutsToNamePath(t *testing.T) {
 		}
 		data, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(data, &gotBody)
-		writeJSON(w, http.StatusOK, `{"groups":[{"name":"kids","enabled":false,"id":5}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"groups":[{"name":"kids","enabled":false,"id":5}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -100,7 +113,10 @@ func TestBatchDeleteGroupsSendsItemBody(t *testing.T) {
 	})
 	client.setSID("S")
 
-	err := client.BatchDeleteGroups(context.Background(), []GroupRef{{Item: "kids"}})
+	err := client.BatchDeleteGroups(
+		context.Background(),
+		[]GroupRef{{Item: "kids"}},
+	)
 	if err != nil {
 		t.Fatalf("BatchDeleteGroups error: %v", err)
 	}

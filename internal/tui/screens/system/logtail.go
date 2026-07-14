@@ -48,7 +48,8 @@ func (m *Model) fetchLog() tea.Cmd {
 	}
 }
 
-// startLogTail begins the live tail: an immediate fetch plus the recurring tick.
+// startLogTail begins the live tail: an immediate fetch plus the recurring
+// tick.
 func (m *Model) startLogTail() tea.Cmd {
 	return tea.Batch(m.fetchLog(), m.tick(), m.spinner.Tick)
 }
@@ -71,7 +72,12 @@ func (m *Model) appendLog(page pihole.DNSLogPage) {
 
 // formatLogLine renders one resolver log line as "HH:MM:SS  message".
 func formatLogLine(line pihole.DNSLogLine) string {
-	return formatEpoch(line.Timestamp) + "  " + strings.TrimRight(line.Message, "\n")
+	return formatEpoch(
+		line.Timestamp,
+	) + "  " + strings.TrimRight(
+		line.Message,
+		"\n",
+	)
 }
 
 // handleLogKey lets the viewport handle scroll keys on the Log tab.
@@ -88,7 +94,14 @@ func (m *Model) renderLog(th *theme.Theme, bodyH int) string {
 	}
 	if len(m.logLines) == 0 {
 		empty := th.SubtleStyle().Render("waiting for log lines…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 	return m.viewport.View()
 }

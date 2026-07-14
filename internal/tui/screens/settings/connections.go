@@ -1,12 +1,16 @@
 package settings
 
 import (
+	"image/color"
+	"strings"
+
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/zackkitzmiller/tihole/internal/config"
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 )
 
 const (
@@ -16,7 +20,8 @@ const (
 // connColumnTitles is the header row for the instances table.
 var connColumnTitles = []string{"Name", "URL", "Auth", "TLS", "Active"}
 
-// authLabel describes an instance's credential source without ever revealing the
+// authLabel describes an instance's credential source without ever revealing
+// the
 // secret: "inline" when a password is stored, "env:NAME" when sourced from the
 // environment, and "—" when neither is configured.
 func authLabel(inst config.Instance) string {
@@ -79,7 +84,9 @@ func connRows(th *theme.Theme, c *config.Config, widths []int) []table.Row {
 		}
 		active := ""
 		if inst.Name == c.Active {
-			active = lipgloss.NewStyle().Foreground(th.Allow).Render(glyphActive)
+			active = lipgloss.NewStyle().
+				Foreground(th.Allow).
+				Render(glyphActive)
 		}
 		rows[i] = table.Row{
 			truncate(inst.Name, nameW),
@@ -157,7 +164,44 @@ func (p *themePicker) render(th *theme.Theme, w, h int, current string) string {
 	return p.renderPanel(th, w, h, current)
 }
 
-func (p *themePicker) renderPanel(th *theme.Theme, width, height int, current string) string {
+// themeBlurb is a one-line description of each built-in theme, shown for the
+// highlighted entry so the picker sells the look before you commit to it.
+func themeBlurb(name string) string {
+	switch name {
+	case theme.NameAuto:
+		return "Follows your terminal — Gloss on dark, Light Luxury on light."
+	case theme.NameGloss:
+		return "Signature hot-pink-to-cyan lipgloss palette on deep void."
+	case theme.NameDeepNight:
+		return "Calm midnight navy with a soft periwinkle accent."
+	case theme.NameLightLuxury:
+		return "Warm ivory paper with a disciplined brass accent."
+	case theme.NamePiholeClassic:
+		return "The familiar Pi-hole red on warm near-black."
+	default:
+		return ""
+	}
+}
+
+// themeSwatch renders four filled cells in a theme's signature tokens so the
+// picker previews the palette without applying it.
+func themeSwatch(name string) string {
+	t, ok := theme.Builtin(name)
+	if !ok {
+		return ""
+	}
+	const block = "██"
+	cell := func(c color.Color) string {
+		return lipgloss.NewStyle().Foreground(c).Render(block)
+	}
+	return cell(t.Accent) + cell(t.Allow) + cell(t.Warn) + cell(t.Block)
+}
+
+func (p *themePicker) renderPanel(
+	th *theme.Theme,
+	width, height int,
+	current string,
+) string {
 	heading := th.AccentStyle().Bold(true).Render("Select theme")
 	lines := []string{heading, ""}
 	for i, n := range p.names {
@@ -165,24 +209,37 @@ func (p *themePicker) renderPanel(th *theme.Theme, width, height int, current st
 		style := th.TextStyle()
 		if i == p.cursor {
 			marker = "▸ "
-			style = th.AccentStyle()
+			style = th.AccentStyle().Bold(true)
 		}
-		row := marker + style.Render(n)
+		row := marker + themeSwatch(n) + " " + style.Render(n)
 		if n == current {
 			row += " " + th.SubtleStyle().Render("(current)")
 		}
 		lines = append(lines, row)
 	}
-	lines = append(lines, "", th.SubtleStyle().Render("↑↓ move · enter select · esc cancel"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().Render(themeBlurb(p.selected())),
+		"",
+		th.SubtleStyle().Render("↑↓ move · enter select · esc cancel"),
+	)
 
-	panelW := clampInt(width-4, 24, 48)
+	panelW := clampInt(width-4, 32, 60)
 	panel := th.PanelStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
-	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Top, panel)
+		Render(strings.Join(lines, "\n"))
+	return lipgloss.Place(
+		width,
+		height,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		surfaceWhitespace(th),
+	)
 }
 
 // --- Model methods for Connections mode ---
@@ -193,6 +250,7 @@ func (m *Model) rebuildConnRows() {
 	m.connTable.SetColumns(connColumns(widths))
 	m.connTable.SetWidth(m.w)
 	idx := m.connTable.Cursor()
+	m.connTable.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.connTable.SetRows(connRows(m.ctx.Theme, m.ctx.Config, widths))
 	if n := m.instanceCount(); idx >= n {
 		idx = n - 1
@@ -413,7 +471,8 @@ func (m *Model) selectTheme() (tea.Model, tea.Cmd) {
 	return m, emitSetTheme(resolved)
 }
 
-// renderConnBody renders the Connections mode body: the form, confirm dialog, or
+// renderConnBody renders the Connections mode body: the form, confirm dialog,
+// or
 // theme picker overlay when active, otherwise the instances table plus a theme
 // summary line.
 func (m *Model) renderConnBody(th *theme.Theme, bodyH int) string {
@@ -433,12 +492,19 @@ func (m *Model) renderConnBody(th *theme.Theme, bodyH int) string {
 
 	if m.instanceCount() == 0 {
 		empty := th.SubtleStyle().Render("no instances configured")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			surfaceWhitespace(th),
+		)
 	}
 
 	table := m.connTable.View()
 	summary := m.renderThemeSummary(th)
-	return lipgloss.JoinVertical(lipgloss.Left, table, "", summary)
+	return strings.Join([]string{table, "", summary}, "\n")
 }
 
 // renderThemeSummary shows the available themes with the active one marked.

@@ -14,7 +14,9 @@ import (
 func newTestModel() *Model {
 	th := theme.DeepNight()
 	api := pihole.New("http://x", "pw")
-	return New(&core.AppContext{API: api, Theme: th, Keys: core.DefaultKeyMap()})
+	return New(
+		&core.AppContext{API: api, Theme: th, Keys: core.DefaultKeyMap()},
+	)
 }
 
 // key builds a KeyPressMsg for a single-character or named keystroke. Named
@@ -253,7 +255,9 @@ func TestUpdateIgnoresStaleClientsResult(t *testing.T) {
 	m.loading = true
 
 	// Act
-	_, _ = m.Update(clientsMsg{epoch: 8, clients: []pihole.ClientEntry{{Client: "x"}}})
+	_, _ = m.Update(
+		clientsMsg{epoch: 8, clients: []pihole.ClientEntry{{Client: "x"}}},
+	)
 
 	// Assert
 	if len(m.clients) != 0 {
@@ -338,7 +342,10 @@ func TestKeyXOpensDeleteConfirm(t *testing.T) {
 		t.Fatalf("`x` should open the confirm dialog")
 	}
 	if m.pendingDelete != "10.0.0.7" {
-		t.Fatalf("pending delete should hold the selected client: %q", m.pendingDelete)
+		t.Fatalf(
+			"pending delete should hold the selected client: %q",
+			m.pendingDelete,
+		)
 	}
 }
 
@@ -408,9 +415,16 @@ func TestSuggestionsMsgFillsPane(t *testing.T) {
 	m.suggest.loading = true
 
 	// Act
-	_, _ = m.Update(suggestionsMsg{epoch: 3, suggestions: []pihole.ClientSuggestion{
-		{Addresses: "10.0.0.5", Name: "phone", MACVendor: "Apple", LastQuery: 1_700_000_000},
-	}})
+	_, _ = m.Update(
+		suggestionsMsg{epoch: 3, suggestions: []pihole.ClientSuggestion{
+			{
+				Addresses: "10.0.0.5",
+				Name:      "phone",
+				MACVendor: "Apple",
+				LastQuery: 1_700_000_000,
+			},
+		}},
+	)
 
 	// Assert
 	if m.suggest.loading {
@@ -425,7 +439,9 @@ func TestSuggestionEnterPrefillsAddForm(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	m.suggest.active = true
-	m.suggest.suggestions = []pihole.ClientSuggestion{{Addresses: "10.0.0.5, 10.0.0.6"}}
+	m.suggest.suggestions = []pihole.ClientSuggestion{
+		{Addresses: "10.0.0.5, 10.0.0.6"},
+	}
 	m.suggest.cursor = 0
 
 	// Act
@@ -439,14 +455,21 @@ func TestSuggestionEnterPrefillsAddForm(t *testing.T) {
 		t.Fatalf("selecting a suggestion should open the add form")
 	}
 	if m.form.client.Value() != "10.0.0.5" {
-		t.Fatalf("add form should be pre-filled with the address, got %q", m.form.client.Value())
+		t.Fatalf(
+			"add form should be pre-filled with the address, got %q",
+			m.form.client.Value(),
+		)
 	}
 }
 
 func TestEditFormPreFillsAndFixesClient(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	c := pihole.ClientEntry{Client: "10.0.0.8", Comment: "nas", Groups: []int{0, 1}}
+	c := pihole.ClientEntry{
+		Client:  "10.0.0.8",
+		Comment: "nas",
+		Groups:  []int{0, 1},
+	}
 
 	// Act
 	m.openEditForm(c)
@@ -459,7 +482,10 @@ func TestEditFormPreFillsAndFixesClient(t *testing.T) {
 		t.Fatalf("edit form should carry the client id")
 	}
 	if m.form.groups.Value() != "0, 1" {
-		t.Fatalf("edit form should pre-fill groups, got %q", m.form.groups.Value())
+		t.Fatalf(
+			"edit form should pre-fill groups, got %q",
+			m.form.groups.Value(),
+		)
 	}
 	// In edit mode the client field is not focusable.
 	for _, f := range m.form.fields() {

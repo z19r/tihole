@@ -36,7 +36,8 @@ type groupsMsg struct {
 	err    error
 }
 
-// mutationMsg carries the result of an add/update/delete, tagged with its epoch.
+// mutationMsg carries the result of an add/update/delete, tagged with its
+// epoch.
 // On success the screen refetches the list.
 type mutationMsg struct {
 	epoch int
@@ -91,7 +92,8 @@ func (m *Model) Init() tea.Cmd { return nil }
 func (m *Model) Title() string { return "Groups" }
 
 // CapturesInput reports whether the add/edit form is focused, so the root
-// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+// delivers raw keys instead of firing global shortcuts (see
+// core.InputCapturer).
 func (m *Model) CapturesInput() bool { return m.form.active }
 
 // Focus activates the screen: fetch a fresh list. No continuous poll.
@@ -144,7 +146,8 @@ func (m *Model) SetSize(w, h int) {
 }
 
 // fetch issues a fresh list request. The context+cancel are stored on the model
-// (Update runs on the main loop, so this mutation is safe); the closure performs
+// (Update runs on the main loop, so this mutation is safe); the closure
+// performs
 // the only I/O, off the Update path.
 func (m *Model) fetch() tea.Cmd {
 	ctx := m.newContext()
@@ -156,7 +159,8 @@ func (m *Model) fetch() tea.Cmd {
 	}
 }
 
-// newContext cancels any prior request and returns a fresh timeout context whose
+// newContext cancels any prior request and returns a fresh timeout context
+// whose
 // cancel is stored on the model.
 func (m *Model) newContext() context.Context {
 	if m.cancel != nil {
@@ -342,11 +346,13 @@ func (m *Model) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// syncRows rebuilds the table rows from the current groups and theme, preserving
+// syncRows rebuilds the table rows from the current groups and theme,
+// preserving
 // the cursor position.
 func (m *Model) syncRows() {
 	widths := columnWidthsFrom(m.table.Columns())
 	idx := m.table.Cursor()
+	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.table.SetRows(styledRows(m.ctx.Theme, m.groups, widths))
 	m.table.SetCursor(idx)
 }
@@ -364,7 +370,7 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 
 	if m.confirm.Active {
@@ -382,7 +388,8 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 			enabled++
 		}
 	}
-	count := th.SubtleStyle().Render(fmt.Sprintf("%d groups · %d enabled", len(m.groups), enabled))
+	count := th.SubtleStyle().
+		Render(fmt.Sprintf("%d groups · %d enabled", len(m.groups), enabled))
 
 	gap := m.w - lipgloss.Width(title) - lipgloss.Width(count)
 	if gap < 1 {
@@ -394,7 +401,7 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	if m.err != nil {
 		sub = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, sub)
+	return strings.Join([]string{line, sub}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -409,17 +416,40 @@ func (m *Model) renderBody(th *theme.Theme) string {
 	}
 
 	if m.form.active {
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Top, m.form.view(th, m.w))
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Top,
+			m.form.view(th, m.w),
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if m.loading && len(m.groups) == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading groups…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading groups…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if len(m.groups) == 0 {
-		empty := th.SubtleStyle().Render("no groups configured · press a to add")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		empty := th.SubtleStyle().
+			Render("no groups configured · press a to add")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	return m.table.View()

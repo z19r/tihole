@@ -46,14 +46,25 @@ func TestVerticalGradientAlignsRaggedRows(t *testing.T) {
 	art := "████\n██"
 
 	// Act
-	out := ansi.Strip(verticalGradient(art, theme.DeepNight().Accent, theme.DeepNight().Allow))
+	out := ansi.Strip(
+		verticalGradient(
+			art,
+			theme.DeepNight().Accent,
+			theme.DeepNight().Allow,
+		),
+	)
 
-	// Assert: the shorter row is right-padded to match, so both are equal width.
+	// Assert: the shorter row is right-padded to match, so both are equal
+	// width.
 	lines := strings.Split(out, "\n")
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 lines, got %d", len(lines))
 	}
 	if len([]rune(lines[0])) != len([]rune(lines[1])) {
-		t.Errorf("rows not aligned: %d vs %d", len([]rune(lines[0])), len([]rune(lines[1])))
+		t.Errorf(
+			"rows not aligned: %d vs %d",
+			len([]rune(lines[0])),
+			len([]rune(lines[1])),
+		)
 	}
 }

@@ -44,7 +44,8 @@ type Summary struct {
 	Raw  json.RawMessage `json:"-"`
 }
 
-// UpstreamServer is a single upstream entry in an /api/stats/upstreams response.
+// UpstreamServer is a single upstream entry in an /api/stats/upstreams
+// response.
 type UpstreamServer struct {
 	IP         string `json:"ip"`
 	Name       string `json:"name"`

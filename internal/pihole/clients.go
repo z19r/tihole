@@ -68,8 +68,16 @@ func (c *Client) Clients(ctx context.Context) ([]ClientEntry, error) {
 }
 
 // AddClient creates a client via POST /api/clients.
-func (c *Client) AddClient(ctx context.Context, client, comment string, groups []int) (ClientEntry, error) {
-	body := clientCreateRequest{Client: client, Comment: comment, Groups: groups}
+func (c *Client) AddClient(
+	ctx context.Context,
+	client, comment string,
+	groups []int,
+) (ClientEntry, error) {
+	body := clientCreateRequest{
+		Client:  client,
+		Comment: comment,
+		Groups:  groups,
+	}
 	var out clientsEnvelope
 	if err := c.do(ctx, http.MethodPost, "/clients", body, &out); err != nil {
 		return ClientEntry{}, err
@@ -81,7 +89,11 @@ func (c *Client) AddClient(ctx context.Context, client, comment string, groups [
 }
 
 // UpdateClient updates a client via PUT /api/clients/{client}.
-func (c *Client) UpdateClient(ctx context.Context, client, comment string, groups []int) (ClientEntry, error) {
+func (c *Client) UpdateClient(
+	ctx context.Context,
+	client, comment string,
+	groups []int,
+) (ClientEntry, error) {
 	body := clientUpdateRequest{Comment: comment, Groups: groups}
 	path := "/clients/" + url.PathEscape(client)
 	var out clientsEnvelope
@@ -96,12 +108,20 @@ func (c *Client) UpdateClient(ctx context.Context, client, comment string, group
 
 // DeleteClient removes a client via DELETE /api/clients/{client}.
 func (c *Client) DeleteClient(ctx context.Context, client string) error {
-	return c.do(ctx, http.MethodDelete, "/clients/"+url.PathEscape(client), nil, nil)
+	return c.do(
+		ctx,
+		http.MethodDelete,
+		"/clients/"+url.PathEscape(client),
+		nil,
+		nil,
+	)
 }
 
 // ClientSuggestions fetches GET /api/clients/_suggestions — clients seen in
 // queries that are not yet configured.
-func (c *Client) ClientSuggestions(ctx context.Context) ([]ClientSuggestion, error) {
+func (c *Client) ClientSuggestions(
+	ctx context.Context,
+) ([]ClientSuggestion, error) {
 	var out suggestionsEnvelope
 	if err := c.do(ctx, http.MethodGet, "/clients/_suggestions", nil, &out); err != nil {
 		return nil, err
@@ -109,7 +129,11 @@ func (c *Client) ClientSuggestions(ctx context.Context) ([]ClientSuggestion, err
 	return out.Clients, nil
 }
 
-// BatchDeleteClients removes multiple clients via POST /api/clients:batchDelete.
-func (c *Client) BatchDeleteClients(ctx context.Context, items []ClientRef) error {
+// BatchDeleteClients removes multiple clients via POST
+// /api/clients:batchDelete.
+func (c *Client) BatchDeleteClients(
+	ctx context.Context,
+	items []ClientRef,
+) error {
 	return c.do(ctx, http.MethodPost, "/clients:batchDelete", items, nil)
 }

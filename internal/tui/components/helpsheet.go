@@ -62,7 +62,11 @@ func (h HelpSheet) Render(th *theme.Theme, width, height int) string {
 }
 
 // renderSection renders a section heading followed by aligned key/desc rows.
-func (h HelpSheet) renderSection(th *theme.Theme, sec HelpSection, width int) string {
+func (h HelpSheet) renderSection(
+	th *theme.Theme,
+	sec HelpSection,
+	width int,
+) string {
 	heading := lipgloss.NewStyle().
 		Foreground(th.Text).
 		Bold(true).

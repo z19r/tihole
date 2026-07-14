@@ -12,7 +12,11 @@ func TestInfoSectionDecode(t *testing.T) {
 		if r.URL.Path != "/api/info/ftl" {
 			t.Errorf("path = %q, want /api/info/ftl", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK, `{"ftl":{"privacy_level":0,"pid":1234},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"ftl":{"privacy_level":0,"pid":1234},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -52,8 +56,11 @@ func TestMessagesDecode(t *testing.T) {
 		if r.URL.Path != "/api/info/messages" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"messages":[{"id":7,"timestamp":1700000000.5,"type":"REGEX","plain":"bad regex","html":"<b>bad</b>","url":"http://x"}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"messages":[{"id":7,"timestamp":1700000000.5,"type":"REGEX","plain":"bad regex","html":"<b>bad</b>","url":"http://x"}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -67,7 +74,14 @@ func TestMessagesDecode(t *testing.T) {
 	if len(msgs) != 1 {
 		t.Fatalf("len = %d, want 1", len(msgs))
 	}
-	want := DiagnosisMessage{ID: 7, Timestamp: 1700000000.5, Type: "REGEX", Plain: "bad regex", HTML: "<b>bad</b>", URL: "http://x"}
+	want := DiagnosisMessage{
+		ID:        7,
+		Timestamp: 1700000000.5,
+		Type:      "REGEX",
+		Plain:     "bad regex",
+		HTML:      "<b>bad</b>",
+		URL:       "http://x",
+	}
 	if msgs[0] != want {
 		t.Errorf("msg = %#v, want %#v", msgs[0], want)
 	}
@@ -123,8 +137,11 @@ func TestDNSLogWithNextID(t *testing.T) {
 		if got := r.URL.Query().Get("nextID"); got != "42" {
 			t.Errorf("nextID = %q, want 42", got)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"log":[{"timestamp":1700000000.0,"message":"query A","prio":"info"}],"nextID":43}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"log":[{"timestamp":1700000000.0,"message":"query A","prio":"info"}],"nextID":43}`,
+		)
 	})
 	client.setSID("S")
 
@@ -138,7 +155,8 @@ func TestDNSLogWithNextID(t *testing.T) {
 	if page.NextID != 43 {
 		t.Errorf("nextID = %d, want 43", page.NextID)
 	}
-	if len(page.Log) != 1 || page.Log[0].Message != "query A" || page.Log[0].PRIO != "info" {
+	if len(page.Log) != 1 || page.Log[0].Message != "query A" ||
+		page.Log[0].PRIO != "info" {
 		t.Errorf("log = %#v", page.Log)
 	}
 }

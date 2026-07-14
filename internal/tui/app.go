@@ -85,7 +85,12 @@ type AppModel struct {
 
 // New builds the root model from a validated config and an authenticated
 // client for the active instance.
-func New(cfg *config.Config, cfgPath string, api *pihole.Client, th *theme.Theme) *AppModel {
+func New(
+	cfg *config.Config,
+	cfgPath string,
+	api *pihole.Client,
+	th *theme.Theme,
+) *AppModel {
 	ctx := &core.AppContext{
 		API:          api,
 		Theme:        th,
@@ -148,7 +153,10 @@ func (m *AppModel) Init() tea.Cmd {
 func (m *AppModel) splashCmd() tea.Cmd {
 	return tea.Batch(
 		m.splash.Tick,
-		tea.Tick(splashDuration, func(time.Time) tea.Msg { return splashDoneMsg{} }),
+		tea.Tick(
+			splashDuration,
+			func(time.Time) tea.Msg { return splashDoneMsg{} },
+		),
 	)
 }
 
@@ -199,7 +207,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// While the active screen is capturing text input (an editable field is
-		// focused), deliver keys straight to it so typed letters aren't stolen by
+		// focused), deliver keys straight to it so typed letters aren't stolen
+		// by
 		// global single-key shortcuts. ctrl+c still always quits.
 		if m.capturingInput() && msg.String() != "ctrl+c" {
 			break
@@ -255,7 +264,8 @@ func (m *AppModel) capturingInput() bool {
 	return ok && ic.CapturesInput()
 }
 
-// activeInteractive reports whether the active screen has actionable content the
+// activeInteractive reports whether the active screen has actionable content
+// the
 // rail should be able to descend into (see core.PanelInteractor). Screens that
 // don't implement the interface default to interactive.
 func (m *AppModel) activeInteractive() bool {
@@ -270,7 +280,8 @@ func (m *AppModel) activeInteractive() bool {
 func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	k := m.ctx.Keys
 	// Truly global: alive in both zones. Kept deliberately small — quit, help,
-	// palette, and the two app-level actions (blocking, instance) that no screen
+	// palette, and the two app-level actions (blocking, instance) that no
+	// screen
 	// binds. Everything else is zone-scoped so screen keys are never ambushed.
 	switch {
 	case key.Matches(msg, k.Quit):
@@ -309,10 +320,13 @@ func (m *AppModel) handleNavKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.switchPage(m.relPage(-1))
 	case key.Matches(msg, k.Down):
 		return m.switchPage(m.relPage(1))
-	case key.Matches(msg, k.Enter), key.Matches(msg, k.Right), msg.String() == "tab":
-		// Only descend into screens that have something to do. A read-only screen
-		// (e.g. the dashboard) opts out via core.PanelInteractor, so focus stays on
-		// the rail instead of trapping the user in a panel where no key responds.
+	case key.Matches(msg, k.Enter),
+		key.Matches(msg, k.Right),
+		msg.String() == "tab":
+		// Only descend into screens that have something to do. A read-only
+		// screen (e.g. the dashboard) opts out via core.PanelInteractor, so
+		// focus stays on the rail instead of trapping the user in a panel where
+		// no key responds.
 		if m.activeInteractive() {
 			m.focus = focusPanel
 		}
@@ -320,7 +334,8 @@ func (m *AppModel) handleNavKey(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Refresh):
 		return m.screens[m.active].Focus()
 	}
-	// Digit keys 1..9 quick-jump to a page, staying on the rail for fast browsing.
+	// Digit keys 1..9 quick-jump to a page, staying on the rail for fast
+	// browsing.
 	if d := msg.String(); len(d) == 1 && d[0] >= '1' && d[0] <= '9' {
 		idx := int(d[0] - '1')
 		order := core.PageOrder()
@@ -433,12 +448,33 @@ func (m *AppModel) paletteCommands() []components.Command {
 		})
 	}
 
-	cmds = append(cmds,
-		components.Command{Title: "Toggle blocking", Desc: "enable / disable", Run: m.toggleBlocking()},
-		components.Command{Title: "Disable blocking 30s", Desc: "temporary", Run: m.setBlockingFor(30)},
-		components.Command{Title: "Disable blocking 5m", Desc: "temporary", Run: m.setBlockingFor(300)},
-		components.Command{Title: "Disable blocking 30m", Desc: "temporary", Run: m.setBlockingFor(1800)},
-		components.Command{Title: "Disable blocking (until enabled)", Desc: "indefinite", Run: m.setBlockingFor(0)},
+	cmds = append(
+		cmds,
+		components.Command{
+			Title: "Toggle blocking",
+			Desc:  "enable / disable",
+			Run:   m.toggleBlocking(),
+		},
+		components.Command{
+			Title: "Disable blocking 30s",
+			Desc:  "temporary",
+			Run:   m.setBlockingFor(30),
+		},
+		components.Command{
+			Title: "Disable blocking 5m",
+			Desc:  "temporary",
+			Run:   m.setBlockingFor(300),
+		},
+		components.Command{
+			Title: "Disable blocking 30m",
+			Desc:  "temporary",
+			Run:   m.setBlockingFor(1800),
+		},
+		components.Command{
+			Title: "Disable blocking (until enabled)",
+			Desc:  "indefinite",
+			Run:   m.setBlockingFor(0),
+		},
 	)
 
 	for _, inst := range m.cfg.Instances {
@@ -494,7 +530,8 @@ func themeCmd(name string) tea.Cmd {
 	}
 }
 
-// nextInstance returns the name of the instance after the active one (wrapping).
+// nextInstance returns the name of the instance after the active one
+// (wrapping).
 func (m *AppModel) nextInstance() string {
 	insts := m.cfg.Instances
 	if len(insts) < 2 {
@@ -549,12 +586,14 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 
 // View composes the full screen: status bar, sidebar+content, help bar.
 func (m *AppModel) View() tea.View {
+	th := m.ctx.Theme
+
 	if m.width == 0 || m.height == 0 {
 		v := tea.NewView("")
 		v.AltScreen = true
+		v.BackgroundColor = th.Surface
 		return v
 	}
-	th := m.ctx.Theme
 
 	if m.booting {
 		splash := components.Splash{
@@ -565,6 +604,7 @@ func (m *AppModel) View() tea.View {
 		}.Render(th)
 		v := tea.NewView(splash)
 		v.AltScreen = true
+		v.BackgroundColor = th.Surface
 		return v
 	}
 
@@ -590,7 +630,13 @@ func (m *AppModel) View() tea.View {
 		middle = m.palette.Render(th, m.width, ch)
 	case m.showHelp:
 		// The help cheat-sheet overlays the body area.
-		middle = components.HelpSheet{Sections: m.helpSections()}.Render(th, m.width, ch)
+		middle = components.HelpSheet{
+			Sections: m.helpSections(),
+		}.Render(
+			th,
+			m.width,
+			ch,
+		)
 	default:
 		content := m.screens[m.active].View().Content
 		middle = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
@@ -606,6 +652,11 @@ func (m *AppModel) View() tea.View {
 	full = th.SurfaceStyle().Width(m.width).Height(m.height).Render(full)
 	v := tea.NewView(full)
 	v.AltScreen = true
+	// Paint the terminal's default background with the theme surface so any
+	// cell the app doesn't explicitly colour — table padding, gaps between
+	// composed blocks — falls back to the surface instead of leaking the
+	// terminal's own background (a solid colour or a background image) through.
+	v.BackgroundColor = th.Surface
 	return v
 }
 
@@ -619,7 +670,10 @@ func (m *AppModel) helpSections() []components.HelpSection {
 		if h.Key == "" && h.Desc == "" {
 			continue
 		}
-		global.Keys = append(global.Keys, components.HelpKey{Key: h.Key, Desc: h.Desc})
+		global.Keys = append(
+			global.Keys,
+			components.HelpKey{Key: h.Key, Desc: h.Desc},
+		)
 	}
 
 	screen := components.HelpSection{Title: m.screens[m.active].Title()}
@@ -628,7 +682,10 @@ func (m *AppModel) helpSections() []components.HelpSection {
 		if h.Key == "" && h.Desc == "" {
 			continue
 		}
-		screen.Keys = append(screen.Keys, components.HelpKey{Key: h.Key, Desc: h.Desc})
+		screen.Keys = append(
+			screen.Keys,
+			components.HelpKey{Key: h.Key, Desc: h.Desc},
+		)
 	}
 
 	sections := []components.HelpSection{global}
@@ -642,7 +699,9 @@ func (m *AppModel) helpSections() []components.HelpSection {
 func (m *AppModel) helpBar(width int) string {
 	th := m.ctx.Theme
 	if m.err != "" {
-		return th.BlockStyle().Width(width).Render("⚠ " + m.err + "  (esc/r to retry)")
+		return th.BlockStyle().
+			Width(width).
+			Render("⚠ " + m.err + "  (esc/r to retry)")
 	}
 	bindings := m.ctx.Keys.ShortHelp()
 	bindings = append(bindings, m.screens[m.active].Help()...)

@@ -6,6 +6,7 @@ package blocking
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -19,7 +20,8 @@ import (
 
 const fetchTimeout = 8 * time.Second
 
-// action is one selectable row. secs semantics: enable=true re-enables blocking;
+// action is one selectable row. secs semantics: enable=true re-enables
+// blocking;
 // otherwise blocking is disabled for secs seconds (0 = indefinitely).
 type action struct {
 	label  string
@@ -161,9 +163,10 @@ func (m *Model) View() tea.View {
 	status := m.statusLine(th)
 	menu := m.renderMenu(th)
 
-	body := lipgloss.JoinVertical(lipgloss.Left, header, "", status, "", menu)
+	body := strings.Join([]string{header, "", status, "", menu}, "\n")
 	content := lipgloss.Place(m.w, m.h, lipgloss.Left, lipgloss.Top,
-		lipgloss.NewStyle().Padding(1, 2).Render(body))
+		lipgloss.NewStyle().Background(th.Surface).Padding(1, 2).Render(body),
+		th.SurfaceWhitespace())
 	return tea.NewView(th.SurfaceStyle().Width(m.w).Height(m.h).Render(content))
 }
 
@@ -187,8 +190,15 @@ func (m *Model) statusLine(th *theme.Theme) string {
 
 // renderMenu renders the action list with the cursor row highlighted.
 func (m *Model) renderMenu(th *theme.Theme) string {
-	sel := lipgloss.NewStyle().Foreground(th.Surface).Background(th.Accent).Bold(true).Padding(0, 1)
-	row := lipgloss.NewStyle().Foreground(th.Text).Padding(0, 1)
+	sel := lipgloss.NewStyle().
+		Foreground(th.Surface).
+		Background(th.Accent).
+		Bold(true).
+		Padding(0, 1)
+	row := lipgloss.NewStyle().
+		Foreground(th.Text).
+		Background(th.Surface).
+		Padding(0, 1)
 
 	lines := make([]string, len(actions))
 	for i, a := range actions {
@@ -202,7 +212,7 @@ func (m *Model) renderMenu(th *theme.Theme) string {
 			lines[i] = row.Render(marker + a.label)
 		}
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	return strings.Join(lines, "\n")
 }
 
 // humanCountdown formats seconds as a compact mm:ss / Ns countdown.

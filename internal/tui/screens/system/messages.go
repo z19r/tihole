@@ -11,6 +11,7 @@ import (
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 )
 
 const (
@@ -110,6 +111,7 @@ func (m *Model) syncMsgRows() {
 	for i, msg := range m.messages {
 		rows[i] = table.Row(messageToRow(msg, widths))
 	}
+	m.msgTable.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.msgTable.SetRows(rows)
 	if idx >= len(rows) {
 		idx = len(rows) - 1
@@ -130,7 +132,11 @@ func (m *Model) handleMessagesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return api.DeleteMessages(ctx, []int{id})
 			}
 			m.pendingReload = true
-			m.confirm = m.confirm.Show("Dismiss message?", truncate(dm.Plain, 60), true)
+			m.confirm = m.confirm.Show(
+				"Dismiss message?",
+				truncate(dm.Plain, 60),
+				true,
+			)
 		}
 		return m, nil
 	case "X":
@@ -143,7 +149,11 @@ func (m *Model) handleMessagesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return api.DeleteMessages(ctx, ids)
 			}
 			m.pendingReload = true
-			m.confirm = m.confirm.Show("Dismiss all messages?", strconv.Itoa(len(ids))+" messages", true)
+			m.confirm = m.confirm.Show(
+				"Dismiss all messages?",
+				strconv.Itoa(len(ids))+" messages",
+				true,
+			)
 		}
 		return m, nil
 	}
@@ -159,7 +169,14 @@ func (m *Model) renderMessages(th *theme.Theme, bodyH int) string {
 	}
 	if len(m.messages) == 0 {
 		empty := th.SubtleStyle().Render("no diagnosis messages")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 	m.syncMsgRows()
 	return m.msgTable.View()

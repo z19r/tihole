@@ -149,7 +149,11 @@ func cnameToRow(r pihole.CNAMERecord, widths []int) []string {
 
 // styledHostRows builds table rows from host records, colouring the IP cell in
 // the Accent token using the live theme.
-func styledHostRows(th *theme.Theme, records []pihole.HostRecord, widths []int) []table.Row {
+func styledHostRows(
+	th *theme.Theme,
+	records []pihole.HostRecord,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(records))
 	for i, r := range records {
 		cells := hostToRow(r, widths)
@@ -161,7 +165,11 @@ func styledHostRows(th *theme.Theme, records []pihole.HostRecord, widths []int) 
 
 // styledCNAMERows builds table rows from CNAME records, colouring the Target
 // cell in the Accent token using the live theme.
-func styledCNAMERows(th *theme.Theme, records []pihole.CNAMERecord, widths []int) []table.Row {
+func styledCNAMERows(
+	th *theme.Theme,
+	records []pihole.CNAMERecord,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(records))
 	for i, r := range records {
 		cells := cnameToRow(r, widths)

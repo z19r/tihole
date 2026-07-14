@@ -31,7 +31,8 @@ func TestSidebarRenderShowsAllItems(t *testing.T) {
 }
 
 func TestSidebarRenderMarksSelectedItem(t *testing.T) {
-	// Arrange: selecting a middle item should style it differently than the rest.
+	// Arrange: selecting a middle item should style it differently than the
+	// rest.
 	selected := Sidebar{Items: sampleSidebarItems(), Selected: 1, Height: 20}
 	other := Sidebar{Items: sampleSidebarItems(), Selected: 0, Height: 20}
 
@@ -49,7 +50,11 @@ func TestSidebarRenderMarksSelectedItem(t *testing.T) {
 func TestSidebarRenderUsesDefaultWidthWhenZero(t *testing.T) {
 	// Arrange: Width 0 should fall back to SidebarWidth.
 	zero := Sidebar{Items: sampleSidebarItems(), Height: 10}
-	explicit := Sidebar{Items: sampleSidebarItems(), Width: SidebarWidth, Height: 10}
+	explicit := Sidebar{
+		Items:  sampleSidebarItems(),
+		Width:  SidebarWidth,
+		Height: 10,
+	}
 
 	// Act / Assert
 	if zero.Render(theme.DeepNight()) != explicit.Render(theme.DeepNight()) {

@@ -177,7 +177,8 @@ func (f *formState) render(th *theme.Theme, w, h int) string {
 		f.inputLine(th, fieldComment, "Comment", f.comment.View()),
 		f.inputLine(th, fieldGroups, "Groups", f.groups.View()),
 		"",
-		th.SubtleStyle().Render("tab next · ←/→ toggle · enter save · esc cancel"),
+		th.SubtleStyle().
+			Render("tab next · ←/→ toggle · enter save · esc cancel"),
 	}
 
 	panelW := w - 4
@@ -193,20 +194,44 @@ func (f *formState) render(th *theme.Theme, w, h int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		th.SurfaceWhitespace(),
+	)
 }
 
-func (f *formState) toggleLine(th *theme.Theme, field formField, label, value string) string {
-	return f.fieldLabel(th, field, label) + "  " + th.TextStyle().Render("‹ "+value+" ›")
+func (f *formState) toggleLine(
+	th *theme.Theme,
+	field formField,
+	label, value string,
+) string {
+	return f.fieldLabel(
+		th,
+		field,
+		label,
+	) + "  " + th.TextStyle().
+		Render("‹ "+value+" ›")
 }
 
-func (f *formState) inputLine(th *theme.Theme, field formField, label, view string) string {
+func (f *formState) inputLine(
+	th *theme.Theme,
+	field formField,
+	label, view string,
+) string {
 	return f.fieldLabel(th, field, label) + "  " + view
 }
 
-func (f *formState) fieldLabel(th *theme.Theme, field formField, label string) string {
+func (f *formState) fieldLabel(
+	th *theme.Theme,
+	field formField,
+	label string,
+) string {
 	marker := "  "
 	style := th.SubtleStyle()
 	if f.focus == field {

@@ -8,7 +8,11 @@ import (
 
 func TestUpdateGravityStreamsLines(t *testing.T) {
 	// Arrange
-	lines := []string{"  [i] Building tree", "  [i] Updating gravity", "  [✓] Done"}
+	lines := []string{
+		"  [i] Building tree",
+		"  [i] Updating gravity",
+		"  [✓] Done",
+	}
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/action/gravity" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
@@ -48,7 +52,11 @@ func TestUpdateGravityStreamsLines(t *testing.T) {
 
 func TestUpdateGravityPropagatesAPIError(t *testing.T) {
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusForbidden, `{"error":{"key":"forbidden","message":"nope"},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusForbidden,
+			`{"error":{"key":"forbidden","message":"nope"},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 

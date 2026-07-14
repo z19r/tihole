@@ -39,7 +39,14 @@ func (m *Model) submitForm() tea.Cmd {
 	groups := parseGroups(groupsVal)
 	return func() tea.Msg {
 		defer cancel()
-		_, err := api.UpdateList(ctx, address, listType, comment, groups, enabled)
+		_, err := api.UpdateList(
+			ctx,
+			address,
+			listType,
+			comment,
+			groups,
+			enabled,
+		)
 		return mutatedMsg{epoch: e, err: err}
 	}
 }

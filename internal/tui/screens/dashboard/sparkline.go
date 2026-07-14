@@ -48,7 +48,8 @@ func sparklineInt(values []int, width int) string {
 	return sparkline(fs, width)
 }
 
-// fraction returns v's position within [min, min+span] as a 0..1 value, guarding
+// fraction returns v's position within [min, min+span] as a 0..1 value,
+// guarding
 // against a zero span (flat series) by returning 0.
 func fraction(v, min, span float64) float64 {
 	if span <= 0 {

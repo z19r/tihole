@@ -27,7 +27,11 @@ func TestQueryFilterValuesOnlySetFields(t *testing.T) {
 				Start:  ptr(100),
 				Cursor: ptr(int64(987654321)),
 			},
-			want: url.Values{"length": {"50"}, "start": {"100"}, "cursor": {"987654321"}},
+			want: url.Values{
+				"length": {"50"},
+				"start":  {"100"},
+				"cursor": {"987654321"},
+			},
 		},
 		{
 			name: "filters and time window",
@@ -47,7 +51,9 @@ func TestQueryFilterValuesOnlySetFields(t *testing.T) {
 			want: url.Values{
 				"from": {"1000"}, "until": {"2000"}, "domain": {"example.com"},
 				"client_ip": {"10.0.0.5"}, "client_name": {"laptop"},
-				"upstream": {"1.1.1.1#53"}, "type": {"A"}, "status": {"GRAVITY"},
+				"upstream": {
+					"1.1.1.1#53",
+				}, "type": {"A"}, "status": {"GRAVITY"},
 				"reply": {"IP"}, "dnssec": {"SECURE"}, "disk": {"true"},
 			},
 		},
@@ -73,13 +79,19 @@ func TestQueriesRoundTrip(t *testing.T) {
 			t.Errorf("path = %q", r.URL.Path)
 		}
 		gotQuery = r.URL.RawQuery
-		writeJSON(w, http.StatusOK,
-			`{"queries":[{"id":1,"time":123.4,"type":"A","domain":"example.com","status":"FORWARDED","client":{"ip":"10.0.0.5","name":"laptop"},"reply":{"type":"IP","time":1.2},"upstream":"1.1.1.1#53"}],"cursor":42,"recordsFiltered":1,"recordsTotal":500,"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"queries":[{"id":1,"time":123.4,"type":"A","domain":"example.com","status":"FORWARDED","client":{"ip":"10.0.0.5","name":"laptop"},"reply":{"type":"IP","time":1.2},"upstream":"1.1.1.1#53"}],"cursor":42,"recordsFiltered":1,"recordsTotal":500,"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
 	// Act
-	page, err := client.Queries(context.Background(), QueryFilter{Length: ptr(1), Domain: ptr("example.com")})
+	page, err := client.Queries(
+		context.Background(),
+		QueryFilter{Length: ptr(1), Domain: ptr("example.com")},
+	)
 
 	// Assert
 	if err != nil {

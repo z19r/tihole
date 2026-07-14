@@ -80,7 +80,8 @@ func TestDoubleFocusIsSafe(t *testing.T) {
 }
 
 func TestSetSizeNegativeAndReflowWithData(t *testing.T) {
-	// Arrange: populate + open a form so SetSize touches the form + rows branches.
+	// Arrange: populate + open a form so SetSize touches the form + rows
+	// branches.
 	m := newTestModel()
 	_, _ = m.Update(domainsMsg{epoch: m.epoch, domains: sampleDomains()})
 	_, _ = m.Update(keyPress("a"))
@@ -202,7 +203,13 @@ func TestFilterCyclesAllCombosAndRefiltersVisible(t *testing.T) {
 			t.Fatalf("step %d: filter=%v want %v", i, m.filter, w.tab)
 		}
 		if len(m.visible) != w.visible {
-			t.Fatalf("step %d (%v): visible=%d want %d", i, w.tab, len(m.visible), w.visible)
+			t.Fatalf(
+				"step %d (%v): visible=%d want %d",
+				i,
+				w.tab,
+				len(m.visible),
+				w.visible,
+			)
 		}
 	}
 }
@@ -328,13 +335,20 @@ func TestFormFieldCyclingForwardAndBack(t *testing.T) {
 		_, _ = m.Update(keyPress("tab"))
 	}
 	if m.form.focus != start {
-		t.Fatalf("cycling %d tabs should wrap to start, got %v", int(fieldCount), m.form.focus)
+		t.Fatalf(
+			"cycling %d tabs should wrap to start, got %v",
+			int(fieldCount),
+			m.form.focus,
+		)
 	}
 
 	// Act: shift+tab back one.
 	_, _ = m.Update(keyPress("shift+tab"))
 	if m.form.focus != fieldKind {
-		t.Fatalf("shift+tab from domain should step back to kind, got %v", m.form.focus)
+		t.Fatalf(
+			"shift+tab from domain should step back to kind, got %v",
+			m.form.focus,
+		)
 	}
 }
 
@@ -370,7 +384,10 @@ func TestFormTypingEditsFocusedInput(t *testing.T) {
 
 	// Assert
 	if !strings.Contains(m.form.comment.Value(), "z") {
-		t.Fatalf("typing should edit the focused input, got %q", m.form.comment.Value())
+		t.Fatalf(
+			"typing should edit the focused input, got %q",
+			m.form.comment.Value(),
+		)
 	}
 }
 
@@ -522,7 +539,12 @@ func TestTruncateBehaviour(t *testing.T) {
 
 func TestDomainToRowDefaultsAndDashComment(t *testing.T) {
 	// nil widths triggers the minFlex fallback path; blank comment -> "-".
-	d := pihole.Domain{Domain: "x.com", Type: "allow", Kind: "regex", Comment: "  "}
+	d := pihole.Domain{
+		Domain:  "x.com",
+		Type:    "allow",
+		Kind:    "regex",
+		Comment: "  ",
+	}
 	row := domainToRow(d, nil)
 	if row[3] != "-" {
 		t.Fatalf("blank comment should render as dash, got %q", row[3])
@@ -559,6 +581,10 @@ func TestFormTitleForBothModes(t *testing.T) {
 func TestNewAddFormSeedsFromConcreteTab(t *testing.T) {
 	f := newAddForm(filterAllowRegex)
 	if f.dtype != pihole.DomainAllow || f.dkind != pihole.KindRegex {
-		t.Fatalf("add form should seed type/kind from the tab, got %v/%v", f.dtype, f.dkind)
+		t.Fatalf(
+			"add form should seed type/kind from the tab, got %v/%v",
+			f.dtype,
+			f.dkind,
+		)
 	}
 }
