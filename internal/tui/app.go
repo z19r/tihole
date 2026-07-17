@@ -38,10 +38,19 @@ const (
 	// splashDuration is how long the ASCII boot screen lingers before the
 	// dashboard reveals. Any key dismisses it sooner.
 	splashDuration = 1600 * time.Millisecond
+
+	// blockPollInterval is how often the root re-fetches blocking status so the
+	// always-on top-bar pill reflects external changes (a toggle from the web
+	// UI, an expiring temporary-disable timer) without the user acting.
+	blockPollInterval = 10 * time.Second
 )
 
 // splashDoneMsg fires when the boot splash's timer elapses.
 type splashDoneMsg struct{}
+
+// blockPollMsg is the recurring tick that drives a background blocking
+// re-fetch.
+type blockPollMsg struct{}
 
 // blockingResultMsg carries a fresh blocking status.
 type blockingResultMsg struct{ status pihole.BlockingStatus }
@@ -144,6 +153,7 @@ func (m *AppModel) Init() tea.Cmd {
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
 		fetchBlocking(m.ctx.API),
+		blockPollCmd(),
 		m.splashCmd(),
 	)
 }
@@ -237,6 +247,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.block.CountdownSecs = int(*st.Timer)
 		}
 		return m, nil
+
+	case blockPollMsg:
+		// Re-fetch in the background and reschedule the next tick. The pill
+		// keeps
+		// showing the last-known state until the fetch resolves.
+		return m, tea.Batch(fetchBlocking(m.ctx.API), blockPollCmd())
 
 	case blockingErrMsg:
 		m.err = msg.err.Error()
@@ -614,6 +630,7 @@ func (m *AppModel) View() tea.View {
 		Instance:   m.ctx.InstanceName,
 		ScreenName: m.screens[m.active].Title(),
 		Width:      m.width,
+		Blocking:   m.block,
 	}.Render(th)
 
 	sidebar := components.Sidebar{
@@ -707,6 +724,14 @@ func (m *AppModel) helpBar(width int) string {
 	bindings = append(bindings, m.screens[m.active].Help()...)
 	view := m.help.ShortHelpView(bindings)
 	return lipgloss.NewStyle().Width(width).Background(th.Panel).Render(view)
+}
+
+// blockPollCmd schedules the next background blocking re-fetch tick.
+func blockPollCmd() tea.Cmd {
+	return tea.Tick(
+		blockPollInterval,
+		func(time.Time) tea.Msg { return blockPollMsg{} },
+	)
 }
 
 // fetchBlocking loads the current blocking status.
