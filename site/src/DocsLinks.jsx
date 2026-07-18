@@ -15,7 +15,6 @@ function DocsLinks() {
     <section className="section ws-wrap" id="docs">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">08 · DOCS</div>
-        <h2>Everything else.</h2>
       </div>
       <div className="docs-grid">
         {cards.map((c) => (

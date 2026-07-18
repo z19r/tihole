@@ -14,7 +14,6 @@ function Numbers() {
     <section className="section ws-wrap" id="numbers">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">03 · NUMBERS</div>
-        <h2>The whole story in four figures.</h2>
       </div>
       <div className="stat-rail-x">
         {stats.map((s) => (

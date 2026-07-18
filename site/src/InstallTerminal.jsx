@@ -6,7 +6,7 @@
 function InstallTerminal() {
   const meta = window.TIHOLE_META || {};
   const goLine = (meta.install && meta.install.goLine) ||
-    "go install github.com/zackkitzmiller/tihole/cmd/tihole@latest";
+    "go install github.com/z19r/tihole/cmd/tihole@latest";
   const configLine = (meta.install && meta.install.configLine) ||
     "~/.config/tihole/config.yaml";
 
@@ -14,7 +14,6 @@ function InstallTerminal() {
     <section className="section ws-wrap" id="install">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">02 · INSTALL</div>
-        <h2>One binary. Sixty seconds.</h2>
       </div>
 
       <div className="install-grid">
@@ -67,7 +66,7 @@ function InstallTerminal() {
           </div>
           <div className="ws-code-body">
             <span className="p">{"  $ "}</span>
-            <span>{"go install github.com/zackkitzmiller/tihole/cmd/tihole@latest\n"}</span>
+            <span>{"go install github.com/z19r/tihole/cmd/tihole@latest\n"}</span>
             <span className="c">{"  // fetching · building · installed → ~/go/bin/tihole\n\n"}</span>
             <span className="p">{"  $ "}</span>
             <span>{"tihole\n"}</span>

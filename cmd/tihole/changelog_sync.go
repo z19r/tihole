@@ -207,9 +207,8 @@ func parseBullet(line string) (text string, ok bool) {
 }
 
 // renderChangelogJS emits the browser-global file. It assigns
-// window.TIHOLE_CHANGELOG (house style, matching version.js / metadata.js)
-// and aliases window.WHETSTONE_CHANGELOG for the current Releases.jsx
-// consumer, which still reads the legacy global name.
+// window.TIHOLE_CHANGELOG (house style, matching version.js /
+// metadata.js), which Releases.jsx consumes.
 func renderChangelogJS(entries []changelogEntry) string {
 	if entries == nil {
 		entries = []changelogEntry{}
@@ -224,8 +223,5 @@ func renderChangelogJS(entries []changelogEntry) string {
 	b.WriteString("window.TIHOLE_CHANGELOG = ")
 	b.Write(body)
 	b.WriteString(";\n")
-	b.WriteString(
-		"window.WHETSTONE_CHANGELOG = window.TIHOLE_CHANGELOG;\n",
-	)
 	return b.String()
 }

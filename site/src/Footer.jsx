@@ -48,7 +48,7 @@ function Footer() {
 
         <div className="meta">
           <span>© {new Date().getFullYear()} tihole · MIT</span>
-          <span>{meta.sha ? "build " + meta.sha : "github.com/zackkitzmiller/tihole"} · Pi-hole v6</span>
+          <span>{meta.sha ? "build " + meta.sha : "github.com/z19r/tihole"} · Pi-hole v6</span>
         </div>
       </div>
 

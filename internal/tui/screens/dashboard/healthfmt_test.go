@@ -3,7 +3,7 @@ package dashboard
 import (
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 func TestHumanUptime(t *testing.T) {

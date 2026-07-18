@@ -3,7 +3,7 @@ package querylog
 import (
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // modelWithQuery returns a focused, panel-ready model with one query row so the

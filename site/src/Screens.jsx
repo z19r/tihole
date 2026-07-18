@@ -64,7 +64,6 @@ function Screens() {
     <section className="section ws-wrap" id="screens">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">01 · SCREENS</div>
-        <h2>Ten screens, one muscle memory.</h2>
         <p className="ws-sec-sub">Real captures from a live Pi-hole — not mockups.</p>
       </div>
 

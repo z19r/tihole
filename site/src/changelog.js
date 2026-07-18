@@ -23,4 +23,3 @@ window.TIHOLE_CHANGELOG = [
     ]
   }
 ];
-window.WHETSTONE_CHANGELOG = window.TIHOLE_CHANGELOG;

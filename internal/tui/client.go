@@ -3,8 +3,8 @@ package tui
 import (
 	"fmt"
 
-	"github.com/zackkitzmiller/tihole/internal/config"
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/config"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // clientFor builds a pihole.Client for the named instance WITHOUT

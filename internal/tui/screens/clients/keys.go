@@ -3,7 +3,7 @@ package clients
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // handleKey routes keystrokes based on the active overlay (confirm > form >

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 func TestStatusBarRenderShowsInstanceAndScreen(t *testing.T) {

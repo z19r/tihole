@@ -8,7 +8,6 @@ function Architecture() {
     <section className="section ws-wrap" id="architecture">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">04 · ARCHITECTURE</div>
-        <h2>A thin, honest client.</h2>
       </div>
 
       <div className="arch">

@@ -1,6 +1,6 @@
 /* ============================================================
    WHETSTONE — MARKETING PAGE CHROME
-   Page-specific layout on top of whetstone.css component layer
+   Page-specific layout on top of tihole.css component layer
    ============================================================ */
 
 @import url("ds/tihole.css");
@@ -142,7 +142,7 @@ html[data-theme="light"] .theme-toggle .dot { background: var(--c-magenta); }
 /* ============================================================
    SECTION SHELL
    ============================================================ */
-.section { padding-block: var(--s-8); }
+.section { padding-block: 0 var(--s-8); }
 .section.tight { padding-block: var(--s-7); }
 .section.no-top { padding-top: 0; }
 
@@ -170,7 +170,7 @@ html[data-theme="light"] .theme-toggle .dot { background: var(--c-magenta); }
    HERO
    ============================================================ */
 .hero {
-  padding-block: var(--s-9) var(--s-8);
+  padding-block: var(--s-9) var(--s-8) 0;
   position: relative;
 }
 .hero h1.display {
@@ -178,7 +178,7 @@ html[data-theme="light"] .theme-toggle .dot { background: var(--c-magenta); }
   font-size: clamp(48px, 8.5vw, 120px);
   letter-spacing: -0.045em;
   line-height: 0.85;
-  margin: var(--s-5) 0 var(--s-6);
+  margin: var(--s-5) 0 var(--s-3);
   color: var(--fg);
   text-wrap: balance;
 }
