@@ -40,7 +40,11 @@ func TestFlushLogsPostsPath(t *testing.T) {
 		t.Fatalf("FlushLogs error: %v", err)
 	}
 	if gotMethod != http.MethodPost || gotPath != "/api/action/flush/logs" {
-		t.Errorf("got %s %s, want POST /api/action/flush/logs", gotMethod, gotPath)
+		t.Errorf(
+			"got %s %s, want POST /api/action/flush/logs",
+			gotMethod,
+			gotPath,
+		)
 	}
 }
 
@@ -57,15 +61,22 @@ func TestFlushNetworkPostsPath(t *testing.T) {
 		t.Fatalf("FlushNetwork error: %v", err)
 	}
 	if gotMethod != http.MethodPost || gotPath != "/api/action/flush/network" {
-		t.Errorf("got %s %s, want POST /api/action/flush/network", gotMethod, gotPath)
+		t.Errorf(
+			"got %s %s, want POST /api/action/flush/network",
+			gotMethod,
+			gotPath,
+		)
 	}
 }
 
 func TestDestructiveActionForbiddenSurfacesAPIError(t *testing.T) {
 	// Arrange: FTL returns 403 when allow_destructive is disabled.
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusForbidden,
-			`{"error":{"key":"forbidden","message":"destructive actions disabled","hint":"set allow_destructive"},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusForbidden,
+			`{"error":{"key":"forbidden","message":"destructive actions disabled","hint":"set allow_destructive"},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 

@@ -58,14 +58,18 @@ func TestListsMsgPopulatesRowsAndClearsLoading(t *testing.T) {
 	_, _ = m.Update(listsMsg{
 		epoch: 4,
 		block: []pihole.List{{Address: "a", Type: "block"}},
-		allow: []pihole.List{{Address: "b", Type: "allow"}, {Address: "c", Type: "allow"}},
+		allow: []pihole.List{
+			{Address: "b", Type: "allow"},
+			{Address: "c", Type: "allow"},
+		},
 	})
 
 	// Assert
 	if m.loading {
 		t.Fatalf("listsMsg should clear loading")
 	}
-	if len(m.lists[pihole.ListBlock]) != 1 || len(m.lists[pihole.ListAllow]) != 2 {
+	if len(m.lists[pihole.ListBlock]) != 1 ||
+		len(m.lists[pihole.ListAllow]) != 2 {
 		t.Fatalf("lists not populated: %v", m.lists)
 	}
 }
@@ -245,7 +249,15 @@ func TestFormEscCancels(t *testing.T) {
 func TestEditPrefillsForm(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://a", Comment: "c", Type: "block", Groups: []int{0, 2}, Enabled: true}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{
+			Address: "https://a",
+			Comment: "c",
+			Type:    "block",
+			Groups:  []int{0, 2},
+			Enabled: true,
+		},
+	}
 	m.syncRows()
 
 	// Act
@@ -256,10 +268,16 @@ func TestEditPrefillsForm(t *testing.T) {
 		t.Fatalf("e should open the edit form")
 	}
 	if m.form.address.Value() != "https://a" {
-		t.Fatalf("edit form should prefill address, got %q", m.form.address.Value())
+		t.Fatalf(
+			"edit form should prefill address, got %q",
+			m.form.address.Value(),
+		)
 	}
 	if m.form.groups.Value() != "0,2" {
-		t.Fatalf("edit form should prefill groups, got %q", m.form.groups.Value())
+		t.Fatalf(
+			"edit form should prefill groups, got %q",
+			m.form.groups.Value(),
+		)
 	}
 }
 
@@ -286,7 +304,9 @@ func TestFormTypeToggle(t *testing.T) {
 func TestDeleteOpensConfirm(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://gone", Type: "block"}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://gone", Type: "block"},
+	}
 	m.syncRows()
 
 	// Act
@@ -307,7 +327,9 @@ func TestDeleteOpensConfirm(t *testing.T) {
 func TestConfirmYesReturnsDeleteCmd(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://gone", Type: "block"}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://gone", Type: "block"},
+	}
 	m.syncRows()
 	_, _ = m.Update(keyPress("x"))
 
@@ -326,7 +348,9 @@ func TestConfirmYesReturnsDeleteCmd(t *testing.T) {
 func TestConfirmNoCancels(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://gone", Type: "block"}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://gone", Type: "block"},
+	}
 	m.syncRows()
 	_, _ = m.Update(keyPress("x"))
 
@@ -347,7 +371,9 @@ func TestConfirmNoCancels(t *testing.T) {
 func TestToggleEnabledReturnsCmd(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://a", Type: "block", Enabled: true}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{Address: "https://a", Type: "block", Enabled: true},
+	}
 	m.syncRows()
 
 	// Act
@@ -387,7 +413,9 @@ func TestConfirmGravityStartsStreaming(t *testing.T) {
 
 	// Assert
 	if !m.gravityOpen || !m.gravityRunning {
-		t.Fatalf("confirming gravity should open the log pane and start streaming")
+		t.Fatalf(
+			"confirming gravity should open the log pane and start streaming",
+		)
 	}
 	if m.gravityChan == nil {
 		t.Fatalf("gravity channel should be initialised")
@@ -405,7 +433,9 @@ func TestGravityLineAppendsToBuffer(t *testing.T) {
 	m.gravityRunning = true
 
 	// Act
-	_, cmd := m.Update(gravityLineMsg{epoch: 5, line: "[i] Building tree", ok: true})
+	_, cmd := m.Update(
+		gravityLineMsg{epoch: 5, line: "[i] Building tree", ok: true},
+	)
 
 	// Assert
 	if len(m.gravityLines) != 1 || m.gravityLines[0] != "[i] Building tree" {
@@ -531,7 +561,15 @@ func TestSetSizeSafeAtTinySizes(t *testing.T) {
 func TestViewRendersAtNormalSize(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.lists[pihole.ListBlock] = []pihole.List{{Address: "https://a", Type: "block", Enabled: true, Status: 1, Number: 5}}
+	m.lists[pihole.ListBlock] = []pihole.List{
+		{
+			Address: "https://a",
+			Type:    "block",
+			Enabled: true,
+			Status:  1,
+			Number:  5,
+		},
+	}
 	m.syncRows()
 
 	// Act

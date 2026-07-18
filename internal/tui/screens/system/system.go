@@ -1,14 +1,17 @@
 // Package system implements the PiHole v6 System/Tools screen: a tabbed surface
 // over FTL diagnostics and maintenance. Tabs cover read-only Info panels, the
-// diagnosis Messages table, the Network device table, a live DNS Log tail, and a
+// diagnosis Messages table, the Network device table, a live DNS Log tail, and
+// a
 // menu of destructive Actions. Data loads lazily per tab on focus/switch; only
-// the Log tab polls continuously. All I/O is deferred to tea.Cmd closures with a
-// timeout context, stale (wrong-epoch) results are dropped, and errors surface in
+// the Log tab polls continuously. All I/O is deferred to tea.Cmd closures with
+// a timeout context, stale (wrong-epoch) results are dropped, and errors
+// surface in
 // an inline banner. It satisfies core.Screen.
 package system
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -118,7 +121,8 @@ func (m *Model) Focus() tea.Cmd {
 	return m.loadActive()
 }
 
-// Blur deactivates the screen, cancels any in-flight request, and stops polling.
+// Blur deactivates the screen, cancels any in-flight request, and stops
+// polling.
 func (m *Model) Blur() {
 	m.focused = false
 	m.confirm = m.confirm.Hide()
@@ -132,11 +136,23 @@ func (m *Model) Blur() {
 // Help returns screen-local key bindings for the help bar.
 func (m *Model) Help() []key.Binding {
 	return []key.Binding{
-		key.NewBinding(key.WithKeys("tab", "f"), key.WithHelp("tab", "next tab")),
-		key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←→", "switch tab")),
+		key.NewBinding(
+			key.WithKeys("tab", "f"),
+			key.WithHelp("tab", "next tab"),
+		),
+		key.NewBinding(
+			key.WithKeys("left", "right"),
+			key.WithHelp("←→", "switch tab"),
+		),
 		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
-		key.NewBinding(key.WithKeys("x", "delete"), key.WithHelp("x", "delete")),
-		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run action")),
+		key.NewBinding(
+			key.WithKeys("x", "delete"),
+			key.WithHelp("x", "delete"),
+		),
+		key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "run action"),
+		),
 	}
 }
 
@@ -198,7 +214,10 @@ func (m *Model) switchTab(t tab) (tea.Model, tea.Cmd) {
 
 // mutate wraps a write in a timeout context and reports the outcome as a
 // mutationMsg; loading is set so the spinner shows.
-func (m *Model) mutate(op func(context.Context, *pihole.Client) error, reload bool) tea.Cmd {
+func (m *Model) mutate(
+	op func(context.Context, *pihole.Client) error,
+	reload bool,
+) tea.Cmd {
 	ctx := m.newCtx()
 	e := m.epoch
 	api := m.ctx.API
@@ -361,7 +380,7 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
@@ -383,7 +402,7 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	if m.err != nil {
 		second = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, second)
+	return strings.Join([]string{line, second}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -422,7 +441,14 @@ func (m *Model) renderBody(th *theme.Theme) string {
 // spinnerLine centers the loading spinner with a label in the body area.
 func (m *Model) spinnerLine(th *theme.Theme, label string, bodyH int) string {
 	line := m.spinner.View() + " " + th.SubtleStyle().Render(label)
-	return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+	return lipgloss.Place(
+		m.w,
+		bodyH,
+		lipgloss.Center,
+		lipgloss.Center,
+		line,
+		th.SurfaceWhitespace(),
+	)
 }
 
 func (m *Model) renderFooter(th *theme.Theme) string {

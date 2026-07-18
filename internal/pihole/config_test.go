@@ -17,7 +17,11 @@ func TestConfigDecodesTree(t *testing.T) {
 		if got := r.URL.Query().Get("detailed"); got != "true" {
 			t.Errorf("detailed = %q, want true", got)
 		}
-		writeJSON(w, http.StatusOK, `{"config":{"dns":{"port":53},"dhcp":{"active":false}},"took":0.1}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"config":{"dns":{"port":53},"dhcp":{"active":false}},"took":0.1}`,
+		)
 	})
 	client.setSID("S")
 
@@ -57,7 +61,11 @@ func TestConfigElementEscapesDottedPath(t *testing.T) {
 		if r.URL.Path != "/api/config/dns/upstreams" {
 			t.Errorf("path = %q, want /api/config/dns/upstreams", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK, `{"config":{"dns":{"upstreams":["1.1.1.1"]}},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"config":{"dns":{"upstreams":["1.1.1.1"]}},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -90,7 +98,11 @@ func TestPatchConfigBodyAndRestartParam(t *testing.T) {
 	client.setSID("S")
 
 	// Act
-	err := client.PatchConfig(context.Background(), map[string]any{"dns": map[string]any{"port": 5353}}, true)
+	err := client.PatchConfig(
+		context.Background(),
+		map[string]any{"dns": map[string]any{"port": 5353}},
+		true,
+	)
 
 	// Assert
 	if err != nil {
@@ -113,7 +125,11 @@ func TestAddConfigItemPath(t *testing.T) {
 	client.setSID("S")
 
 	// Act
-	err := client.AddConfigItem(context.Background(), "dns.upstreams", "1.1.1.1")
+	err := client.AddConfigItem(
+		context.Background(),
+		"dns.upstreams",
+		"1.1.1.1",
+	)
 
 	// Assert
 	if err != nil {

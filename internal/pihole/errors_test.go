@@ -76,8 +76,10 @@ func TestDecodeAPIError(t *testing.T) {
 			if got.Hint != tt.wantHint {
 				t.Errorf("Hint = %q, want %q", got.Hint, tt.wantHint)
 			}
-			// A decoded error must never carry a raw JSON body through to the UI.
-			if strings.HasPrefix(strings.TrimSpace(tt.body), "{") && strings.Contains(got.Message, "{") {
+			// A decoded error must never carry a raw JSON body through to the
+			// UI.
+			if strings.HasPrefix(strings.TrimSpace(tt.body), "{") &&
+				strings.Contains(got.Message, "{") {
 				t.Errorf("Message leaks raw JSON body: %q", got.Message)
 			}
 		})
@@ -86,7 +88,12 @@ func TestDecodeAPIError(t *testing.T) {
 
 func TestAPIErrorMessageIncludesHint(t *testing.T) {
 	// Arrange
-	e := &APIError{Status: 403, Key: "forbidden", Message: "denied", Hint: "set allow_destructive"}
+	e := &APIError{
+		Status:  403,
+		Key:     "forbidden",
+		Message: "denied",
+		Hint:    "set allow_destructive",
+	}
 
 	// Act
 	msg := e.Error()

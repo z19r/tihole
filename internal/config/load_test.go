@@ -67,7 +67,11 @@ func TestResolvePasswordErrorsWhenNeitherSet(t *testing.T) {
 func TestResolvePasswordPrefersInlineOverEnv(t *testing.T) {
 	// Arrange
 	t.Setenv("TIHOLE_TEST_PW2", "env-secret")
-	inst := Instance{Name: "home", Password: "inline", PasswordEnv: "TIHOLE_TEST_PW2"}
+	inst := Instance{
+		Name:        "home",
+		Password:    "inline",
+		PasswordEnv: "TIHOLE_TEST_PW2",
+	}
 
 	// Act
 	got, _ := inst.ResolvePassword()

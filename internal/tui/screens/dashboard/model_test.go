@@ -191,16 +191,28 @@ func TestUpdate_BreakdownResultStoresBothAndErrors(t *testing.T) {
 	m.epoch = 3
 
 	// Act: success path populates both
-	m.Update(breakdownMsg{epoch: 3, types: sampleTypes(), upstreams: sampleUpstreams()})
+	m.Update(
+		breakdownMsg{
+			epoch:     3,
+			types:     sampleTypes(),
+			upstreams: sampleUpstreams(),
+		},
+	)
 	if len(m.types.Types) == 0 || len(m.upstreams.Upstreams) == 0 {
 		t.Fatal("breakdown success should populate both fields")
 	}
 	// Act: error path sets both banners
-	m.Update(breakdownMsg{epoch: 3, typesErr: errStub("t"), upErr: errStub("u")})
+	m.Update(
+		breakdownMsg{epoch: 3, typesErr: errStub("t"), upErr: errStub("u")},
+	)
 
 	// Assert
 	if m.errTypes != "t" || m.errUpstreams != "u" {
-		t.Fatalf("expected both breakdown errors, got %q / %q", m.errTypes, m.errUpstreams)
+		t.Fatalf(
+			"expected both breakdown errors, got %q / %q",
+			m.errTypes,
+			m.errUpstreams,
+		)
 	}
 }
 
@@ -224,16 +236,35 @@ func TestUpdate_TopResultStoresAllAndErrors(t *testing.T) {
 	m.epoch = 3
 
 	// Act: success
-	m.Update(topMsg{epoch: 3, domains: sampleTopDomains(), blocked: sampleTopDomains(), clients: sampleTopClients()})
+	m.Update(
+		topMsg{
+			epoch:   3,
+			domains: sampleTopDomains(),
+			blocked: sampleTopDomains(),
+			clients: sampleTopClients(),
+		},
+	)
 	if len(m.domains.Domains) == 0 || len(m.clients.Clients) == 0 {
 		t.Fatal("top success should populate lists")
 	}
 	// Act: errors
-	m.Update(topMsg{epoch: 3, domainsErr: errStub("d"), blockedErr: errStub("b"), clientsErr: errStub("c")})
+	m.Update(
+		topMsg{
+			epoch:      3,
+			domainsErr: errStub("d"),
+			blockedErr: errStub("b"),
+			clientsErr: errStub("c"),
+		},
+	)
 
 	// Assert
 	if m.errDomains != "d" || m.errBlocked != "b" || m.errClients != "c" {
-		t.Fatalf("expected all top errors set, got %q/%q/%q", m.errDomains, m.errBlocked, m.errClients)
+		t.Fatalf(
+			"expected all top errors set, got %q/%q/%q",
+			m.errDomains,
+			m.errBlocked,
+			m.errClients,
+		)
 	}
 }
 
@@ -373,14 +404,19 @@ func TestUpdate_ProgressFrameAdvancesGauge(t *testing.T) {
 }
 
 // TestSyncBarTheme_RebuildsOnThemeChangePreservingPercent verifies the gauge is
-// rebuilt when the active theme changes, keeping its target percent so the value
+// rebuilt when the active theme changes, keeping its target percent so the
+// value
 // doesn't jump, and is left untouched when the theme is unchanged.
 func TestSyncBarTheme_RebuildsOnThemeChangePreservingPercent(t *testing.T) {
 	// Arrange: give the gauge a target, then swap the theme.
 	m := newTestModel()
 	m.blockBar.SetPercent(0.42)
 	if m.barTheme != theme.DeepNight().Name {
-		t.Fatalf("precondition: gauge built for %q, got %q", theme.DeepNight().Name, m.barTheme)
+		t.Fatalf(
+			"precondition: gauge built for %q, got %q",
+			theme.DeepNight().Name,
+			m.barTheme,
+		)
 	}
 	m.ctx.Theme = theme.LightLuxury()
 
@@ -389,10 +425,17 @@ func TestSyncBarTheme_RebuildsOnThemeChangePreservingPercent(t *testing.T) {
 
 	// Assert: rebuilt for the new theme, percent preserved.
 	if m.barTheme != theme.LightLuxury().Name {
-		t.Fatalf("expected gauge rebuilt for %q, got %q", theme.LightLuxury().Name, m.barTheme)
+		t.Fatalf(
+			"expected gauge rebuilt for %q, got %q",
+			theme.LightLuxury().Name,
+			m.barTheme,
+		)
 	}
 	if got := m.blockBar.Percent(); got < 0.41 || got > 0.43 {
-		t.Fatalf("percent not preserved across rebuild: got %.3f want ~0.42", got)
+		t.Fatalf(
+			"percent not preserved across rebuild: got %.3f want ~0.42",
+			got,
+		)
 	}
 
 	// Act again with no change: barTheme stays put (no needless rebuild).

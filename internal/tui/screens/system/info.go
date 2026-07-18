@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -55,7 +56,10 @@ func (m *Model) fetchInfo() tea.Cmd {
 				}
 				continue
 			}
-			sections = append(sections, infoSection{name: name, rows: flattenInfo(data)})
+			sections = append(
+				sections,
+				infoSection{name: name, rows: flattenInfo(data)},
+			)
 		}
 		return infoMsg{epoch: e, sections: sections, err: firstErr}
 	}, m.spinner.Tick)
@@ -127,7 +131,14 @@ func (m *Model) renderInfo(th *theme.Theme, bodyH int) string {
 	}
 	if len(m.info) == 0 {
 		empty := th.SubtleStyle().Render("no info available")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	keyW := 16
@@ -136,13 +147,17 @@ func (m *Model) renderInfo(th *theme.Theme, bodyH int) string {
 		heading := th.AccentStyle().Bold(true).Render(sec.name)
 		lines := []string{heading}
 		for _, row := range sec.rows {
-			label := th.SubtleStyle().Width(keyW).Render(truncate(row.key, keyW))
-			val := th.TextStyle().Render(truncate(row.val, maxInt(m.w-keyW-4, 8)))
+			label := th.SubtleStyle().
+				Background(th.Surface).
+				Width(keyW).
+				Render(truncate(row.key, keyW))
+			val := th.TextStyle().
+				Render(truncate(row.val, maxInt(m.w-keyW-4, 8)))
 			lines = append(lines, label+"  "+val)
 		}
-		panels = append(panels, lipgloss.JoinVertical(lipgloss.Left, lines...))
+		panels = append(panels, strings.Join(lines, "\n"))
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, panels...)
+	content := strings.Join(panels, "\n")
 	return lipgloss.NewStyle().MaxHeight(bodyH).Render(content)
 }

@@ -76,7 +76,13 @@ func (c *Client) Domains(ctx context.Context) ([]Domain, error) {
 
 // AddDomain creates a domain via POST /api/domains/{type}/{kind}/{domain}. The
 // new entry is created enabled.
-func (c *Client) AddDomain(ctx context.Context, dt DomainType, dk DomainKind, domain, comment string, groups []int) (Domain, error) {
+func (c *Client) AddDomain(
+	ctx context.Context,
+	dt DomainType,
+	dk DomainKind,
+	domain, comment string,
+	groups []int,
+) (Domain, error) {
 	body := domainRequest{Comment: comment, Groups: groups, Enabled: true}
 	var out domainsEnvelope
 	if err := c.do(ctx, http.MethodPost, domainPath(dt, dk, domain), body, &out); err != nil {
@@ -89,7 +95,14 @@ func (c *Client) AddDomain(ctx context.Context, dt DomainType, dk DomainKind, do
 }
 
 // UpdateDomain updates a domain via PUT /api/domains/{type}/{kind}/{domain}.
-func (c *Client) UpdateDomain(ctx context.Context, dt DomainType, dk DomainKind, domain, comment string, groups []int, enabled bool) (Domain, error) {
+func (c *Client) UpdateDomain(
+	ctx context.Context,
+	dt DomainType,
+	dk DomainKind,
+	domain, comment string,
+	groups []int,
+	enabled bool,
+) (Domain, error) {
 	body := domainRequest{Comment: comment, Groups: groups, Enabled: enabled}
 	var out domainsEnvelope
 	if err := c.do(ctx, http.MethodPut, domainPath(dt, dk, domain), body, &out); err != nil {
@@ -102,11 +115,20 @@ func (c *Client) UpdateDomain(ctx context.Context, dt DomainType, dk DomainKind,
 }
 
 // DeleteDomain removes a domain via DELETE /api/domains/{type}/{kind}/{domain}.
-func (c *Client) DeleteDomain(ctx context.Context, dt DomainType, dk DomainKind, domain string) error {
+func (c *Client) DeleteDomain(
+	ctx context.Context,
+	dt DomainType,
+	dk DomainKind,
+	domain string,
+) error {
 	return c.do(ctx, http.MethodDelete, domainPath(dt, dk, domain), nil, nil)
 }
 
-// BatchDeleteDomains removes multiple domains via POST /api/domains:batchDelete.
-func (c *Client) BatchDeleteDomains(ctx context.Context, items []DomainRef) error {
+// BatchDeleteDomains removes multiple domains via POST
+// /api/domains:batchDelete.
+func (c *Client) BatchDeleteDomains(
+	ctx context.Context,
+	items []DomainRef,
+) error {
 	return c.do(ctx, http.MethodPost, "/domains:batchDelete", items, nil)
 }

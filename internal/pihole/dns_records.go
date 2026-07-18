@@ -92,7 +92,10 @@ func (c *Client) AddHostRecord(ctx context.Context, ip, domain string) error {
 
 // DeleteHostRecord removes an A/AAAA host entry via
 // DELETE /api/config/dns/hosts/{IP domain}.
-func (c *Client) DeleteHostRecord(ctx context.Context, ip, domain string) error {
+func (c *Client) DeleteHostRecord(
+	ctx context.Context,
+	ip, domain string,
+) error {
 	return c.DeleteConfigItem(ctx, "dns.hosts", hostValue(ip, domain))
 }
 
@@ -112,20 +115,39 @@ func (c *Client) CNAMERecords(ctx context.Context) ([]CNAMERecord, error) {
 
 // AddCNAMERecord appends a CNAME entry via
 // PUT /api/config/dns/cnameRecords/{value}. A non-positive ttl is omitted.
-func (c *Client) AddCNAMERecord(ctx context.Context, domain, target string, ttl int) error {
-	return c.AddConfigItem(ctx, "dns.cnameRecords", cnameValue(domain, target, ttl))
+func (c *Client) AddCNAMERecord(
+	ctx context.Context,
+	domain, target string,
+	ttl int,
+) error {
+	return c.AddConfigItem(
+		ctx,
+		"dns.cnameRecords",
+		cnameValue(domain, target, ttl),
+	)
 }
 
 // DeleteCNAMERecord removes a CNAME entry via
 // DELETE /api/config/dns/cnameRecords/{value}.
-func (c *Client) DeleteCNAMERecord(ctx context.Context, domain, target string, ttl int) error {
-	return c.DeleteConfigItem(ctx, "dns.cnameRecords", cnameValue(domain, target, ttl))
+func (c *Client) DeleteCNAMERecord(
+	ctx context.Context,
+	domain, target string,
+	ttl int,
+) error {
+	return c.DeleteConfigItem(
+		ctx,
+		"dns.cnameRecords",
+		cnameValue(domain, target, ttl),
+	)
 }
 
 // stringArrayElement fetches a config element whose value is a JSON array of
 // strings, following the same dotted-element addressing as ConfigElement. The
 // element's value lives at config[<last segment>] in the response subtree.
-func (c *Client) stringArrayElement(ctx context.Context, element string) ([]string, error) {
+func (c *Client) stringArrayElement(
+	ctx context.Context,
+	element string,
+) ([]string, error) {
 	path := "/config/" + escapeElement(element)
 	var out stringArrayEnvelope
 	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {

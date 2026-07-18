@@ -65,7 +65,11 @@ func (f *groupForm) openAdd(width int) tea.Cmd {
 
 // openEdit pre-fills the form for editing an existing group. The name is kept
 // read-only; focus starts on the comment field.
-func (f *groupForm) openEdit(name, comment string, enabled bool, width int) tea.Cmd {
+func (f *groupForm) openEdit(
+	name, comment string,
+	enabled bool,
+	width int,
+) tea.Cmd {
 	f.active = true
 	f.editing = true
 	f.origName = name
@@ -114,7 +118,8 @@ func (f *groupForm) canSubmit() bool {
 	return strings.TrimSpace(f.name.Value()) != ""
 }
 
-// values returns the submitted name/comment/enabled and whether this is an edit.
+// values returns the submitted name/comment/enabled and whether this is an
+// edit.
 // For edits the original name is authoritative.
 func (f *groupForm) values() (name, comment string, enabled, editing bool) {
 	name = strings.TrimSpace(f.name.Value())
@@ -181,16 +186,35 @@ func (f *groupForm) view(th *theme.Theme, width int) string {
 	var lines []string
 	lines = append(lines, th.AccentStyle().Bold(true).Render(heading), "")
 
-	lines = append(lines, f.fieldRow(th, "Name", f.nameView(th), f.focused() == fieldName))
-	lines = append(lines, f.fieldRow(th, "Comment", f.comment.View(), f.focused() == fieldComment))
+	lines = append(
+		lines,
+		f.fieldRow(th, "Name", f.nameView(th), f.focused() == fieldName),
+	)
+	lines = append(
+		lines,
+		f.fieldRow(
+			th,
+			"Comment",
+			f.comment.View(),
+			f.focused() == fieldComment,
+		),
+	)
 
 	toggle := disabledGlyph + " disabled"
 	if f.enabled {
 		toggle = th.AllowStyle().Render(enabledGlyph + " enabled")
 	}
-	lines = append(lines, f.fieldRow(th, "Enabled", toggle, f.focused() == fieldEnabled))
+	lines = append(
+		lines,
+		f.fieldRow(th, "Enabled", toggle, f.focused() == fieldEnabled),
+	)
 
-	lines = append(lines, "", th.SubtleStyle().Render("tab move · space toggle · enter save · esc cancel"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().
+			Render("tab move · space toggle · enter save · esc cancel"),
+	)
 
 	panelW := maxInt(minInt(width-2, 60), 20)
 	return th.PanelStyle().
@@ -198,7 +222,7 @@ func (f *groupForm) view(th *theme.Theme, width int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 }
 
 // nameView renders the name field: the live input in add mode, or read-only
@@ -211,7 +235,11 @@ func (f *groupForm) nameView(th *theme.Theme) string {
 }
 
 // fieldRow renders a labelled field with a focus marker.
-func (f *groupForm) fieldRow(th *theme.Theme, label, value string, focused bool) string {
+func (f *groupForm) fieldRow(
+	th *theme.Theme,
+	label, value string,
+	focused bool,
+) string {
 	marker := "  "
 	if focused {
 		marker = th.AccentStyle().Render("▸ ")

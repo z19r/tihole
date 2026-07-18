@@ -32,7 +32,14 @@ const (
 )
 
 // columnTitles is the header row, in render order.
-var columnTitles = []string{"Time", "Domain", "Client", "Type", "Status", "Upstream"}
+var columnTitles = []string{
+	"Time",
+	"Domain",
+	"Client",
+	"Type",
+	"Status",
+	"Upstream",
+}
 
 // computeColumnWidths returns the content width of each column for a given
 // total width. Widths never sum past the available (padding-adjusted) space,
@@ -56,7 +63,14 @@ func computeColumnWidths(total int) []int {
 	client = clampMin(client, minFlexCol)
 	upstream = clampMin(upstream, minFlexCol)
 
-	return []int{colTimeWidth, domain, client, colTypeWidth, colStatusWidth, upstream}
+	return []int{
+		colTimeWidth,
+		domain,
+		client,
+		colTypeWidth,
+		colStatusWidth,
+		upstream,
+	}
 }
 
 func clampMin(v, min int) int {
@@ -157,7 +171,8 @@ func statusToken(status string) string {
 	}
 }
 
-// styleForToken resolves a style token to a lipgloss style using the live theme.
+// styleForToken resolves a style token to a lipgloss style using the live
+// theme.
 func styleForToken(th *theme.Theme, token string) lipgloss.Style {
 	switch token {
 	case tokenBlock:
@@ -171,7 +186,11 @@ func styleForToken(th *theme.Theme, token string) lipgloss.Style {
 
 // styledRows builds table rows from queries, colouring the Domain and Status
 // cells by the row's status token using the current theme. Read at View() time.
-func styledRows(th *theme.Theme, queries []pihole.Query, widths []int) []table.Row {
+func styledRows(
+	th *theme.Theme,
+	queries []pihole.Query,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(queries))
 	for i, q := range queries {
 		cells := queryToRow(q, widths)
@@ -184,7 +203,8 @@ func styledRows(th *theme.Theme, queries []pihole.Query, widths []int) []table.R
 }
 
 // buildFilter constructs a QueryFilter for a fresh page: an optional domain
-// search plus the page length. Only set (non-nil) fields are sent by the client.
+// search plus the page length. Only set (non-nil) fields are sent by the
+// client.
 func buildFilter(domain string, length int, cursor *int64) pihole.QueryFilter {
 	f := pihole.QueryFilter{}
 	if length > 0 {

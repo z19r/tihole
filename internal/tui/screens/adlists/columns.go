@@ -36,9 +36,17 @@ const (
 )
 
 // columnTitles is the header row, in render order.
-var columnTitles = []string{"Type", "Address", "Comment", "On", "Domains", "Status"}
+var columnTitles = []string{
+	"Type",
+	"Address",
+	"Comment",
+	"On",
+	"Domains",
+	"Status",
+}
 
-// computeColumnWidths returns the content width of each column for a given total
+// computeColumnWidths returns the content width of each column for a given
+// total
 // width. Widths never sum past the available (padding-adjusted) space, and each
 // flexible column is clamped to a sane minimum so nothing collapses.
 func computeColumnWidths(total int) []int {
@@ -58,7 +66,14 @@ func computeColumnWidths(total int) []int {
 	address = clampMin(address, minFlexCol)
 	comment = clampMin(comment, minFlexCol)
 
-	return []int{colTypeWidth, address, comment, colEnabledWidth, colDomainsWidth, colStatusWidth}
+	return []int{
+		colTypeWidth,
+		address,
+		comment,
+		colEnabledWidth,
+		colDomainsWidth,
+		colStatusWidth,
+	}
 }
 
 func clampMin(v, min int) int {
@@ -81,7 +96,8 @@ func tableColumns(widths []int) []table.Column {
 	return cols
 }
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it must cut. Rune-aware so multibyte addresses are not split mid-rune.
 func truncate(s string, width int) string {
 	if width <= 0 {
@@ -169,7 +185,8 @@ func listToRow(l pihole.List, widths []int) []string {
 	}
 }
 
-// styleForToken resolves a style token to a lipgloss style using the live theme.
+// styleForToken resolves a style token to a lipgloss style using the live
+// theme.
 func styleForToken(th *theme.Theme, token string) lipgloss.Style {
 	switch token {
 	case tokenBlock:
@@ -185,7 +202,11 @@ func styleForToken(th *theme.Theme, token string) lipgloss.Style {
 
 // styledRows builds table rows from lists, colouring the Type, On, and Status
 // cells by their tokens using the current theme. Read at View() time.
-func styledRows(th *theme.Theme, lists []pihole.List, widths []int) []table.Row {
+func styledRows(
+	th *theme.Theme,
+	lists []pihole.List,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(lists))
 	for i, l := range lists {
 		cells := listToRow(l, widths)

@@ -43,7 +43,12 @@ func run(start core.PageID) error {
 	th, err := theme.Resolve(cfg.Theme)
 	if err != nil {
 		// Resolve already falls back to a built-in theme; keep going.
-		fmt.Fprintf(os.Stderr, "theme %q: %v (using fallback)\n", cfg.Theme, err)
+		fmt.Fprintf(
+			os.Stderr,
+			"theme %q: %v (using fallback)\n",
+			cfg.Theme,
+			err,
+		)
 	}
 
 	api, err := clientFor(cfg, cfg.Active)

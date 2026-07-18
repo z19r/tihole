@@ -44,7 +44,13 @@ func TestDoSendsXFTLSIDHeader(t *testing.T) {
 	client.setSID("SID-AUTH")
 
 	// Act
-	err := client.do(context.Background(), http.MethodGet, "/stats/summary", nil, nil)
+	err := client.do(
+		context.Background(),
+		http.MethodGet,
+		"/stats/summary",
+		nil,
+		nil,
+	)
 
 	// Assert
 	if err != nil {
@@ -68,13 +74,19 @@ func TestDo401TriggersExactlyOneReauthAndRetry(t *testing.T) {
 			n := atomic.AddInt32(&protectedCalls, 1)
 			if n == 1 {
 				// First hit: pretend the (empty) session is invalid.
-				writeJSON(w, http.StatusUnauthorized,
-					`{"error":{"key":"unauthorized","message":"no session"},"took":0.0}`)
+				writeJSON(
+					w,
+					http.StatusUnauthorized,
+					`{"error":{"key":"unauthorized","message":"no session"},"took":0.0}`,
+				)
 				return
 			}
 			// Retry must carry the freshly-minted SID.
 			if r.Header.Get("X-FTL-SID") != "FRESH-SID" {
-				t.Errorf("retry X-FTL-SID = %q, want FRESH-SID", r.Header.Get("X-FTL-SID"))
+				t.Errorf(
+					"retry X-FTL-SID = %q, want FRESH-SID",
+					r.Header.Get("X-FTL-SID"),
+				)
 			}
 			writeJSON(w, http.StatusOK, `{"took":0.0}`)
 		default:
@@ -83,7 +95,13 @@ func TestDo401TriggersExactlyOneReauthAndRetry(t *testing.T) {
 	})
 
 	// Act
-	err := client.do(context.Background(), http.MethodGet, "/stats/summary", nil, nil)
+	err := client.do(
+		context.Background(),
+		http.MethodGet,
+		"/stats/summary",
+		nil,
+		nil,
+	)
 
 	// Assert
 	if err != nil {
@@ -93,7 +111,10 @@ func TestDo401TriggersExactlyOneReauthAndRetry(t *testing.T) {
 		t.Errorf("auth called %d times, want exactly 1", got)
 	}
 	if got := atomic.LoadInt32(&protectedCalls); got != 2 {
-		t.Errorf("protected endpoint called %d times, want 2 (original + retry)", got)
+		t.Errorf(
+			"protected endpoint called %d times, want 2 (original + retry)",
+			got,
+		)
 	}
 }
 
@@ -109,9 +130,16 @@ func TestDo401RetryStillFailsReturnsAPIError(t *testing.T) {
 	})
 
 	// Act
-	err := client.do(context.Background(), http.MethodGet, "/stats/summary", nil, nil)
+	err := client.do(
+		context.Background(),
+		http.MethodGet,
+		"/stats/summary",
+		nil,
+		nil,
+	)
 
-	// Assert: retry disabled on the second pass, so the 401 surfaces as APIError.
+	// Assert: retry disabled on the second pass, so the 401 surfaces as
+	// APIError.
 	apiErr, ok := err.(*APIError)
 	if !ok {
 		t.Fatalf("error type = %T, want *APIError", err)
@@ -124,13 +152,22 @@ func TestDo401RetryStillFailsReturnsAPIError(t *testing.T) {
 func TestDoDecodesErrorEnvelope(t *testing.T) {
 	// Arrange
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusForbidden,
-			`{"error":{"key":"forbidden","message":"Destructive action","hint":"set allow_destructive"},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusForbidden,
+			`{"error":{"key":"forbidden","message":"Destructive action","hint":"set allow_destructive"},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
 	// Act
-	err := client.do(context.Background(), http.MethodPost, "/action/restartdns", nil, nil)
+	err := client.do(
+		context.Background(),
+		http.MethodPost,
+		"/action/restartdns",
+		nil,
+		nil,
+	)
 
 	// Assert
 	apiErr, ok := err.(*APIError)
@@ -145,13 +182,21 @@ func TestDoDecodesErrorEnvelope(t *testing.T) {
 
 func TestDoNetworkErrorOnUnreachableHost(t *testing.T) {
 	// Arrange: point at a closed port.
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv := httptest.NewServer(
+		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+	)
 	url := srv.URL
 	srv.Close() // now unreachable
 	client := New(url, "pw")
 
 	// Act
-	err := client.do(context.Background(), http.MethodGet, "/stats/summary", nil, nil)
+	err := client.do(
+		context.Background(),
+		http.MethodGet,
+		"/stats/summary",
+		nil,
+		nil,
+	)
 
 	// Assert
 	if _, ok := err.(*NetworkError); !ok {
@@ -161,13 +206,15 @@ func TestDoNetworkErrorOnUnreachableHost(t *testing.T) {
 
 func TestWithInsecureTLSWiresSkipVerify(t *testing.T) {
 	// Arrange: a TLS server with a self-signed cert.
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/auth" {
-			authOK(w, "SID")
-			return
-		}
-		writeJSON(w, http.StatusOK, `{"took":0.0}`)
-	}))
+	srv := httptest.NewTLSServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/api/auth" {
+				authOK(w, "SID")
+				return
+			}
+			writeJSON(w, http.StatusOK, `{"took":0.0}`)
+		}),
+	)
 	t.Cleanup(srv.Close)
 
 	// A default client (no insecure opt-in) must fail the TLS handshake.
@@ -182,7 +229,10 @@ func TestWithInsecureTLSWiresSkipVerify(t *testing.T) {
 	// Assert: the transport carries InsecureSkipVerify and the call succeeds.
 	tr, ok := insecure.httpClient.Transport.(*http.Transport)
 	if !ok {
-		t.Fatalf("transport type = %T, want *http.Transport", insecure.httpClient.Transport)
+		t.Fatalf(
+			"transport type = %T, want *http.Transport",
+			insecure.httpClient.Transport,
+		)
 	}
 	if tr.TLSClientConfig == nil || !tr.TLSClientConfig.InsecureSkipVerify {
 		t.Errorf("InsecureSkipVerify not set on transport")

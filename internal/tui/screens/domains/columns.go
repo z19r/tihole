@@ -31,9 +31,17 @@ const (
 )
 
 // columnTitles is the header row, in render order.
-var columnTitles = []string{"Type", "Kind", "Domain", "Comment", "Enabled", "Groups"}
+var columnTitles = []string{
+	"Type",
+	"Kind",
+	"Domain",
+	"Comment",
+	"Enabled",
+	"Groups",
+}
 
-// computeColumnWidths returns the content width of each column for a given total
+// computeColumnWidths returns the content width of each column for a given
+// total
 // width. Widths never sum past the available (padding-adjusted) space, and each
 // flexible column is clamped to a sane minimum so nothing collapses.
 func computeColumnWidths(total int) []int {
@@ -53,7 +61,14 @@ func computeColumnWidths(total int) []int {
 	domain = clampMin(domain, minFlexCol)
 	comment = clampMin(comment, minFlexCol)
 
-	return []int{colTypeWidth, colKindWidth, domain, comment, colEnabledWidth, colGroupsWidth}
+	return []int{
+		colTypeWidth,
+		colKindWidth,
+		domain,
+		comment,
+		colEnabledWidth,
+		colGroupsWidth,
+	}
 }
 
 func clampMin(v, min int) int {
@@ -85,7 +100,8 @@ func columnWidthsFrom(cols []table.Column) []int {
 	return w
 }
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it must cut. Rune-aware so multibyte domains are not split mid-rune.
 func truncate(s string, width int) string {
 	if width <= 0 {
@@ -153,7 +169,11 @@ func typeStyle(th *theme.Theme, dtype string) lipgloss.Style {
 // styledRows builds table rows from domains, colouring the Type cell by
 // allow/deny and the Enabled cell by state, using the current theme. Read at
 // View() time so live re-themes take effect immediately.
-func styledRows(th *theme.Theme, domains []pihole.Domain, widths []int) []table.Row {
+func styledRows(
+	th *theme.Theme,
+	domains []pihole.Domain,
+	widths []int,
+) []table.Row {
 	rows := make([]table.Row, len(domains))
 	for i, d := range domains {
 		cells := domainToRow(d, widths)

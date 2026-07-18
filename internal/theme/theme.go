@@ -17,7 +17,8 @@ import (
 // (what lipgloss.Color returns) so themes can be built from hex strings, ANSI
 // indices, or adaptive pickers uniformly.
 type Theme struct {
-	// Name is the stable identifier used by Builtin/Resolve (e.g. "deep-night").
+	// Name is the stable identifier used by Builtin/Resolve (e.g.
+	// "deep-night").
 	Name string
 
 	Surface color.Color // app background
@@ -30,6 +31,13 @@ type Theme struct {
 	Warn    color.Color // caution (amber family)
 	Border  color.Color // panel & divider borders
 
+	// Ramp is an optional multi-stop signature gradient (the brand sweep used
+	// by the splash banner and wordmark). When it has fewer than two stops,
+	// gradient helpers fall back to a plain Accent→Allow blend, so single-hue
+	// themes need
+	// not set it. The Gloss theme fills it with its pink→purple→acid→cyan ramp.
+	Ramp []color.Color
+
 	// adapt, when non-nil, lets a theme return a mode-specific variant from
 	// Adapt(isDark). Built-in themes are committed to a single mode and leave
 	// this nil (Adapt returns the receiver unchanged).
@@ -41,6 +49,16 @@ func (t *Theme) SurfaceStyle() lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(t.Text).
 		Background(t.Surface)
+}
+
+// SurfaceWhitespace is the whitespace-fill option for lipgloss.Place: it paints
+// the space Place adds around centered content with the surface background.
+// Without it that fill sits after a styled reset and bleeds the terminal's own
+// background through as gray gaps.
+func (t *Theme) SurfaceWhitespace() lipgloss.WhitespaceOption {
+	return lipgloss.WithWhitespaceStyle(
+		lipgloss.NewStyle().Background(t.Surface),
+	)
 }
 
 // PanelStyle is a raised, bordered container built from Panel/Border/Text.
@@ -86,6 +104,16 @@ func (t *Theme) WarnStyle() lipgloss.Style {
 // BorderStyle renders a divider/border using the Border token.
 func (t *Theme) BorderStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(t.Border)
+}
+
+// GradientStops returns the theme's signature gradient stops: the multi-stop
+// Ramp when it defines at least two colors, otherwise a two-stop Accent→Allow
+// blend. Callers sweep text or banners across these to carry the brand look.
+func (t *Theme) GradientStops() []color.Color {
+	if len(t.Ramp) >= 2 {
+		return t.Ramp
+	}
+	return []color.Color{t.Accent, t.Allow}
 }
 
 // Adapt returns the theme variant appropriate for the given background.

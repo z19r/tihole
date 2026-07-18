@@ -94,6 +94,7 @@ func (f *instanceForm) title() string {
 }
 
 func (f *instanceForm) focusNext() { f.focus = (f.focus + 1) % instFieldCount }
+
 func (f *instanceForm) focusPrev() { f.focus = (f.focus + instFieldCount - 1) % instFieldCount }
 
 // toggleVerify flips the verify_tls field.
@@ -187,7 +188,8 @@ func (f *instanceForm) render(th *theme.Theme, w, h int) string {
 		f.inputLine(th, fieldPasswordEnv, "Pass env", f.passwordEnv.View()),
 		f.toggleLine(th, fieldVerifyTLS, "Verify TLS", tls),
 		"",
-		th.SubtleStyle().Render("tab next · ←/→ toggle · enter save · esc cancel"),
+		th.SubtleStyle().
+			Render("tab next · ←/→ toggle · enter save · esc cancel"),
 	}
 
 	panelW := clampInt(w-4, 24, 72)
@@ -196,20 +198,44 @@ func (f *instanceForm) render(th *theme.Theme, w, h int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		surfaceWhitespace(th),
+	)
 }
 
-func (f *instanceForm) toggleLine(th *theme.Theme, field instField, label, value string) string {
-	return f.fieldLabel(th, field, label) + "  " + th.TextStyle().Render("‹ "+value+" ›")
+func (f *instanceForm) toggleLine(
+	th *theme.Theme,
+	field instField,
+	label, value string,
+) string {
+	return f.fieldLabel(
+		th,
+		field,
+		label,
+	) + "  " + th.TextStyle().
+		Render("‹ "+value+" ›")
 }
 
-func (f *instanceForm) inputLine(th *theme.Theme, field instField, label, view string) string {
+func (f *instanceForm) inputLine(
+	th *theme.Theme,
+	field instField,
+	label, view string,
+) string {
 	return f.fieldLabel(th, field, label) + "  " + view
 }
 
-func (f *instanceForm) fieldLabel(th *theme.Theme, field instField, label string) string {
+func (f *instanceForm) fieldLabel(
+	th *theme.Theme,
+	field instField,
+	label string,
+) string {
 	marker := "  "
 	style := th.SubtleStyle()
 	if f.focus == field {

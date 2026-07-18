@@ -69,7 +69,11 @@ func TestBuiltinReturnsFalseForUnknownName(t *testing.T) {
 	th, ok := Builtin("no-such-theme")
 
 	if ok || th != nil {
-		t.Errorf("expected (nil, false) for unknown theme, got (%v, %v)", th, ok)
+		t.Errorf(
+			"expected (nil, false) for unknown theme, got (%v, %v)",
+			th,
+			ok,
+		)
 	}
 }
 
@@ -80,12 +84,58 @@ func TestBuiltinReturnsFreshInstances(t *testing.T) {
 
 	// Assert: distinct pointers so callers cannot mutate a shared theme.
 	if a == b {
-		t.Error("expected Builtin to return fresh instances, got shared pointer")
+		t.Error(
+			"expected Builtin to return fresh instances, got shared pointer",
+		)
+	}
+}
+
+func TestGlossHasNonNilTokensAndName(t *testing.T) {
+	th := Gloss()
+
+	if th.Name != NameGloss {
+		t.Errorf("expected name %q, got %q", NameGloss, th.Name)
+	}
+	tokensNonNil(t, th)
+
+	// Gloss carries the signature multi-stop ramp; GradientStops must surface
+	// it.
+	if len(th.Ramp) < 2 {
+		t.Errorf(
+			"expected Gloss to define a multi-stop ramp, got %d stops",
+			len(th.Ramp),
+		)
+	}
+	if got := th.GradientStops(); len(got) != len(th.Ramp) {
+		t.Errorf(
+			"GradientStops should return the ramp (%d stops), got %d",
+			len(th.Ramp),
+			len(got),
+		)
+	}
+}
+
+func TestGradientStopsFallsBackToAccentAllow(t *testing.T) {
+	// A single-hue theme (no Ramp) falls back to a two-stop Accent→Allow blend.
+	th := DeepNight()
+	got := th.GradientStops()
+
+	if len(got) != 2 {
+		t.Fatalf("expected 2 fallback stops, got %d", len(got))
+	}
+	if got[0] != th.Accent || got[1] != th.Allow {
+		t.Errorf("expected [Accent, Allow] fallback, got %v", got)
 	}
 }
 
 func TestNamesListsAllBuiltinsInOrder(t *testing.T) {
-	want := []string{NameAuto, NameDeepNight, NameLightLuxury, NamePiholeClassic}
+	want := []string{
+		NameAuto,
+		NameGloss,
+		NameDeepNight,
+		NameLightLuxury,
+		NamePiholeClassic,
+	}
 
 	got := Names()
 
@@ -169,7 +219,10 @@ func TestPickChoosesByBackground(t *testing.T) {
 
 // writeOmarchyFixture writes a sample alacritty.toml (Tokyo Night palette) into
 // dir and returns the known-good hex values for assertions.
-func writeOmarchyFixture(t *testing.T, dir string) (bg, fg, red, green, yellow, brightBlue string) {
+func writeOmarchyFixture(
+	t *testing.T,
+	dir string,
+) (bg, fg, red, green, yellow, brightBlue string) {
 	t.Helper()
 	bg, fg = "#1a1b26", "#c0caf5"
 	red, green, yellow = "#f7768e", "#9ece6a", "#e0af68"
@@ -248,7 +301,9 @@ func TestLoadOmarchyMapsAnsiToSemanticTokens(t *testing.T) {
 	}
 	// Panel must be derived (a shift of Surface), not equal to Surface.
 	if colorHex(th.Panel) == bg {
-		t.Error("expected Panel to be a derived shift of Surface, not identical")
+		t.Error(
+			"expected Panel to be a derived shift of Surface, not identical",
+		)
 	}
 }
 
@@ -356,12 +411,18 @@ func TestAutoAdaptsToBackground(t *testing.T) {
 	}
 	tokensNonNil(t, th)
 
-	// Act / Assert: Adapt resolves to a concrete single-mode theme per background.
-	if got := th.Adapt(true); got.Name != NameDeepNight {
-		t.Errorf("dark background: expected %q, got %q", NameDeepNight, got.Name)
+	// Act / Assert: Adapt resolves to a concrete single-mode theme per
+	// background.
+	// Dark terminals land on Gloss, tihole's signature default look.
+	if got := th.Adapt(true); got.Name != NameGloss {
+		t.Errorf("dark background: expected %q, got %q", NameGloss, got.Name)
 	}
 	if got := th.Adapt(false); got.Name != NameLightLuxury {
-		t.Errorf("light background: expected %q, got %q", NameLightLuxury, got.Name)
+		t.Errorf(
+			"light background: expected %q, got %q",
+			NameLightLuxury,
+			got.Name,
+		)
 	}
 }
 

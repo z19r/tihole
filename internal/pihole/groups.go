@@ -50,7 +50,10 @@ func (c *Client) Groups(ctx context.Context) ([]Group, error) {
 }
 
 // AddGroup creates a group via POST /api/groups. The new group is enabled.
-func (c *Client) AddGroup(ctx context.Context, name, comment string) (Group, error) {
+func (c *Client) AddGroup(
+	ctx context.Context,
+	name, comment string,
+) (Group, error) {
 	body := groupCreateRequest{Name: name, Comment: comment, Enabled: true}
 	var out groupsEnvelope
 	if err := c.do(ctx, http.MethodPost, "/groups", body, &out); err != nil {
@@ -63,7 +66,11 @@ func (c *Client) AddGroup(ctx context.Context, name, comment string) (Group, err
 }
 
 // UpdateGroup updates a group via PUT /api/groups/{name}.
-func (c *Client) UpdateGroup(ctx context.Context, name, comment string, enabled bool) (Group, error) {
+func (c *Client) UpdateGroup(
+	ctx context.Context,
+	name, comment string,
+	enabled bool,
+) (Group, error) {
 	body := groupUpdateRequest{Comment: comment, Enabled: enabled}
 	path := "/groups/" + url.PathEscape(name)
 	var out groupsEnvelope
@@ -78,10 +85,19 @@ func (c *Client) UpdateGroup(ctx context.Context, name, comment string, enabled 
 
 // DeleteGroup removes a group via DELETE /api/groups/{name}.
 func (c *Client) DeleteGroup(ctx context.Context, name string) error {
-	return c.do(ctx, http.MethodDelete, "/groups/"+url.PathEscape(name), nil, nil)
+	return c.do(
+		ctx,
+		http.MethodDelete,
+		"/groups/"+url.PathEscape(name),
+		nil,
+		nil,
+	)
 }
 
 // BatchDeleteGroups removes multiple groups via POST /api/groups:batchDelete.
-func (c *Client) BatchDeleteGroups(ctx context.Context, items []GroupRef) error {
+func (c *Client) BatchDeleteGroups(
+	ctx context.Context,
+	items []GroupRef,
+) error {
 	return c.do(ctx, http.MethodPost, "/groups:batchDelete", items, nil)
 }

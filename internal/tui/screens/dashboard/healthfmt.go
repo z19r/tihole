@@ -11,7 +11,12 @@ import (
 func memLabel(s pihole.SystemInfo) string {
 	pct := fmt.Sprintf("%.1f%%", s.MemUsedPercent)
 	if s.MemTotalKiB > 0 {
-		return fmt.Sprintf("%s · %s/%s", pct, humanKiB(s.MemUsedKiB), humanKiB(s.MemTotalKiB))
+		return fmt.Sprintf(
+			"%s · %s/%s",
+			pct,
+			humanKiB(s.MemUsedKiB),
+			humanKiB(s.MemTotalKiB),
+		)
 	}
 	return pct
 }
@@ -35,7 +40,8 @@ func humanUptime(seconds int64) string {
 	}
 }
 
-// humanKiB renders a kibibyte figure (as FTL reports memory) in the largest unit
+// humanKiB renders a kibibyte figure (as FTL reports memory) in the largest
+// unit
 // that keeps it readable: KiB, MiB or GiB.
 func humanKiB(kib int64) string {
 	const (

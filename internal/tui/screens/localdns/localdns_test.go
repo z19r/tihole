@@ -92,8 +92,14 @@ func TestCNAMEToRowBlanksZeroTTL(t *testing.T) {
 	widths := computeCNAMEColumnWidths(120)
 
 	// Act
-	zero := cnameToRow(pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 0}, widths)
-	set := cnameToRow(pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 300}, widths)
+	zero := cnameToRow(
+		pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 0},
+		widths,
+	)
+	set := cnameToRow(
+		pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 300},
+		widths,
+	)
 
 	// Assert
 	if zero[2] != "" {
@@ -133,7 +139,11 @@ func TestFocusSetsLoadingAndBumpsEpoch(t *testing.T) {
 		t.Fatalf("focus should set loading")
 	}
 	if m.epoch != startEpoch+1 {
-		t.Fatalf("focus should bump epoch: got %d want %d", m.epoch, startEpoch+1)
+		t.Fatalf(
+			"focus should bump epoch: got %d want %d",
+			m.epoch,
+			startEpoch+1,
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("focus should return a fetch command")
@@ -245,7 +255,10 @@ func TestAddKeyOpensFormWithKindFields(t *testing.T) {
 		t.Fatalf("'a' should open the add form")
 	}
 	if len(m.form.inputs) != 2 {
-		t.Fatalf("host add form should have 2 fields, got %d", len(m.form.inputs))
+		t.Fatalf(
+			"host add form should have 2 fields, got %d",
+			len(m.form.inputs),
+		)
 	}
 
 	// Act: switch to cnames, open form
@@ -258,7 +271,10 @@ func TestAddKeyOpensFormWithKindFields(t *testing.T) {
 		t.Fatalf("cname add form should open in cname kind")
 	}
 	if len(m.form.inputs) != 3 {
-		t.Fatalf("cname add form should have 3 fields, got %d", len(m.form.inputs))
+		t.Fatalf(
+			"cname add form should have 3 fields, got %d",
+			len(m.form.inputs),
+		)
 	}
 }
 
@@ -277,7 +293,9 @@ func TestSubmitHostFormReturnsCmdAndClosesForm(t *testing.T) {
 		t.Fatalf("submitting should close the form")
 	}
 	if cmd == nil {
-		t.Fatalf("submitting a valid host form should return a mutation command")
+		t.Fatalf(
+			"submitting a valid host form should return a mutation command",
+		)
 	}
 }
 
@@ -298,7 +316,9 @@ func TestSubmitCNAMEFormReturnsCmdAndClosesForm(t *testing.T) {
 		t.Fatalf("submitting should close the form")
 	}
 	if cmd == nil {
-		t.Fatalf("submitting a valid cname form should return a mutation command")
+		t.Fatalf(
+			"submitting a valid cname form should return a mutation command",
+		)
 	}
 }
 
@@ -410,7 +430,10 @@ func TestMutationSuccessTriggersRefetch(t *testing.T) {
 
 	// Assert
 	if m.epoch != 5 {
-		t.Fatalf("successful mutation should bump epoch for refetch, got %d", m.epoch)
+		t.Fatalf(
+			"successful mutation should bump epoch for refetch, got %d",
+			m.epoch,
+		)
 	}
 	if !m.loading {
 		t.Fatalf("refetch should set loading")

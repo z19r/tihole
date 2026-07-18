@@ -35,10 +35,14 @@ func TestNetworkDevicesDecode(t *testing.T) {
 	if d.ID != 1 || d.HWAddr != "aa:bb:cc:dd:ee:ff" || d.Interface != "eth0" {
 		t.Errorf("device = %#v", d)
 	}
-	if d.NumQueries != 42 || d.MACVendor != "Acme" || d.FirstSeen != 1700000000 || d.LastQuery != 1700000500 {
+	if d.NumQueries != 42 || d.MACVendor != "Acme" ||
+		d.FirstSeen != 1700000000 ||
+		d.LastQuery != 1700000500 {
 		t.Errorf("device = %#v", d)
 	}
-	if len(d.IPs) != 1 || d.IPs[0].IP != "192.168.1.5" || d.IPs[0].Name != "host.local" || d.IPs[0].LastSeen != 1700000400 {
+	if len(d.IPs) != 1 || d.IPs[0].IP != "192.168.1.5" ||
+		d.IPs[0].Name != "host.local" ||
+		d.IPs[0].LastSeen != 1700000400 {
 		t.Errorf("ips = %#v", d.IPs)
 	}
 }

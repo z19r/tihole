@@ -55,10 +55,16 @@ func TestCapturingScreenReceivesGlobalShortcutKeys(t *testing.T) {
 		t.Fatalf("capturing screen should receive 's', got %q", stub.lastKey)
 	}
 	if m.ctx.InstanceName != "home" {
-		t.Fatalf("switch-instance must not fire while capturing, instance=%q", m.ctx.InstanceName)
+		t.Fatalf(
+			"switch-instance must not fire while capturing, instance=%q",
+			m.ctx.InstanceName,
+		)
 	}
 	if m.active != activeBefore {
-		t.Fatalf("navigation must not fire while capturing, active=%v", m.active)
+		t.Fatalf(
+			"navigation must not fire while capturing, active=%v",
+			m.active,
+		)
 	}
 }
 
@@ -79,14 +85,24 @@ func TestCapturingScreenDoesNotFireQuitOrNav(t *testing.T) {
 		updated, cmd := m.Update(keyPress(tc.str, tc.r))
 		m = updated.(*AppModel)
 		if cmd != nil {
-			t.Fatalf("key %q must not produce a global command while capturing", tc.str)
+			t.Fatalf(
+				"key %q must not produce a global command while capturing",
+				tc.str,
+			)
 		}
 		if stub.lastKey != tc.str {
-			t.Fatalf("key %q should reach the screen, got %q", tc.str, stub.lastKey)
+			t.Fatalf(
+				"key %q should reach the screen, got %q",
+				tc.str,
+				stub.lastKey,
+			)
 		}
 	}
 	if m.active != core.PageDashboard {
-		t.Fatalf("no navigation should occur while capturing, active=%v", m.active)
+		t.Fatalf(
+			"no navigation should occur while capturing, active=%v",
+			m.active,
+		)
 	}
 }
 
@@ -110,6 +126,9 @@ func TestNonCapturingScreenFiresGlobalShortcut(t *testing.T) {
 
 	order := core.PageOrder()
 	if m.active != order[1].ID {
-		t.Fatalf("digit shortcut should navigate when not capturing, active=%v", m.active)
+		t.Fatalf(
+			"digit shortcut should navigate when not capturing, active=%v",
+			m.active,
+		)
 	}
 }

@@ -16,8 +16,17 @@ func (c *Client) UpdateGravity(ctx context.Context, onLine func(string)) error {
 	return c.streamGravity(ctx, onLine, true)
 }
 
-func (c *Client) streamGravity(ctx context.Context, onLine func(string), allowRetry bool) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+"/action/gravity", nil)
+func (c *Client) streamGravity(
+	ctx context.Context,
+	onLine func(string),
+	allowRetry bool,
+) error {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.apiURL+"/action/gravity",
+		nil,
+	)
 	if err != nil {
 		return &NetworkError{Op: "POST /action/gravity", Err: err}
 	}

@@ -10,7 +10,8 @@ const (
 )
 
 // miniBar renders a horizontal meter width runes wide, filled proportionally to
-// fraction (clamped to 0..1). A width <= 0 yields "". The fraction is rounded to
+// fraction (clamped to 0..1). A width <= 0 yields "". The fraction is rounded
+// to
 // the nearest cell so a small non-zero value still shows at least one filled
 // cell once it rounds up.
 func miniBar(fraction float64, width int) string {
@@ -77,7 +78,8 @@ func formatCount(n int) string {
 }
 
 // formatPercent renders a 0..100 percentage with one decimal place and a
-// trailing '%' (e.g. 42.15 -> "42.2%"). Values are not clamped; callers pass the
+// trailing '%' (e.g. 42.15 -> "42.2%"). Values are not clamped; callers pass
+// the
 // API-provided percent directly.
 func formatPercent(p float64) string {
 	return strconv.FormatFloat(p, 'f', 1, 64) + "%"

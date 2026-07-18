@@ -23,7 +23,8 @@ type leaf struct {
 
 // flattenConfig walks a nested config tree into a sorted, flat list of scalar
 // leaves keyed by dotted paths. Nested objects are descended into; a detailed
-// leaf descriptor (as returned by GET /config?detailed=true) is collapsed to its
+// leaf descriptor (as returned by GET /config?detailed=true) is collapsed to
+// its
 // underlying value so both detailed and raw trees flatten the same way.
 func flattenConfig(m map[string]any) []leaf {
 	var out []leaf
@@ -81,7 +82,8 @@ func filterLeaves(leaves []leaf, query string) []leaf {
 	return out
 }
 
-// stringifyValue renders a leaf value for display and for pre-filling an editor.
+// stringifyValue renders a leaf value for display and for pre-filling an
+// editor.
 func stringifyValue(v any) string {
 	switch x := v.(type) {
 	case nil:
@@ -221,7 +223,10 @@ func (e *leafEdit) render(th *theme.Theme, w, h int) string {
 
 	var valueLine string
 	if e.isBool {
-		valueLine = th.SubtleStyle().Render("Value") + "  " + th.TextStyle().Render("‹ "+strconv.FormatBool(e.boolVal)+" ›")
+		valueLine = th.SubtleStyle().
+			Render("Value") +
+			"  " + th.TextStyle().
+			Render("‹ "+strconv.FormatBool(e.boolVal)+" ›")
 	} else {
 		valueLine = th.SubtleStyle().Render("Value") + "  " + e.input.View()
 	}
@@ -239,9 +244,16 @@ func (e *leafEdit) render(th *theme.Theme, w, h int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		surfaceWhitespace(th),
+	)
 }
 
 // --- tree table rendering ---

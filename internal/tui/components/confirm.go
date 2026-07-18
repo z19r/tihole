@@ -23,7 +23,12 @@ type ConfirmDialog struct {
 
 // Show returns a copy of the dialog activated with the given title/message.
 func (d ConfirmDialog) Show(title, message string, danger bool) ConfirmDialog {
-	return ConfirmDialog{Active: true, Title: title, Message: message, Danger: danger}
+	return ConfirmDialog{
+		Active:  true,
+		Title:   title,
+		Message: message,
+		Danger:  danger,
+	}
 }
 
 // Hide returns a copy with Active cleared.

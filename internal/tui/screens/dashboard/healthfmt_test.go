@@ -24,7 +24,12 @@ func TestHumanUptime(t *testing.T) {
 			got := humanUptime(tc.seconds)
 			// Assert
 			if got != tc.want {
-				t.Errorf("humanUptime(%d) = %q, want %q", tc.seconds, got, tc.want)
+				t.Errorf(
+					"humanUptime(%d) = %q, want %q",
+					tc.seconds,
+					got,
+					tc.want,
+				)
 			}
 		})
 	}
@@ -54,7 +59,11 @@ func TestHumanKiB(t *testing.T) {
 
 func TestMemLabelIncludesTotalsWhenKnown(t *testing.T) {
 	// Arrange
-	s := pihole.SystemInfo{MemUsedPercent: 6.787, MemUsedKiB: 263808, MemTotalKiB: 3886904}
+	s := pihole.SystemInfo{
+		MemUsedPercent: 6.787,
+		MemUsedKiB:     263808,
+		MemTotalKiB:    3886904,
+	}
 
 	// Act
 	got := memLabel(s)

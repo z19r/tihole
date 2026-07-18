@@ -12,8 +12,11 @@ func TestHostRecordsParse(t *testing.T) {
 		if r.URL.Path != "/api/config/dns/hosts" {
 			t.Errorf("path = %q, want /api/config/dns/hosts", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"config":{"dns":{"hosts":["192.168.1.10 nas.local","10.0.0.5 printer.local"]}},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"config":{"dns":{"hosts":["192.168.1.10 nas.local","10.0.0.5 printer.local"]}},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -46,7 +49,11 @@ func TestAddHostRecordEscapesValueAsOneSegment(t *testing.T) {
 	client.setSID("S")
 
 	// Act
-	err := client.AddHostRecord(context.Background(), "192.168.1.10", "nas.local")
+	err := client.AddHostRecord(
+		context.Background(),
+		"192.168.1.10",
+		"nas.local",
+	)
 
 	// Assert
 	if err != nil {
@@ -87,8 +94,11 @@ func TestCNAMERecordsParse(t *testing.T) {
 		if r.URL.Path != "/api/config/dns/cnameRecords" {
 			t.Errorf("path = %q, want /api/config/dns/cnameRecords", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"config":{"dns":{"cnameRecords":["www.example.com,example.com,3600","alias.local,host.local"]}},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"config":{"dns":{"cnameRecords":["www.example.com,example.com,3600","alias.local,host.local"]}},"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 

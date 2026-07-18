@@ -12,8 +12,17 @@ func testConfig() *config.Config {
 	return &config.Config{
 		Active: "home",
 		Instances: []config.Instance{
-			{Name: "home", URL: "http://192.168.1.2", Password: "pw", VerifyTLS: &verify},
-			{Name: "envonly", URL: "http://10.0.0.2", PasswordEnv: "TIHOLE_TEST_UNSET_PW"},
+			{
+				Name:      "home",
+				URL:       "http://192.168.1.2",
+				Password:  "pw",
+				VerifyTLS: &verify,
+			},
+			{
+				Name:        "envonly",
+				URL:         "http://10.0.0.2",
+				PasswordEnv: "TIHOLE_TEST_UNSET_PW",
+			},
 		},
 	}
 }
@@ -22,7 +31,8 @@ func TestClientForBuildsWithoutAuthenticating(t *testing.T) {
 	// Arrange
 	cfg := testConfig()
 
-	// Act: clientFor must NOT perform network auth, so it returns quickly with a
+	// Act: clientFor must NOT perform network auth, so it returns quickly with
+	// a
 	// usable client even though nothing is listening.
 	c, err := clientFor(cfg, "home")
 

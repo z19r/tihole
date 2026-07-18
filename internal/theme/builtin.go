@@ -1,30 +1,70 @@
 package theme
 
-import "charm.land/lipgloss/v2"
+import (
+	"image/color"
+
+	"charm.land/lipgloss/v2"
+)
 
 // Built-in theme names.
 const (
 	NameAuto          = "auto"
+	NameGloss         = "gloss"
 	NameDeepNight     = "deep-night"
 	NameLightLuxury   = "light-luxury"
 	NamePiholeClassic = "pihole-classic"
 )
 
 // Auto is the default theme. It commits to no single mode; instead it resolves
-// to DeepNight on a dark terminal or LightLuxury on a light one the moment the
+// to Gloss on a dark terminal or LightLuxury on a light one the moment the
 // background is known (a tea.BackgroundColorMsg drives Theme.Adapt). Before
-// detection it renders as DeepNight — the safe choice for the common dark
-// terminal, and the reason a light-terminal user never gets a wall of ivory.
+// detection it renders as Gloss — tihole's signature look and the safe choice
+// for the common dark terminal, so a light-terminal user never gets a wall of
+// ivory yet everyone else lands on the brand palette.
 func Auto() *Theme {
-	t := DeepNight()
+	t := Gloss()
 	t.Name = NameAuto
 	t.adapt = func(isDark bool) *Theme {
 		if isDark {
-			return DeepNight()
+			return Gloss()
 		}
 		return LightLuxury()
 	}
 	return t
+}
+
+// Gloss is tihole's signature dark theme, modeled on the Charm lipgloss
+// palette:
+// a hot-pink brand on a deep-void surface, with a purple→acid→cyan signature
+// ramp for the boot banner and wordmark. Luminous, glossy, and unmistakably the
+// default face of the app.
+func Gloss() *Theme {
+	return &Theme{
+		Name:    NameGloss,
+		Surface: lipgloss.Color("#0B0412"), // deep void
+		Panel: lipgloss.Color(
+			"#190A2E",
+		), // obsidian purple, raised off the void
+		Text:   lipgloss.Color("#F4F1FB"), // near-white with a violet cast
+		Subtle: lipgloss.Color("#9E8FC6"), // muted lavender
+		Accent: lipgloss.Color(
+			"#FF2E93",
+		), // hot pink — brand, focus, selection
+		Allow:  lipgloss.Color("#5CF07A"), // acid green — positive
+		Block:  lipgloss.Color("#FF4D6D"), // hot magenta-red — negative
+		Warn:   lipgloss.Color("#F5B93D"), // amber
+		Border: lipgloss.Color("#3A1E63"), // dim purple divider
+		// Stop order is tuned for a clean sweep: cyan bridges purple→acid so
+		// the
+		// blend never passes through muddy olive.
+		Ramp: []color.Color{
+			lipgloss.Color("#FF2E93"), // pink
+			lipgloss.Color("#E533C9"), // magenta
+			lipgloss.Color("#6B2FE0"), // purple
+			lipgloss.Color("#2EE6FF"), // cyan
+			lipgloss.Color("#D6FF2E"), // acid
+		},
+	}
 }
 
 // DeepNight is the signature dark theme: a deep midnight-navy surface with a
@@ -82,6 +122,7 @@ func PiholeClassic() *Theme {
 // return fresh pointers so callers can never mutate a shared instance.
 var builtinFactories = map[string]func() *Theme{
 	NameAuto:          Auto,
+	NameGloss:         Gloss,
 	NameDeepNight:     DeepNight,
 	NameLightLuxury:   LightLuxury,
 	NamePiholeClassic: PiholeClassic,
@@ -98,7 +139,14 @@ func Builtin(name string) (*Theme, bool) {
 }
 
 // Names returns the built-in theme names in a stable, display order. Auto leads
-// because it is the recommended default.
+// because it is the recommended default; Gloss follows as the signature look it
+// resolves to on a dark terminal.
 func Names() []string {
-	return []string{NameAuto, NameDeepNight, NameLightLuxury, NamePiholeClassic}
+	return []string{
+		NameAuto,
+		NameGloss,
+		NameDeepNight,
+		NameLightLuxury,
+		NamePiholeClassic,
+	}
 }

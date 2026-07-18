@@ -38,9 +38,27 @@ func keyPress(s string) tea.KeyPressMsg {
 
 func sampleDomains() []pihole.Domain {
 	return []pihole.Domain{
-		{Domain: "ads.example.com", Type: "deny", Kind: "exact", Enabled: true, ID: 1},
-		{Domain: "good.example.com", Type: "allow", Kind: "exact", Enabled: true, ID: 2},
-		{Domain: "(^|\\.)tracker\\.com$", Type: "deny", Kind: "regex", Enabled: false, ID: 3},
+		{
+			Domain:  "ads.example.com",
+			Type:    "deny",
+			Kind:    "exact",
+			Enabled: true,
+			ID:      1,
+		},
+		{
+			Domain:  "good.example.com",
+			Type:    "allow",
+			Kind:    "exact",
+			Enabled: true,
+			ID:      2,
+		},
+		{
+			Domain:  "(^|\\.)tracker\\.com$",
+			Type:    "deny",
+			Kind:    "regex",
+			Enabled: false,
+			ID:      3,
+		},
 	}
 }
 
@@ -83,7 +101,13 @@ func TestFilterDomainsSelectsMatchingTypeAndKind(t *testing.T) {
 func TestDomainToRowMapsFieldsInOrder(t *testing.T) {
 	// Arrange
 	widths := computeColumnWidths(120)
-	d := pihole.Domain{Domain: "ads.example.com", Type: "deny", Kind: "exact", Enabled: true, Groups: []int{0, 2}}
+	d := pihole.Domain{
+		Domain:  "ads.example.com",
+		Type:    "deny",
+		Kind:    "exact",
+		Enabled: true,
+		Groups:  []int{0, 2},
+	}
 
 	// Act
 	row := domainToRow(d, widths)
@@ -135,7 +159,11 @@ func TestFocusSetsLoadingAndBumpsEpoch(t *testing.T) {
 		t.Fatalf("focus should set loading")
 	}
 	if m.epoch != startEpoch+1 {
-		t.Fatalf("focus should bump epoch: got %d want %d", m.epoch, startEpoch+1)
+		t.Fatalf(
+			"focus should bump epoch: got %d want %d",
+			m.epoch,
+			startEpoch+1,
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("focus should return a fetch command")
@@ -158,7 +186,10 @@ func TestDomainsMsgPopulatesRowsAndClearsLoading(t *testing.T) {
 		t.Fatalf("expected 3 domains stored, got %d", len(m.domains))
 	}
 	if len(m.visible) != 3 {
-		t.Fatalf("default filter is all; expected 3 visible, got %d", len(m.visible))
+		t.Fatalf(
+			"default filter is all; expected 3 visible, got %d",
+			len(m.visible),
+		)
 	}
 }
 
@@ -309,7 +340,10 @@ func TestFilterKeyCyclesVisibleSet(t *testing.T) {
 	m := newTestModel()
 	_, _ = m.Update(domainsMsg{epoch: m.epoch, domains: sampleDomains()})
 	if len(m.visible) != 3 {
-		t.Fatalf("precondition: expected 3 visible under 'all', got %d", len(m.visible))
+		t.Fatalf(
+			"precondition: expected 3 visible under 'all', got %d",
+			len(m.visible),
+		)
 	}
 
 	// Act: all -> allow-exact
@@ -348,7 +382,10 @@ func TestMutationSuccessTriggersRefetch(t *testing.T) {
 
 	// Assert
 	if m.epoch != 5 {
-		t.Fatalf("successful mutation should bump epoch for refetch, got %d", m.epoch)
+		t.Fatalf(
+			"successful mutation should bump epoch for refetch, got %d",
+			m.epoch,
+		)
 	}
 	if !m.loading {
 		t.Fatalf("refetch should set loading")
