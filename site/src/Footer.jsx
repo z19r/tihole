@@ -1,0 +1,60 @@
+/* global React, Wordmark */
+
+// ============================================================
+// FOOTER
+// ============================================================
+function Footer() {
+  const meta = window.TIHOLE_META || {};
+  const repo = "https://github.com/z19r/tihole";
+  return (
+    <footer className="footer">
+      <div className="ws-wrap">
+        <div className="row">
+          <div className="footer-mark">
+            <span className="grad-ramp" style={{ fontFamily: "var(--f-sans)", fontWeight: 700, fontSize: 30, letterSpacing: "-0.03em" }}>
+              //TI·HOLE
+            </span>
+            <p>
+              A fast, keyboard-driven terminal UI for Pi-hole v6. Watch the query
+              log, allow or block in one key, and manage everything else without
+              leaving the shell.
+            </p>
+            <div className="hero-badges">
+              <span className="ws-badge ws-badge--mag">v{window.TIHOLE_VERSION}</span>
+              <span className="ws-badge ws-badge--ghost">MIT</span>
+            </div>
+          </div>
+
+          <div className="col">
+            <h4>Project</h4>
+            <ul>
+              <li><a href={repo} target="_blank" rel="noreferrer">GitHub</a></li>
+              <li><a href={repo + "/releases"} target="_blank" rel="noreferrer">Releases</a></li>
+              <li><a href={repo + "/issues"} target="_blank" rel="noreferrer">Issues</a></li>
+              <li><a href={repo + "/blob/main/CHANGELOG.md"} target="_blank" rel="noreferrer">Changelog</a></li>
+            </ul>
+          </div>
+
+          <div className="col">
+            <h4>Navigate</h4>
+            <ul>
+              <li><a href="#screens">Screens</a></li>
+              <li><a href="#install">Install</a></li>
+              <li><a href="#keys">Keys</a></li>
+              <li><a href="#faq">FAQ</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="meta">
+          <span>© {new Date().getFullYear()} tihole · MIT</span>
+          <span>{meta.sha ? "build " + meta.sha : "github.com/zackkitzmiller/tihole"} · Pi-hole v6</span>
+        </div>
+      </div>
+
+      <div className="watermark" aria-hidden="true">⦸</div>
+    </footer>
+  );
+}
+
+Object.assign(window, { Footer });
