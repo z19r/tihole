@@ -5,8 +5,8 @@ import (
 
 	"charm.land/bubbles/v2/table"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // Column layout constants. The table has four columns in a fixed order:

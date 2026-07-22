@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"strings"
 
-	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/z19r/tihole/internal/tui/core"
 )
 
 // Model is a minimal Screen that renders a "coming soon" panel.

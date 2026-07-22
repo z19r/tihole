@@ -3,7 +3,7 @@ package components
 import (
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // helpSheetWidth caps the overlay width; sections wrap within it.

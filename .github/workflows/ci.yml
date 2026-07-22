@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build / Vet / Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: gofmt
+        run: |
+          bad="$(gofmt -l .)"
+          if [ -n "$bad" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: golines (max-len 80)
+        run: |
+          go install github.com/segmentio/golines@latest
+          bad="$("$(go env GOPATH)/bin/golines" \
+            --base-formatter=gofmt --max-len=80 \
+            --shorten-comments -l .)"
+          if [ -n "$bad" ]; then
+            echo "These files exceed the 80-col golines gate:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...

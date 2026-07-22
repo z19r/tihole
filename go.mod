@@ -1,4 +1,4 @@
-module github.com/zackkitzmiller/tihole
+module github.com/z19r/tihole
 
 go 1.25.8
 

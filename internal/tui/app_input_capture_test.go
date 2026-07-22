@@ -6,7 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/z19r/tihole/internal/tui/core"
 )
 
 // captureStub is a minimal core.Screen that also implements core.InputCapturer.

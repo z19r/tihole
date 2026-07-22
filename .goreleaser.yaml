@@ -1,0 +1,60 @@
+# goreleaser configuration for tihole.
+# Docs: https://goreleaser.com
+version: 2
+
+project_name: tihole
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: tihole
+    main: ./cmd/tihole
+    binary: tihole
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+
+archives:
+  - id: tihole
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - LICENSE*
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: z19r
+    name: tihole
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"

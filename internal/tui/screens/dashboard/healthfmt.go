@@ -3,7 +3,7 @@ package dashboard
 import (
 	"fmt"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // memLabel formats the memory cell value: percent, plus used/total in human

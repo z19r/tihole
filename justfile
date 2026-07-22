@@ -81,3 +81,70 @@ check: lint test
 # Remove build + coverage artifacts
 clean:
     rm -rf bin coverage.out
+
+# ─── Release ─────────────────────────────────────────────────────
+
+# Regenerate site/src/changelog.js from repo-root CHANGELOG.md
+changelog-sync:
+    go run {{ pkg }} changelog-sync
+
+# Bump VERSION, promote CHANGELOG Unreleased, sync site, commit + tag
+# Usage: just release patch | minor | major
+release LEVEL:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! "{{ LEVEL }}" =~ ^(patch|minor|major)$ ]]; then
+        echo "Usage: just release patch|minor|major"; exit 1
+    fi
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo "Error: dirty working tree"; exit 1
+    fi
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$BRANCH" != "main" ]]; then
+        echo "Error: release must run from main (on $BRANCH)"; exit 1
+    fi
+    # Release quality gate.
+    go build ./...
+    go vet ./...
+    go test ./...
+    # Compute the next version from VERSION.
+    OLD=$(tr -d '[:space:]' < VERSION)
+    IFS='.' read -r MAJ MIN PAT <<< "$OLD"
+    case "{{ LEVEL }}" in
+        patch) PAT=$((PAT + 1)) ;;
+        minor) MIN=$((MIN + 1)); PAT=0 ;;
+        major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
+    esac
+    NEW="${MAJ}.${MIN}.${PAT}"
+    TODAY=$(date -u +%Y-%m-%d)
+    echo "Releasing v${OLD} -> v${NEW}"
+    printf '%s\n' "$NEW" > VERSION
+    # Promote [Unreleased] into a dated version section, leaving a fresh
+    # empty Unreleased at the top.
+    awk -v ver="$NEW" -v today="$TODAY" '
+        /^## \[Unreleased\]/ && !done {
+            print "## [Unreleased]"
+            print ""
+            print "## [" ver "] - " today
+            done = 1
+            next
+        }
+        { print }
+    ' CHANGELOG.md > CHANGELOG.md.tmp
+    mv CHANGELOG.md.tmp CHANGELOG.md
+    # Refresh the link-reference footer.
+    REPO="https://github.com/z19r/tihole"
+    if grep -q '^\[Unreleased\]:' CHANGELOG.md; then
+        sed -i "s#^\[Unreleased\]:.*#[Unreleased]: ${REPO}/compare/v${NEW}...HEAD#" \
+            CHANGELOG.md
+        printf '[%s]: %s/releases/tag/v%s\n' "$NEW" "$REPO" "$NEW" \
+            >> CHANGELOG.md
+    fi
+    # Regenerate the site changelog from the promoted CHANGELOG.md.
+    go run {{ pkg }} changelog-sync
+    git add VERSION CHANGELOG.md site/src/changelog.js
+    git commit -m "release: v${NEW}"
+    git tag "v${NEW}"
+    echo ""
+    echo "Committed and tagged v${NEW}."
+    echo "Push with: git push origin main && git push origin v${NEW}"

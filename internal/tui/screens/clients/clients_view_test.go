@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 func up() tea.KeyPressMsg   { return tea.KeyPressMsg{Code: tea.KeyUp} }
