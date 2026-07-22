@@ -148,3 +148,61 @@ release LEVEL:
     echo ""
     echo "Committed and tagged v${NEW}."
     echo "Push with: git push origin main && git push origin v${NEW}"
+
+# Cut a prerelease (beta) of the CURRENT VERSION: vX.Y.Z-beta.N.
+# The beta number auto-increments from existing tags. VERSION is left
+# untouched — betas lead up to the same X.Y.Z final. Usage: just prerelease
+prerelease:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo "Error: dirty working tree"; exit 1
+    fi
+    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$BRANCH" != "main" ]]; then
+        echo "Error: prerelease must run from main (on $BRANCH)"; exit 1
+    fi
+    # Release quality gate.
+    go build ./...
+    go vet ./...
+    go test ./...
+    # Beta of the current base version; next N from existing beta tags.
+    BASE=$(tr -d '[:space:]' < VERSION)
+    LAST=$(git tag -l "v${BASE}-beta.*" \
+        | sed "s/^v${BASE}-beta\.//" | sort -n | tail -1)
+    if [[ -z "${LAST:-}" ]]; then N=1; else N=$((LAST + 1)); fi
+    PRE="${BASE}-beta.${N}"
+    if git rev-parse -q --verify "refs/tags/v${PRE}" >/dev/null; then
+        echo "Error: tag v${PRE} already exists"; exit 1
+    fi
+    TODAY=$(date -u +%Y-%m-%d)
+    echo "Cutting prerelease v${PRE}"
+    # Promote [Unreleased] into a dated beta section, leaving a fresh
+    # empty Unreleased at the top. VERSION is intentionally not changed.
+    awk -v ver="$PRE" -v today="$TODAY" '
+        /^## \[Unreleased\]/ && !done {
+            print "## [Unreleased]"
+            print ""
+            print "## [" ver "] - " today
+            done = 1
+            next
+        }
+        { print }
+    ' CHANGELOG.md > CHANGELOG.md.tmp
+    mv CHANGELOG.md.tmp CHANGELOG.md
+    # Refresh the link-reference footer.
+    REPO="https://github.com/z19r/tihole"
+    if grep -q '^\[Unreleased\]:' CHANGELOG.md; then
+        sed -i "s#^\[Unreleased\]:.*#[Unreleased]: ${REPO}/compare/v${PRE}...HEAD#" \
+            CHANGELOG.md
+        printf '[%s]: %s/releases/tag/v%s\n' "$PRE" "$REPO" "$PRE" \
+            >> CHANGELOG.md
+    fi
+    # Regenerate the site changelog from the promoted CHANGELOG.md.
+    go run {{ pkg }} changelog-sync
+    git add CHANGELOG.md site/src/changelog.js
+    git commit -m "release: v${PRE}"
+    git tag "v${PRE}"
+    echo ""
+    echo "Committed and tagged v${PRE} (VERSION stays ${BASE})."
+    echo "Push with: git push origin main && git push origin v${PRE}"
