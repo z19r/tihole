@@ -7,6 +7,7 @@ package dashboard
 
 import (
 	"context"
+	"image/color"
 	"sort"
 	"time"
 
@@ -26,6 +27,11 @@ const (
 	fetchTimeout = 8 * time.Second
 	topCount     = 8
 	sparkHeight  = 1
+
+	// Utilization thresholds for the health gauges: below warn is calm, below
+	// hot is amber, at/above hot is red.
+	healthWarnFrac = 0.60
+	healthHotFrac  = 0.85
 )
 
 // tickMsg drives the poll loop. epoch is captured when the tick is scheduled so
@@ -64,6 +70,19 @@ type topMsg struct {
 	clientsErr error
 }
 
+// systemMsg carries host health: CPU/memory/sensors plus the active FTL
+// diagnosis messages. Each sub-fetch reports its own error so a partial outage
+// (e.g. no temperature sensor) still fills the rest of the health strip.
+type systemMsg struct {
+	epoch    int
+	system   pihole.SystemInfo
+	sensors  pihole.Sensors
+	messages []pihole.DiagnosisMessage
+	sysErr   error
+	senErr   error
+	msgErr   error
+}
+
 // Model is the dashboard Screen.
 type Model struct {
 	ctx *core.AppContext
@@ -75,7 +94,10 @@ type Model struct {
 
 	spinner  spinner.Model
 	blockBar progress.Model
-	barTheme string // theme name the gauge's gradient was built for
+	cpuBar   progress.Model
+	memBar   progress.Model
+	tempBar  progress.Model
+	barTheme string // theme name the gauges' gradients were built for
 	cancel   context.CancelFunc
 	baseCtx  context.Context
 
@@ -86,6 +108,9 @@ type Model struct {
 	domains   pihole.TopDomains
 	blocked   pihole.TopDomains
 	clients   pihole.TopClients
+	system    pihole.SystemInfo
+	sensors   pihole.Sensors
+	messages  []pihole.DiagnosisMessage
 
 	errSummary   string
 	errHistory   string
@@ -94,6 +119,8 @@ type Model struct {
 	errDomains   string
 	errBlocked   string
 	errClients   string
+	errSystem    string
+	errMessages  string
 }
 
 // Compile-time assertion that the dashboard satisfies the Screen contract.
@@ -104,32 +131,99 @@ func New(ctx *core.AppContext) *Model {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 
-	// A gradient meter that springs to the current block rate — the "blocked %"
-	// tile's bit of whimsy. Colors come from the active theme so it tracks the
-	// palette (accent → allow) instead of hardcoding a look.
-	return &Model{ctx: ctx, spinner: sp, blockBar: newBlockBar(ctx.Theme), barTheme: ctx.Theme.Name}
+	m := &Model{ctx: ctx, spinner: sp}
+	m.buildGauges()
+	return m
 }
 
-// newBlockBar builds the gradient gauge for the current theme (accent → allow).
-func newBlockBar(th *theme.Theme) progress.Model {
-	return progress.New(
+// buildGauges constructs every animated meter for the current theme. The block
+// gauge sweeps accent → allow (whimsy); the health gauges color by value
+// (allow → warn → block) so a hot CPU or full disk reads red at a glance.
+func (m *Model) buildGauges() {
+	th := m.ctx.Theme
+	m.blockBar = progress.New(
 		progress.WithColors(th.Accent, th.Allow),
 		progress.WithoutPercentage(),
 	)
+	m.cpuBar = newHealthGauge(th)
+	m.memBar = newHealthGauge(th)
+	m.tempBar = newHealthGauge(th)
+	m.barTheme = th.Name
 }
 
-// syncBarTheme rebuilds the gauge's gradient when the active theme changes
-// (e.g. the Auto theme resolving after background detection, or a manual theme
-// switch) so its colors always track the live palette. The current target
-// percent is preserved so the value doesn't jump.
+// newHealthGauge builds a utilization meter whose fill color tracks the value:
+// calm (allow) under 60%, warn (amber) under 85%, hot (block) above.
+func newHealthGauge(th *theme.Theme) progress.Model {
+	allow, warn, block := th.Allow, th.Warn, th.Block
+	return progress.New(
+		progress.WithoutPercentage(),
+		progress.WithColorFunc(func(total, _ float64) color.Color {
+			switch {
+			case total < healthWarnFrac:
+				return allow
+			case total < healthHotFrac:
+				return warn
+			default:
+				return block
+			}
+		}),
+	)
+}
+
+// syncBarTheme rebuilds every gauge when the active theme changes (the Auto
+// theme resolving after background detection, or a manual switch) so their
+// colors track the live palette. Current targets are preserved so values don't
+// jump.
 func (m *Model) syncBarTheme() {
 	if m.barTheme == m.ctx.Theme.Name {
 		return
 	}
-	pct := m.blockBar.Percent()
-	m.blockBar = newBlockBar(m.ctx.Theme)
-	m.blockBar.SetPercent(pct)
-	m.barTheme = m.ctx.Theme.Name
+	block, cpu, mem, temp := m.blockBar.Percent(), m.cpuBar.Percent(), m.memBar.Percent(), m.tempBar.Percent()
+	m.buildGauges()
+	m.blockBar.SetPercent(block)
+	m.cpuBar.SetPercent(cpu)
+	m.memBar.SetPercent(mem)
+	m.tempBar.SetPercent(temp)
+}
+
+// applySystem stores a health result and springs the CPU/memory/temperature
+// gauges toward their fresh values. Sub-fetch errors are recorded independently
+// so a missing temperature sensor doesn't blank CPU and memory.
+func (m *Model) applySystem(msg systemMsg) tea.Cmd {
+	if msg.sysErr != nil {
+		m.errSystem = msg.sysErr.Error()
+	} else {
+		m.errSystem, m.system = "", msg.system
+	}
+	if msg.senErr == nil {
+		m.sensors = msg.sensors
+	}
+	if msg.msgErr != nil {
+		m.errMessages = msg.msgErr.Error()
+	} else {
+		m.errMessages, m.messages = "", msg.messages
+	}
+
+	cmds := []tea.Cmd{
+		m.cpuBar.SetPercent(clampFrac(m.system.CPUPercent / 100)),
+		m.memBar.SetPercent(clampFrac(m.system.MemUsedPercent / 100)),
+	}
+	if m.sensors.HasTemp && m.sensors.HotLimit > 0 {
+		cmds = append(cmds, m.tempBar.SetPercent(clampFrac(m.sensors.CPUTemp/m.sensors.HotLimit)))
+	}
+	return tea.Batch(cmds...)
+}
+
+// clampFrac constrains a gauge fraction to [0,1].
+func clampFrac(f float64) float64 {
+	switch {
+	case f < 0:
+		return 0
+	case f > 1:
+		return 1
+	default:
+		return f
+	}
 }
 
 // Init is a no-op: fetching starts on Focus.
@@ -261,6 +355,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case systemMsg:
+		if msg.epoch != m.epoch {
+			return m, nil
+		}
+		m.loaded = true
+		return m, m.applySystem(msg)
+
 	case spinner.TickMsg:
 		if m.loaded || !m.focused {
 			return m, nil
@@ -270,9 +371,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case progress.FrameMsg:
-		var cmd tea.Cmd
-		m.blockBar, cmd = m.blockBar.Update(msg)
-		return m, cmd
+		// A single frame is broadcast to every gauge; each ignores frames whose
+		// id isn't its own, so this cheaply advances whichever are animating.
+		var c1, c2, c3, c4 tea.Cmd
+		m.blockBar, c1 = m.blockBar.Update(msg)
+		m.cpuBar, c2 = m.cpuBar.Update(msg)
+		m.memBar, c3 = m.memBar.Update(msg)
+		m.tempBar, c4 = m.tempBar.Update(msg)
+		return m, tea.Batch(c1, c2, c3, c4)
 	}
 
 	return m, nil
@@ -293,6 +399,7 @@ func (m *Model) fetchAll() tea.Cmd {
 		fetchHistory(base, api, epoch),
 		fetchBreakdown(base, api, epoch),
 		fetchTop(base, api, epoch),
+		fetchSystem(base, api, epoch),
 	)
 }
 
@@ -321,6 +428,25 @@ func fetchBreakdown(base context.Context, api *pihole.Client, epoch int) tea.Cmd
 		types, tErr := api.QueryTypes(ctx)
 		up, uErr := api.Upstreams(ctx)
 		return breakdownMsg{epoch: epoch, types: types, upstreams: up, typesErr: tErr, upErr: uErr}
+	}
+}
+
+func fetchSystem(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(base, fetchTimeout)
+		defer cancel()
+		sys, sysErr := api.System(ctx)
+		sen, senErr := api.SensorsInfo(ctx)
+		msgs, msgErr := api.Messages(ctx)
+		return systemMsg{
+			epoch:    epoch,
+			system:   sys,
+			sensors:  sen,
+			messages: msgs,
+			sysErr:   sysErr,
+			senErr:   senErr,
+			msgErr:   msgErr,
+		}
 	}
 }
 
@@ -381,6 +507,7 @@ func (m *Model) View() tea.View {
 
 	sections := []string{
 		m.renderTiles(),
+		m.renderHealth(),
 		m.renderSparkline(),
 		m.renderLower(),
 	}

@@ -330,6 +330,9 @@ func TestFetchClosures_ProduceTaggedMessages(t *testing.T) {
 	if _, ok := fetchTop(base, api, 7)().(topMsg); !ok {
 		t.Fatal("fetchTop should yield a topMsg")
 	}
+	if _, ok := fetchSystem(base, api, 7)().(systemMsg); !ok {
+		t.Fatal("fetchSystem should yield a systemMsg")
+	}
 }
 
 // TestUpdate_SummarySpringsBlockGauge verifies a delivered summary sets the
