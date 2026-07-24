@@ -458,6 +458,11 @@ func (m *AppModel) View() tea.View {
 	bottom := m.helpBar(cw + components.SidebarWidth + 1)
 
 	full := lipgloss.JoinVertical(lipgloss.Left, status, middle, bottom)
+	// Back the whole frame with the theme surface so every cell has an explicit
+	// themed foreground/background. Without this, padding cells and any gap
+	// inherit the terminal's own palette — which is how "invisible" text (e.g.
+	// light glyphs on a light terminal) happens regardless of the chosen theme.
+	full = th.SurfaceStyle().Width(m.width).Height(m.height).Render(full)
 	v := tea.NewView(full)
 	v.AltScreen = true
 	return v
