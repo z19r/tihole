@@ -1,0 +1,19 @@
+# Build artifacts
+/tihole
+/dist/
+*.out
+*.test
+
+# Go
+/vendor/
+
+# Local agent/dev tooling state (not part of the project)
+.tokensave/
+.serena/
+.whetstone/
+.rtk/
+.aider*
+
+# OS / editor
+.DS_Store
+*.swp
