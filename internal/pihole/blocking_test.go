@@ -15,7 +15,8 @@ func TestBlockingGet(t *testing.T) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/dns/blocking" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK, `{"blocking":false,"timer":42,"took":0.0}`)
+		// FTL v6 reports the state as a status STRING on GET, not a boolean.
+		writeJSON(w, http.StatusOK, `{"blocking":"disabled","timer":42,"took":0.0}`)
 	})
 	client.setSID("S")
 
@@ -29,6 +30,9 @@ func TestBlockingGet(t *testing.T) {
 	if got.Blocking {
 		t.Errorf("blocking = true, want false")
 	}
+	if got.Status != "disabled" {
+		t.Errorf("status = %q, want %q", got.Status, "disabled")
+	}
 	if got.Timer == nil || *got.Timer != timer {
 		t.Errorf("timer = %v, want %v", got.Timer, timer)
 	}
@@ -36,7 +40,7 @@ func TestBlockingGet(t *testing.T) {
 
 func TestBlockingGetNilTimer(t *testing.T) {
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, `{"blocking":true,"timer":null,"took":0.0}`)
+		writeJSON(w, http.StatusOK, `{"blocking":"enabled","timer":null,"took":0.0}`)
 	})
 	client.setSID("S")
 

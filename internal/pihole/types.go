@@ -168,8 +168,35 @@ type QueriesPage struct {
 // BlockingStatus is the response of GET /api/dns/blocking. Timer is the number
 // of seconds remaining until blocking auto-toggles back, or nil when there is
 // no active timer.
+//
+// FTL v6 reports the state as a STATUS STRING on this GET ("enabled",
+// "disabled", "failure", "unknown") — not a boolean — even though the matching
+// POST body takes a boolean. Status preserves the raw value; Blocking is the
+// convenience boolean (true only for "enabled") the rest of the app reads.
 type BlockingStatus struct {
-	Blocking bool     `json:"blocking"`
+	Blocking bool
+	Status   string
+	Timer    *float64
+	Took     float64
+}
+
+// blockingWire is the FTL v6 wire shape of GET /api/dns/blocking.
+type blockingWire struct {
+	Blocking string   `json:"blocking"`
 	Timer    *float64 `json:"timer"`
 	Took     float64  `json:"took"`
+}
+
+// UnmarshalJSON maps FTL's status string into the convenience boolean while
+// keeping the raw status available for display.
+func (b *BlockingStatus) UnmarshalJSON(data []byte) error {
+	var w blockingWire
+	if err := json.Unmarshal(data, &w); err != nil {
+		return err
+	}
+	b.Status = w.Blocking
+	b.Blocking = w.Blocking == "enabled"
+	b.Timer = w.Timer
+	b.Took = w.Took
+	return nil
 }

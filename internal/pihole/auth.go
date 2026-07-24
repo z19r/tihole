@@ -18,9 +18,10 @@ func (c *Client) login(ctx context.Context) error {
 	reqBody := loginRequest{Password: c.password, TOTP: c.totp}
 
 	var env sessionEnvelope
-	// Temporarily clear any stale SID so the login request is unauthenticated.
-	c.setSID("")
-	if err := c.doOnce(ctx, http.MethodPost, "/auth", reqBody, &env, false); err != nil {
+	// The login request is sent unauthenticated (sendAuth=false) so it never
+	// carries a stale SID and never mutates the shared session — concurrent
+	// authenticated requests keep working while we log in.
+	if err := c.doOnce(ctx, http.MethodPost, "/auth", reqBody, &env, false, false); err != nil {
 		if apiErr, ok := err.(*APIError); ok {
 			return &AuthError{Status: apiErr.Status, Message: apiErr.Message}
 		}

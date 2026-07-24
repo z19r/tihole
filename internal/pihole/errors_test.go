@@ -43,6 +43,16 @@ func TestDecodeAPIError(t *testing.T) {
 			body:        ``,
 			wantMessage: "empty error response",
 		},
+		{
+			// FTL answers a bad-password login with 401 and a session object,
+			// NOT an {"error":...} envelope. We must never splatter that raw
+			// JSON (it's noisy and can carry session fields) — surface a clean,
+			// status-derived message instead.
+			name:        "json without error envelope yields clean status message",
+			status:      401,
+			body:        `{"session":{"valid":false,"totp":false,"sid":null,"validity":-1}}`,
+			wantMessage: "invalid credentials or expired session",
+		},
 	}
 
 	for _, tt := range tests {
@@ -65,6 +75,10 @@ func TestDecodeAPIError(t *testing.T) {
 			}
 			if got.Hint != tt.wantHint {
 				t.Errorf("Hint = %q, want %q", got.Hint, tt.wantHint)
+			}
+			// A decoded error must never carry a raw JSON body through to the UI.
+			if strings.HasPrefix(strings.TrimSpace(tt.body), "{") && strings.Contains(got.Message, "{") {
+				t.Errorf("Message leaks raw JSON body: %q", got.Message)
 			}
 		})
 	}

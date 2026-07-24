@@ -4,7 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"strings"
 )
+
+// statusMessage returns a concise, human-readable message for an HTTP status,
+// used when a non-2xx response carries no usable FTL error envelope. It never
+// echoes the response body.
+func statusMessage(status int) string {
+	switch status {
+	case http.StatusUnauthorized:
+		return "invalid credentials or expired session"
+	case http.StatusForbidden:
+		return "forbidden — the session lacks permission"
+	}
+	if txt := http.StatusText(status); txt != "" {
+		return strings.ToLower(txt)
+	}
+	return fmt.Sprintf("unexpected status %d", status)
+}
 
 // APIError represents a decoded FTL error envelope returned on a non-2xx
 // response. The FTL API returns errors in the shape:
@@ -75,6 +93,7 @@ func decodeAPIError(status int, body io.Reader) *APIError {
 		return apiErr
 	}
 	if err := json.Unmarshal(data, &env); err != nil {
+		// Not JSON: surface the (usually short, plain-text) body verbatim.
 		apiErr.Message = string(data)
 		return apiErr
 	}
@@ -82,7 +101,10 @@ func decodeAPIError(status int, body io.Reader) *APIError {
 	apiErr.Message = env.Error.Message
 	apiErr.Hint = env.Error.Hint
 	if apiErr.Message == "" {
-		apiErr.Message = string(data)
+		// Valid JSON but not an FTL error envelope (e.g. a bad-password login
+		// returns a session object). Never splatter the raw body — it's noisy
+		// and can carry session fields. Use a concise, status-derived message.
+		apiErr.Message = statusMessage(status)
 	}
 	return apiErr
 }
