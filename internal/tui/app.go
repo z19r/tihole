@@ -16,7 +16,9 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/theme"
 	"github.com/zackkitzmiller/tihole/internal/tui/components"
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/dashboard"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/placeholder"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/querylog"
 )
 
 const (
@@ -77,6 +79,9 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 	for _, p := range core.PageOrder() {
 		screens[p.ID] = placeholder.New(ctx, p.Title)
 	}
+	// Replace placeholders with real screens as they're implemented.
+	screens[core.PageDashboard] = dashboard.New(ctx)
+	screens[core.PageQueryLog] = querylog.New(ctx)
 	return screens
 }
 
