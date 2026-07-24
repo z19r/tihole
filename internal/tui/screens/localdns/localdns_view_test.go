@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 )
@@ -176,6 +177,18 @@ func TestViewErrorBannerAtTinyWidth(t *testing.T) {
 	m.focused = true
 	m.err = errors.New("boom boom boom boom")
 	_ = m.View() // must not panic
+}
+
+func TestViewErrorBannerDoesNotOverflowSurface(t *testing.T) {
+	// At a short height with an error banner present, the rendered surface must
+	// stay exactly m.h tall: body height is derived from the real header/footer.
+	const h = 8
+	m := newTestModel()
+	m.SetSize(40, h)
+	m.err = errors.New("connection refused")
+	if got := lipgloss.Height(m.View().Content); got != h {
+		t.Fatalf("surface height = %d, want %d (banner overflowed)", got, h)
+	}
 }
 
 func TestViewAddFormHostAndCNAME(t *testing.T) {

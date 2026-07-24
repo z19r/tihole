@@ -113,6 +113,7 @@ func TestOrDash(t *testing.T) {
 func TestHumanCountdown(t *testing.T) {
 	// Arrange / Act / Assert
 	cases := map[int]string{
+		-5:   "(0s)", // negative clamps to zero rather than printing "(-5s)"
 		0:    "(0s)",
 		59:   "(59s)",
 		60:   "(1m00s)",

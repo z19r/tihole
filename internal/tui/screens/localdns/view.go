@@ -18,8 +18,14 @@ func (m *Model) View() tea.View {
 	m.syncRows()
 
 	header := m.renderHeader(th)
-	body := m.renderBody(th)
 	footer := m.renderFooter(th)
+	// Derive the body height from the header/footer we actually rendered so a
+	// multi-line error banner can never overflow the surface.
+	bodyH := m.h - lipgloss.Height(header) - lipgloss.Height(footer)
+	if bodyH < 1 {
+		bodyH = 1
+	}
+	body := m.renderBody(th, bodyH)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
@@ -56,12 +62,7 @@ func (m *Model) errBanner(th *theme.Theme) string {
 	return th.BlockStyle().Bold(true).Render(msg)
 }
 
-func (m *Model) renderBody(th *theme.Theme) string {
-	bodyH := m.h - headerHeight - footerHeight
-	if bodyH < 1 {
-		bodyH = 1
-	}
-
+func (m *Model) renderBody(th *theme.Theme, bodyH int) string {
 	if m.confirm.Active {
 		return m.confirm.Render(th, m.w, bodyH)
 	}
