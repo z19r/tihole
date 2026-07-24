@@ -77,3 +77,11 @@ type Screen interface {
 type InputCapturer interface {
 	CapturesInput() bool
 }
+
+// PanelInteractor is an optional Screen capability. A screen returns false from
+// Interactive() when it has no actionable content — a read-only dashboard, for
+// instance — so the nav rail refuses to descend into it: enter/tab/→ stay on the
+// rail. Screens that don't implement it default to interactive.
+type PanelInteractor interface {
+	Interactive() bool
+}

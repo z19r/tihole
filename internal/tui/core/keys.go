@@ -15,6 +15,7 @@ type KeyMap struct {
 	SwitchInst  key.Binding
 	ToggleBlock key.Binding
 	Refresh     key.Binding
+	Splash      key.Binding
 	Help        key.Binding
 	Quit        key.Binding
 }
@@ -62,6 +63,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("r"),
 			key.WithHelp("r", "refresh"),
 		),
+		Splash: key.NewBinding(
+			key.WithKeys("i"),
+			key.WithHelp("i", "splash"),
+		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "help"),
@@ -82,7 +87,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Enter, k.Back},
-		{k.Palette, k.SwitchInst, k.ToggleBlock, k.Refresh},
+		{k.Palette, k.SwitchInst, k.ToggleBlock, k.Refresh, k.Splash},
 		{k.Help, k.Quit},
 	}
 }

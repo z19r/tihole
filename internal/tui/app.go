@@ -137,6 +137,14 @@ func (m *AppModel) Init() tea.Cmd {
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
 		fetchBlocking(m.ctx.API),
+		m.splashCmd(),
+	)
+}
+
+// splashCmd starts the boot-splash animation and its auto-dismiss timer. Shared
+// by Init and the "i" reopen shortcut so both paths behave identically.
+func (m *AppModel) splashCmd() tea.Cmd {
+	return tea.Batch(
 		m.splash.Tick,
 		tea.Tick(splashDuration, func(time.Time) tea.Msg { return splashDoneMsg{} }),
 	)
@@ -245,6 +253,14 @@ func (m *AppModel) capturingInput() bool {
 	return ok && ic.CapturesInput()
 }
 
+// activeInteractive reports whether the active screen has actionable content the
+// rail should be able to descend into (see core.PanelInteractor). Screens that
+// don't implement the interface default to interactive.
+func (m *AppModel) activeInteractive() bool {
+	pi, ok := m.screens[m.active].(core.PanelInteractor)
+	return !ok || pi.Interactive()
+}
+
 // handleKey dispatches a key through the omarchy-style focus model: a tiny
 // always-on global set first, then zone-specific handling. It returns
 // handled=false only when a Panel-focus key should fall through to the active
@@ -268,6 +284,9 @@ func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.toggleBlocking(), true
 	case key.Matches(msg, k.SwitchInst):
 		return m.switchInstance(m.nextInstance()), true
+	case key.Matches(msg, k.Splash):
+		m.booting = true
+		return m.splashCmd(), true
 	}
 
 	if m.focus == focusNav {
@@ -287,7 +306,12 @@ func (m *AppModel) handleNavKey(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Down):
 		return m.switchPage(m.relPage(1))
 	case key.Matches(msg, k.Enter), key.Matches(msg, k.Right), msg.String() == "tab":
-		m.focus = focusPanel
+		// Only descend into screens that have something to do. A read-only screen
+		// (e.g. the dashboard) opts out via core.PanelInteractor, so focus stays on
+		// the rail instead of trapping the user in a panel where no key responds.
+		if m.activeInteractive() {
+			m.focus = focusPanel
+		}
 		return nil
 	case key.Matches(msg, k.Refresh):
 		return m.screens[m.active].Focus()
@@ -527,7 +551,6 @@ func (m *AppModel) View() tea.View {
 	status := components.StatusBar{
 		Instance:   m.ctx.InstanceName,
 		ScreenName: m.screens[m.active].Title(),
-		Block:      m.block,
 		Width:      m.width,
 	}.Render(th)
 
@@ -536,6 +559,7 @@ func (m *AppModel) View() tea.View {
 		Selected: activeIndex(m.active),
 		Height:   ch,
 		Focused:  m.focus == focusNav,
+		Block:    m.block,
 	}.Render(th)
 
 	var middle string

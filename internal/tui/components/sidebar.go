@@ -27,6 +27,9 @@ type Sidebar struct {
 	// the visual: a live accent border and a bright selection when focused, a
 	// muted treatment when the active screen holds focus instead.
 	Focused bool
+	// Block is the current global blocking status, pinned to the bottom of the
+	// rail as its most prominent live control.
+	Block BlockState
 }
 
 // SidebarWidth is the default rail width in columns.
@@ -52,7 +55,7 @@ func (s Sidebar) Render(th *theme.Theme) string {
 		selFg, selBg = th.Text, th.Border
 	}
 
-	itemBase := lipgloss.NewStyle().Width(width - 2).Padding(0, 1)
+	itemBase := lipgloss.NewStyle().Width(width-2).Padding(0, 1)
 	for i, item := range s.Items {
 		marker := "  "
 		if i == s.Selected {
@@ -72,7 +75,23 @@ func (s Sidebar) Render(th *theme.Theme) string {
 		}
 	}
 
-	body := strings.Join(rows, "\n")
+	top := strings.Join(rows, "\n")
+
+	// Pin the blocking control to the bottom of the rail: fill the gap between
+	// the nav items and the footer so the pill sits flush against the bottom
+	// edge, where the eye lands last and expects the primary live status.
+	footer := blockingPill(th, s.Block, width)
+	body := top
+	if s.Height > 0 {
+		filler := s.Height - lipgloss.Height(top) - lipgloss.Height(footer)
+		if filler > 0 {
+			body = top + strings.Repeat("\n", filler) + footer
+		} else {
+			body = top + "\n" + footer
+		}
+	} else {
+		body = top + "\n" + footer
+	}
 
 	// A live accent border signals the rail has focus; otherwise the quiet
 	// panel border.

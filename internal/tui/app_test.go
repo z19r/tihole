@@ -75,19 +75,56 @@ func TestViewRendersChromeAndActiveTitle(t *testing.T) {
 }
 
 func TestTabDescendsToPanel(t *testing.T) {
-	// Arrange: fresh model starts on the rail (Nav focus).
+	// Arrange: move off the read-only dashboard onto an interactive screen.
 	m := sized(t, newTestModel(t), 100, 30)
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	m = updated.(*AppModel)
 
 	// Act: tab descends into the active screen rather than cycling pages.
-	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	updated, _ = m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)
 
 	// Assert: focus moved to the panel, the page did not change.
 	if m.focus != focusPanel {
 		t.Fatalf("expected panel focus after tab, got %v", m.focus)
 	}
-	if m.active != core.PageDashboard {
+	if m.active != core.PageQueryLog {
 		t.Fatalf("tab must not change the page, got %v", m.active)
+	}
+}
+
+func TestDashboardIsNotInteractiveSoRailKeepsFocus(t *testing.T) {
+	// Arrange: fresh model starts on the read-only dashboard, rail focused.
+	m := sized(t, newTestModel(t), 100, 30)
+
+	// Act / Assert: enter, tab, and → all refuse to descend into the dashboard —
+	// there is nothing actionable there, so focus stays on the rail.
+	for _, k := range []struct {
+		text string
+		code rune
+	}{{"enter", tea.KeyEnter}, {"tab", tea.KeyTab}, {"right", tea.KeyRight}} {
+		updated, _ := m.Update(keyPress(k.text, k.code))
+		m = updated.(*AppModel)
+		if m.focus != focusNav {
+			t.Fatalf("%q should leave focus on the rail for the dashboard, got %v", k.text, m.focus)
+		}
+	}
+}
+
+func TestSplashKeyReopensBootSplash(t *testing.T) {
+	// Arrange: app running past the boot splash.
+	m := sized(t, newTestModel(t), 100, 30)
+	if m.booting {
+		t.Fatal("precondition: splash should be dismissed")
+	}
+
+	// Act: "i" brings the splash back.
+	updated, _ := m.Update(keyPress("i", 'i'))
+	m = updated.(*AppModel)
+
+	// Assert
+	if !m.booting {
+		t.Fatal("expected 'i' to reopen the boot splash")
 	}
 }
 
@@ -109,9 +146,11 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 }
 
 func TestEscClimbsFromPanelBackToNav(t *testing.T) {
-	// Arrange: descend into the panel first.
+	// Arrange: move onto an interactive screen, then descend into the panel.
 	m := sized(t, newTestModel(t), 100, 30)
-	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	m = updated.(*AppModel)
+	updated, _ = m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)
 	if m.focus != focusPanel {
 		t.Fatalf("precondition: expected panel focus, got %v", m.focus)
@@ -157,7 +196,7 @@ func TestBlockingResultUpdatesStatusBar(t *testing.T) {
 		t.Fatalf("expected known+enabled blocking state, got %+v", m.block)
 	}
 	if !strings.Contains(m.View().Content, "blocking on") {
-		t.Error("status bar should show 'blocking on'")
+		t.Error("sidebar should show 'blocking on'")
 	}
 }
 

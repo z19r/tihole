@@ -103,9 +103,11 @@ func TestNavArrowsCycleBackwardWithWrap(t *testing.T) {
 }
 
 func TestPanelFocusDelegatesNonEscToScreen(t *testing.T) {
-	// Arrange: descend into the panel.
+	// Arrange: move onto an interactive screen, then descend into the panel.
 	m := sized(t, newTestModel(t), 120, 36)
-	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	m = updated.(*AppModel)
+	updated, _ = m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)
 
 	// Act: a page-jump digit is NOT a global in panel focus — it falls through
