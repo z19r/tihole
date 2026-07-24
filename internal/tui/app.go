@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -32,7 +33,14 @@ const (
 	chromeTop    = 1 // status bar
 	chromeBottom = 1 // help bar
 	fetchTimeout = 8 * time.Second
+
+	// splashDuration is how long the ASCII boot screen lingers before the
+	// dashboard reveals. Any key dismisses it sooner.
+	splashDuration = 1600 * time.Millisecond
 )
+
+// splashDoneMsg fires when the boot splash's timer elapses.
+type splashDoneMsg struct{}
 
 // blockingResultMsg carries a fresh blocking status.
 type blockingResultMsg struct{ status pihole.BlockingStatus }
@@ -63,6 +71,9 @@ type AppModel struct {
 	showHelp bool
 	palette  components.Palette
 
+	booting bool
+	splash  spinner.Model
+
 	width, height int
 	isDark        bool
 	focus         focusZone
@@ -82,6 +93,8 @@ func New(cfg *config.Config, cfgPath string, api *pihole.Client, th *theme.Theme
 		Config:       cfg,
 		ConfigPath:   cfgPath,
 	}
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
 	m := &AppModel{
 		ctx:     ctx,
 		cfg:     cfg,
@@ -89,6 +102,8 @@ func New(cfg *config.Config, cfgPath string, api *pihole.Client, th *theme.Theme
 		active:  core.PageDashboard,
 		help:    help.New(),
 		palette: components.NewPalette(),
+		booting: true,
+		splash:  sp,
 	}
 	m.screens = buildScreens(ctx)
 	return m
@@ -114,12 +129,16 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 	return screens
 }
 
-// Init focuses the initial screen and kicks off the first blocking fetch.
+// Init focuses the initial screen and kicks off the first blocking fetch. The
+// dashboard fetches run behind the boot splash so data is usually ready by the
+// time the splash dismisses.
 func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
 		fetchBlocking(m.ctx.API),
+		m.splash.Tick,
+		tea.Tick(splashDuration, func(time.Time) tea.Msg { return splashDoneMsg{} }),
 	)
 }
 
@@ -140,7 +159,24 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ctx.Theme = m.ctx.Theme.Adapt(m.isDark)
 		return m, nil
 
+	case splashDoneMsg:
+		m.booting = false
+		return m, nil
+
+	case spinner.TickMsg:
+		if !m.booting {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.splash, cmd = m.splash.Update(msg)
+		return m, cmd
+
 	case tea.KeyPressMsg:
+		// While the boot splash is up, any key skips it and reveals the app.
+		if m.booting {
+			m.booting = false
+			return m, nil
+		}
 		// The palette, while open, captures all key input.
 		if m.palette.Active() {
 			var cmd tea.Cmd
@@ -473,6 +509,19 @@ func (m *AppModel) View() tea.View {
 		return v
 	}
 	th := m.ctx.Theme
+
+	if m.booting {
+		splash := components.Splash{
+			Instance: m.ctx.InstanceName,
+			Status:   m.splash.View() + " starting up…",
+			Width:    m.width,
+			Height:   m.height,
+		}.Render(th)
+		v := tea.NewView(splash)
+		v.AltScreen = true
+		return v
+	}
+
 	cw, ch := m.contentSize()
 
 	status := components.StatusBar{

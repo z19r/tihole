@@ -27,7 +27,9 @@ func newTestModel(t *testing.T) *AppModel {
 		},
 	}
 	api := pihole.New("http://192.168.1.2", "pw")
-	return New(cfg, "/tmp/tihole.yaml", api, theme.DeepNight())
+	m := New(cfg, "/tmp/tihole.yaml", api, theme.DeepNight())
+	m.booting = false // dismiss the boot splash; these tests exercise the app proper
+	return m
 }
 
 // sized returns the model after an initial window-size message.
