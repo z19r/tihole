@@ -21,8 +21,11 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/dashboard"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/domains"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/groups"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/localdns"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/placeholder"
 	"github.com/zackkitzmiller/tihole/internal/tui/screens/querylog"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/settings"
+	"github.com/zackkitzmiller/tihole/internal/tui/screens/system"
 )
 
 const (
@@ -94,6 +97,9 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 	screens[core.PageGroups] = groups.New(ctx)
 	screens[core.PageClients] = clients.New(ctx)
 	screens[core.PageAdlists] = adlists.New(ctx)
+	screens[core.PageLocalDNS] = localdns.New(ctx)
+	screens[core.PageSettings] = settings.New(ctx)
+	screens[core.PageSystem] = system.New(ctx)
 	return screens
 }
 
