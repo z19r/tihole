@@ -97,6 +97,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Domains" }
 
+// CapturesInput reports whether the add/edit form is open, so the root delivers
+// raw keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool { return m.form != nil }
+
 // Focus activates the screen and fetches a fresh list.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true

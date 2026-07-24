@@ -140,6 +140,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showHelp = false
 			return m, nil
 		}
+		// While the active screen is capturing text input (an editable field is
+		// focused), deliver keys straight to it so typed letters aren't stolen by
+		// global single-key shortcuts. ctrl+c still always quits.
+		if m.capturingInput() && msg.String() != "ctrl+c" {
+			break
+		}
 		if cmd, handled := m.handleGlobalKey(msg); handled {
 			return m, cmd
 		}
@@ -182,6 +188,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screens[m.active] = s
 	}
 	return m, cmd
+}
+
+// capturingInput reports whether the active screen has a focused text field and
+// therefore wants raw keys (see core.InputCapturer).
+func (m *AppModel) capturingInput() bool {
+	ic, ok := m.screens[m.active].(core.InputCapturer)
+	return ok && ic.CapturesInput()
 }
 
 // handleGlobalKey processes app-level bindings. It returns handled=false when

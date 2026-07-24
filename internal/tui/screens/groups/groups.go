@@ -90,6 +90,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Groups" }
 
+// CapturesInput reports whether the add/edit form is focused, so the root
+// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool { return m.form.active }
+
 // Focus activates the screen: fetch a fresh list. No continuous poll.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true

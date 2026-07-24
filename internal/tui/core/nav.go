@@ -69,3 +69,11 @@ type Screen interface {
 	// SetSize informs the screen of the inner content area (chrome subtracted).
 	SetSize(width, height int)
 }
+
+// InputCapturer is an optional Screen capability. A screen returns true while it
+// has an editable text field focused, so the root delivers raw keys straight to
+// it instead of firing global single-key shortcuts (s, d, r, q, j/k, digits, …).
+// Screens without text entry simply don't implement it and default to false.
+type InputCapturer interface {
+	CapturesInput() bool
+}

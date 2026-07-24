@@ -100,6 +100,10 @@ func (m *Model) Init() tea.Cmd { return nil }
 // Title is shown in the header/status bar.
 func (m *Model) Title() string { return "Clients" }
 
+// CapturesInput reports whether the add/edit form is focused, so the root
+// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+func (m *Model) CapturesInput() bool { return m.form.active }
+
 // Focus activates the screen: bump the epoch and fetch a fresh client list.
 // There is no continuous poll — `r` triggers a manual refetch.
 func (m *Model) Focus() tea.Cmd {
