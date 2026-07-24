@@ -1,0 +1,124 @@
+# tihole
+
+A fast, keyboard-driven terminal UI for [Pi-hole v6](https://pi-hole.net/),
+built in Go on the [Charm](https://charm.sh/) v2 stack (Bubble Tea, Bubbles,
+Lip Gloss). It aims for feature parity with the Pi-hole web admin — query log,
+allow/deny lists, groups, clients, adlists, local DNS, live config, and system
+tools — without leaving your terminal.
+
+## Features
+
+- **Dashboard** — blocking status, query/percentage tiles, top clients &
+  domains at a glance.
+- **Query Log** — cursor-paginated, filterable live log of DNS queries.
+- **Domains** — manage allow/deny lists across exact and regex kinds with
+  group assignment.
+- **Groups & Clients** — full CRUD, with client suggestions pulled from the
+  network table.
+- **Adlists** — block/allow lists plus a streamed **gravity update** log.
+- **Local DNS** — A/AAAA host records and CNAME records.
+- **Settings** — browse and edit the entire FTL config tree, manage
+  connections (add/edit/remove instances), and switch themes live.
+- **System / Tools** — FTL/host/system info, diagnosis messages, the network
+  device table, a live DNS-log tail, and guarded destructive actions
+  (restart DNS, flush logs/network).
+- **Multi-instance** — configure several Pi-holes and switch between them
+  instantly (`s` or the command palette).
+- **Command palette** (`ctrl+k`) — fuzzy-jump to any screen, toggle blocking,
+  change themes, or switch instances.
+- **Help overlay** (`?`) — context-aware cheat-sheet of global and per-screen
+  keys.
+- **Themes** — `deep-night`, `light-luxury`, `pihole-classic`, plus automatic
+  adoption of your [Omarchy](https://omarchy.org/) theme when present.
+
+## Install
+
+Requires Go 1.25+.
+
+```bash
+go install github.com/zackkitzmiller/tihole/cmd/tihole@latest
+```
+
+Or build from a checkout:
+
+```bash
+go build -o tihole ./cmd/tihole
+```
+
+## Usage
+
+```bash
+tihole
+```
+
+On first run, tihole walks you through a short setup wizard and writes a config
+file. After that it connects to the active instance and opens the dashboard.
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `1`–`9` | Jump to a screen by number |
+| `tab` / `shift+tab` | Cycle screens forward / back |
+| `↑↓` / `j` `k` | Move within a list |
+| `ctrl+k` | Command palette |
+| `s` | Switch to the next instance |
+| `space` | Toggle blocking |
+| `?` | Help overlay |
+| `q` / `ctrl+c` | Quit |
+
+Per-screen actions (add `a`, edit `e`, delete `x`, refresh `r`, …) are shown in
+the help bar and the `?` overlay.
+
+## Configuration
+
+Config lives at `~/.config/tihole/config.yaml` (mode `0600`). It is written and
+edited by the app, but can also be hand-authored:
+
+```yaml
+active: home
+theme: deep-night
+instances:
+  - name: home
+    url: https://pi.hole
+    password_env: TIHOLE_HOME_PASSWORD   # preferred: read the app password from env
+    verify_tls: true
+  - name: cabin
+    url: http://10.0.0.53
+    password: plaintext-ok-but-env-is-better
+    verify_tls: false                    # self-signed / no TLS
+```
+
+Each instance needs a `name`, a `url`, and an app password supplied either
+inline (`password`) or, preferably, via `password_env` naming an environment
+variable. Set `verify_tls: false` for self-signed certificates.
+
+### Security
+
+- The config file is created `0600` in a `0700` directory.
+- Passwords and session IDs are **never** logged.
+- Authentication uses Pi-hole v6's `X-FTL-SID` session header, re-authenticating
+  transparently on expiry, and logs out on exit so it doesn't leak a session
+  seat.
+- Some Pi-hole actions require `webserver.api.allow_destructive` to be enabled
+  on the server; tihole surfaces a clear hint when the API rejects them.
+
+## Development
+
+```bash
+go build ./...     # compile
+go vet ./...       # static checks
+gofmt -l .         # formatting (should print nothing)
+go test ./...      # tests
+go test -cover ./internal/...   # with coverage
+```
+
+The codebase separates concerns strictly: the domain packages (`internal/pihole`,
+`internal/config`, `internal/theme`) never import the TUI, and screens receive
+their dependencies through a shared `core.AppContext`. See
+`docs/CHARM_V2_API.md` for Charm v2 specifics and
+`docs/superpowers/specs/2026-07-23-tihole-design.md` for the design spec.
+
+## License
+
+See repository for license details.
