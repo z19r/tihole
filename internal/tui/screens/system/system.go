@@ -368,19 +368,16 @@ func (m *Model) View() tea.View {
 
 // renderHeader draws the title, the tab bar, and any error banner.
 func (m *Model) renderHeader(th *theme.Theme) string {
-	title := th.AccentStyle().Bold(true).Render(m.Title())
-
-	var chips []string
+	labels := make([]string, 0, tabCount)
 	for t := tab(0); t < tabCount; t++ {
-		label := " " + t.label() + " "
-		style := th.SubtleStyle()
-		if t == m.activeTab {
-			style = lipgloss.NewStyle().Foreground(th.Surface).Background(th.Accent).Bold(true)
-		}
-		chips = append(chips, style.Render(label))
+		labels = append(labels, t.label())
 	}
-	bar := lipgloss.JoinHorizontal(lipgloss.Center, chips...)
-	line := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", bar)
+	line := components.SectionTabs{
+		Title:  m.Title(),
+		Labels: labels,
+		Active: int(m.activeTab),
+		Width:  m.w,
+	}.Render(th)
 
 	second := ""
 	if m.err != nil {

@@ -2,13 +2,13 @@ package adlists
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 )
 
 // View renders the screen. The theme is read here so live re-themes and
@@ -29,24 +29,28 @@ func (m *Model) View() tea.View {
 	return tea.NewView(view)
 }
 
+// listTypeOrder is the fixed left-to-right order of the adlist type tabs.
+var listTypeOrder = []pihole.ListType{pihole.ListBlock, pihole.ListAllow}
+
 func (m *Model) renderHeader(th *theme.Theme) string {
-	title := th.AccentStyle().Bold(true).Render(m.Title())
-
-	chip := lipgloss.NewStyle().
-		Foreground(th.Surface).
-		Background(th.Accent).
-		Padding(0, 1).
-		Render(string(m.visible))
-
+	labels := make([]string, len(listTypeOrder))
+	active := 0
+	for i, lt := range listTypeOrder {
+		labels[i] = string(lt)
+		if lt == m.visible {
+			active = i
+		}
+	}
 	count := th.SubtleStyle().Render(fmt.Sprintf("block %d · allow %d",
 		len(m.lists[pihole.ListBlock]), len(m.lists[pihole.ListAllow])))
 
-	left := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", chip)
-	gap := m.w - lipgloss.Width(left) - lipgloss.Width(count)
-	if gap < 1 {
-		gap = 1
-	}
-	line := left + strings.Repeat(" ", gap) + count
+	line := components.SectionTabs{
+		Title:  m.Title(),
+		Labels: labels,
+		Active: active,
+		Right:  count,
+		Width:  m.w,
+	}.Render(th)
 
 	second := ""
 	if m.err != nil {

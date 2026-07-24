@@ -2,12 +2,12 @@ package localdns
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 )
 
 // View renders the screen. The theme is read here so live re-themes and per-row
@@ -33,22 +33,19 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) renderHeader(th *theme.Theme) string {
-	title := th.AccentStyle().Bold(true).Render(m.Title())
-
-	chip := lipgloss.NewStyle().
-		Foreground(th.Surface).
-		Background(th.Accent).
-		Padding(0, 1).
-		Render(m.kind.label())
-
+	labels := make([]string, 0, kindCount)
+	for k := recordKind(0); k < kindCount; k++ {
+		labels = append(labels, k.label())
+	}
 	count := th.SubtleStyle().Render(fmt.Sprintf("%d records", m.activeCount()))
 
-	left := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", chip)
-	gap := m.w - lipgloss.Width(left) - lipgloss.Width(count)
-	if gap < 1 {
-		gap = 1
-	}
-	line := left + strings.Repeat(" ", gap) + count
+	line := components.SectionTabs{
+		Title:  m.Title(),
+		Labels: labels,
+		Active: int(m.kind),
+		Right:  count,
+		Width:  m.w,
+	}.Render(th)
 
 	second := ""
 	if m.err != nil {
