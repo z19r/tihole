@@ -284,6 +284,40 @@ func TestEditFormSubmitReturnsUpdateCmd(t *testing.T) {
 	}
 }
 
+func TestBackspaceDoesNotTriggerDelete(t *testing.T) {
+	// Arrange: backspace is not a delete shortcut (only `x`/`delete` are), so
+	// it must fall through to the table instead of opening the confirm dialog.
+	m := sized()
+	m.clients = []pihole.ClientEntry{{Client: "10.0.0.7"}}
+	m.syncRows()
+
+	// Act
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+
+	// Assert
+	if m.confirm.Active {
+		t.Fatalf("backspace should not open the delete confirm dialog")
+	}
+	if m.pendingDelete != "" {
+		t.Fatalf("backspace should not stage a pending delete")
+	}
+}
+
+func TestDeleteKeyOpensConfirm(t *testing.T) {
+	// Arrange
+	m := sized()
+	m.clients = []pihole.ClientEntry{{Client: "10.0.0.7"}}
+	m.syncRows()
+
+	// Act
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
+
+	// Assert
+	if !m.confirm.Active {
+		t.Fatalf("the delete key should open the confirm dialog")
+	}
+}
+
 func TestSuggestArrowKeysMoveCursor(t *testing.T) {
 	// Arrange
 	m := sized()

@@ -17,3 +17,5 @@
 # OS / editor
 .DS_Store
 *.swp
+bin/
+coverage.out

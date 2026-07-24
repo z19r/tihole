@@ -26,7 +26,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.openEditForm(c)
 		}
 		return m, nil
-	case "x", "delete", "backspace":
+	case "x", "delete":
 		if c, ok := m.selected(); ok {
 			m.pendingDelete = c.Client
 			m.confirm = m.confirm.Show("Delete client?", c.Client, true)
