@@ -65,6 +65,8 @@ func New(cfg *config.Config, cfgPath string, api *pihole.Client, th *theme.Theme
 		Theme:        th,
 		Keys:         core.DefaultKeyMap(),
 		InstanceName: cfg.Active,
+		Config:       cfg,
+		ConfigPath:   cfgPath,
 	}
 	m := &AppModel{
 		ctx:     ctx,
@@ -140,6 +142,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case core.SwitchInstanceMsg:
 		return m, m.switchInstance(msg.Name)
+
+	case core.InstancesChangedMsg:
+		return m, m.applyInstancesChange(msg.Config)
 
 	case blockingResultMsg:
 		st := msg.status
@@ -367,6 +372,27 @@ func (m *AppModel) switchInstance(name string) tea.Cmd {
 	m.ctx.InstanceName = name
 	m.block = components.BlockState{}
 	return tea.Batch(m.screens[m.active].Focus(), fetchBlocking(client))
+}
+
+// applyInstancesChange swaps in an edited config after Settings → Connections
+// persists it. If the active instance still exists nothing else changes; if it
+// was removed, the first remaining instance is activated.
+func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
+	if cfg == nil {
+		return nil
+	}
+	m.cfg = cfg
+	m.ctx.Config = cfg
+
+	for _, inst := range cfg.Instances {
+		if inst.Name == m.ctx.InstanceName {
+			return nil // active instance survived
+		}
+	}
+	if len(cfg.Instances) == 0 {
+		return nil
+	}
+	return m.switchInstance(cfg.Instances[0].Name)
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.
