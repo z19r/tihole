@@ -47,6 +47,12 @@ func (s Splash) Render(th *theme.Theme) string {
 		parts = append(parts, "", lipgloss.NewStyle().Foreground(th.Subtle).Render(s.Status))
 	}
 
+	// A compact key legend so the essential shortcuts are learned on the way in,
+	// not hunted for later.
+	legend := lipgloss.NewStyle().Foreground(th.Subtle).Render(
+		"ctrl+k palette · ? help · ⌃T theme · i splash")
+	parts = append(parts, "", legend)
+
 	block := lipgloss.JoinVertical(lipgloss.Center, parts...)
 	centered := lipgloss.Place(s.Width, s.Height, lipgloss.Center, lipgloss.Center, block)
 	return th.SurfaceStyle().Width(s.Width).Height(s.Height).Render(centered)

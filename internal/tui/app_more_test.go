@@ -105,7 +105,7 @@ func TestNavArrowsCycleBackwardWithWrap(t *testing.T) {
 func TestPanelFocusDelegatesNonEscToScreen(t *testing.T) {
 	// Arrange: move onto an interactive screen, then descend into the panel.
 	m := sized(t, newTestModel(t), 120, 36)
-	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Blocking
 	m = updated.(*AppModel)
 	updated, _ = m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)

@@ -76,22 +76,3 @@ func TestSidebarRenderSafeWithNoItems(t *testing.T) {
 		t.Fatalf("expected brand in empty sidebar, got %q", out)
 	}
 }
-
-func TestSidebarShowsBlockingControl(t *testing.T) {
-	// Arrange: the rail is the blocking control's home now.
-	s := Sidebar{
-		Items:  sampleSidebarItems(),
-		Height: 20,
-		Block:  BlockState{Known: true, Enabled: true},
-	}
-
-	// Act
-	out := s.Render(theme.DeepNight())
-
-	// Assert: state and the toggle affordance both appear on the rail.
-	for _, want := range []string{"blocking on", "d toggle"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("sidebar missing %q", want)
-		}
-	}
-}

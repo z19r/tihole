@@ -10,6 +10,7 @@ type PageID int
 
 const (
 	PageDashboard PageID = iota
+	PageBlocking
 	PageQueryLog
 	PageDomains
 	PageGroups
@@ -30,6 +31,7 @@ type PageMeta struct {
 // pageOrder is the canonical sidebar order.
 var pageOrder = []PageMeta{
 	{PageDashboard, "Dashboard", "▤"},
+	{PageBlocking, "Blocking", "⦸"},
 	{PageQueryLog, "Query Log", "≡"},
 	{PageDomains, "Domains", "⛒"},
 	{PageGroups, "Groups", "⛃"},

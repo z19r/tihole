@@ -77,7 +77,7 @@ func TestViewRendersChromeAndActiveTitle(t *testing.T) {
 func TestTabDescendsToPanel(t *testing.T) {
 	// Arrange: move off the read-only dashboard onto an interactive screen.
 	m := sized(t, newTestModel(t), 100, 30)
-	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Blocking
 	m = updated.(*AppModel)
 
 	// Act: tab descends into the active screen rather than cycling pages.
@@ -88,7 +88,7 @@ func TestTabDescendsToPanel(t *testing.T) {
 	if m.focus != focusPanel {
 		t.Fatalf("expected panel focus after tab, got %v", m.focus)
 	}
-	if m.active != core.PageQueryLog {
+	if m.active != core.PageBlocking {
 		t.Fatalf("tab must not change the page, got %v", m.active)
 	}
 }
@@ -132,13 +132,13 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act: "3" -> third page (Domains), staying on the rail for fast browsing.
+	// Act: "3" -> third page (Query Log), staying on the rail for fast browsing.
 	updated, _ := m.Update(keyPress("3", '3'))
 	m = updated.(*AppModel)
 
 	// Assert
-	if m.active != core.PageDomains {
-		t.Fatalf("expected Domains after '3', got %v", m.active)
+	if m.active != core.PageQueryLog {
+		t.Fatalf("expected QueryLog after '3', got %v", m.active)
 	}
 	if m.focus != focusNav {
 		t.Fatalf("digit jump should stay on the rail, got focus %v", m.focus)
@@ -148,7 +148,7 @@ func TestDigitKeyJumpsToPage(t *testing.T) {
 func TestEscClimbsFromPanelBackToNav(t *testing.T) {
 	// Arrange: move onto an interactive screen, then descend into the panel.
 	m := sized(t, newTestModel(t), 100, 30)
-	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Query Log
+	updated, _ := m.Update(keyPress("down", tea.KeyDown)) // -> Blocking
 	m = updated.(*AppModel)
 	updated, _ = m.Update(keyPress("tab", tea.KeyTab))
 	m = updated.(*AppModel)
@@ -175,28 +175,25 @@ func TestArrowsCycleSidebarInNavFocus(t *testing.T) {
 	m = updated.(*AppModel)
 
 	// Assert
-	if m.active != core.PageQueryLog {
-		t.Fatalf("expected QueryLog after down in nav, got %v", m.active)
+	if m.active != core.PageBlocking {
+		t.Fatalf("expected Blocking after down in nav, got %v", m.active)
 	}
 	if m.focus != focusNav {
 		t.Fatalf("nav arrows should keep rail focus, got %v", m.focus)
 	}
 }
 
-func TestBlockingResultUpdatesStatusBar(t *testing.T) {
+func TestBlockingResultUpdatesState(t *testing.T) {
 	// Arrange
 	m := sized(t, newTestModel(t), 100, 30)
 
-	// Act
+	// Act: a fresh status arrives (drives what the global "d" toggle will flip).
 	updated, _ := m.Update(blockingResultMsg{status: pihole.BlockingStatus{Blocking: true}})
 	m = updated.(*AppModel)
 
-	// Assert
+	// Assert: the app tracks the known+enabled state for the quick-toggle.
 	if !m.block.Known || !m.block.Enabled {
 		t.Fatalf("expected known+enabled blocking state, got %+v", m.block)
-	}
-	if !strings.Contains(m.View().Content, "blocking on") {
-		t.Error("sidebar should show 'blocking on'")
 	}
 }
 
