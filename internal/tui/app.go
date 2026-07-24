@@ -44,6 +44,7 @@ type AppModel struct {
 
 	help     help.Model
 	showHelp bool
+	palette  components.Palette
 
 	width, height int
 	isDark        bool
@@ -67,6 +68,7 @@ func New(cfg *config.Config, cfgPath string, api *pihole.Client, th *theme.Theme
 		cfgPath: cfgPath,
 		active:  core.PageDashboard,
 		help:    help.New(),
+		palette: components.NewPalette(),
 	}
 	m.screens = buildScreens(ctx)
 	return m
@@ -111,6 +113,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		// The palette, while open, captures all key input.
+		if m.palette.Active() {
+			var cmd tea.Cmd
+			m.palette, cmd = m.palette.Update(msg)
+			return m, cmd
+		}
 		if cmd, handled := m.handleGlobalKey(msg); handled {
 			return m, cmd
 		}
@@ -159,6 +167,10 @@ func (m *AppModel) handleGlobalKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case key.Matches(msg, k.Quit):
 		return tea.Quit, true
+	case key.Matches(msg, k.Palette):
+		var cmd tea.Cmd
+		m.palette, cmd = m.palette.Open(m.paletteCommands())
+		return cmd, true
 	case key.Matches(msg, k.Help):
 		m.showHelp = !m.showHelp
 		return nil, true
@@ -238,6 +250,85 @@ func (m *AppModel) toggleBlocking() tea.Cmd {
 	}
 }
 
+// setBlockingFor disables blocking for the given number of seconds, then
+// refreshes status. A zero duration disables until manually re-enabled.
+func (m *AppModel) setBlockingFor(secs float64) tea.Cmd {
+	api := m.ctx.API
+	var timer *float64
+	if secs > 0 {
+		timer = &secs
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		defer cancel()
+		if err := api.SetBlocking(ctx, false, timer); err != nil {
+			return blockingErrMsg{err}
+		}
+		st, err := api.Blocking(ctx)
+		if err != nil {
+			return blockingErrMsg{err}
+		}
+		return blockingResultMsg{st}
+	}
+}
+
+// paletteCommands builds the Ctrl-K command set from the current app state:
+// page navigation, blocking actions, instance switches, and theme changes.
+func (m *AppModel) paletteCommands() []components.Command {
+	var cmds []components.Command
+
+	for _, p := range core.PageOrder() {
+		to := p.ID
+		cmds = append(cmds, components.Command{
+			Title: "Go to " + p.Title,
+			Desc:  "navigate",
+			Run:   core.Navigate(to),
+		})
+	}
+
+	cmds = append(cmds,
+		components.Command{Title: "Toggle blocking", Desc: "enable / disable", Run: m.toggleBlocking()},
+		components.Command{Title: "Disable blocking 30s", Desc: "temporary", Run: m.setBlockingFor(30)},
+		components.Command{Title: "Disable blocking 5m", Desc: "temporary", Run: m.setBlockingFor(300)},
+		components.Command{Title: "Disable blocking 30m", Desc: "temporary", Run: m.setBlockingFor(1800)},
+		components.Command{Title: "Disable blocking (until enabled)", Desc: "indefinite", Run: m.setBlockingFor(0)},
+	)
+
+	for _, inst := range m.cfg.Instances {
+		if inst.Name == m.ctx.InstanceName {
+			continue
+		}
+		name := inst.Name
+		cmds = append(cmds, components.Command{
+			Title: "Switch to " + name,
+			Desc:  "instance",
+			Run:   func() tea.Msg { return core.SwitchInstanceMsg{Name: name} },
+		})
+	}
+
+	for _, name := range theme.Names() {
+		tn := name
+		cmds = append(cmds, components.Command{
+			Title: "Theme: " + tn,
+			Desc:  "appearance",
+			Run:   themeCmd(tn),
+		})
+	}
+
+	return cmds
+}
+
+// themeCmd resolves a theme by name and emits a SetThemeMsg (or an ErrorMsg).
+func themeCmd(name string) tea.Cmd {
+	return func() tea.Msg {
+		th, err := theme.Resolve(name)
+		if err != nil {
+			return core.ErrorMsg{Screen: "theme", Err: err}
+		}
+		return core.SetThemeMsg{Theme: th}
+	}
+}
+
 // nextInstance returns the name of the instance after the active one (wrapping).
 func (m *AppModel) nextInstance() string {
 	insts := m.cfg.Instances
@@ -293,8 +384,14 @@ func (m *AppModel) View() tea.View {
 		Height:   ch,
 	}.Render(th)
 
-	content := m.screens[m.active].View().Content
-	middle := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
+	var middle string
+	if m.palette.Active() {
+		// The palette takes over the body area as a centered modal.
+		middle = m.palette.Render(th, m.width, ch)
+	} else {
+		content := m.screens[m.active].View().Content
+		middle = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
+	}
 
 	bottom := m.helpBar(cw + components.SidebarWidth + 1)
 
