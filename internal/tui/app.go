@@ -40,6 +40,16 @@ type blockingResultMsg struct{ status pihole.BlockingStatus }
 // blockingErrMsg reports a failed blocking fetch/toggle.
 type blockingErrMsg struct{ err error }
 
+// focusZone is the input-owning region under the omarchy-style focus model.
+// The sidebar rail (focusNav) and the active screen (focusPanel) never both own
+// the keyboard at once, so single-letter screen keys can't be stolen by nav.
+type focusZone int
+
+const (
+	focusNav   focusZone = iota // the navigation rail owns keys
+	focusPanel                  // the active screen owns keys
+)
+
 // AppModel is the root Bubble Tea model.
 type AppModel struct {
 	ctx     *core.AppContext
@@ -55,6 +65,7 @@ type AppModel struct {
 
 	width, height int
 	isDark        bool
+	focus         focusZone
 
 	block components.BlockState
 	err   string
@@ -106,6 +117,7 @@ func buildScreens(ctx *core.AppContext) map[core.PageID]core.Screen {
 // Init focuses the initial screen and kicks off the first blocking fetch.
 func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(
+		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
 		fetchBlocking(m.ctx.API),
 	)
@@ -146,7 +158,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.capturingInput() && msg.String() != "ctrl+c" {
 			break
 		}
-		if cmd, handled := m.handleGlobalKey(msg); handled {
+		if cmd, handled := m.handleKey(msg); handled {
 			return m, cmd
 		}
 
@@ -197,36 +209,70 @@ func (m *AppModel) capturingInput() bool {
 	return ok && ic.CapturesInput()
 }
 
-// handleGlobalKey processes app-level bindings. It returns handled=false when
-// the key should fall through to the active screen.
-func (m *AppModel) handleGlobalKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+// handleKey dispatches a key through the omarchy-style focus model: a tiny
+// always-on global set first, then zone-specific handling. It returns
+// handled=false only when a Panel-focus key should fall through to the active
+// screen (the rail, by contrast, never forwards).
+func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	k := m.ctx.Keys
+	// Truly global: alive in both zones. Kept deliberately small — quit, help,
+	// palette, and the two app-level actions (blocking, instance) that no screen
+	// binds. Everything else is zone-scoped so screen keys are never ambushed.
 	switch {
 	case key.Matches(msg, k.Quit):
 		return tea.Quit, true
+	case key.Matches(msg, k.Help):
+		m.showHelp = !m.showHelp
+		return nil, true
 	case key.Matches(msg, k.Palette):
 		var cmd tea.Cmd
 		m.palette, cmd = m.palette.Open(m.paletteCommands())
 		return cmd, true
-	case key.Matches(msg, k.Help):
-		m.showHelp = !m.showHelp
-		return nil, true
 	case key.Matches(msg, k.ToggleBlock):
 		return m.toggleBlocking(), true
 	case key.Matches(msg, k.SwitchInst):
 		return m.switchInstance(m.nextInstance()), true
-	case msg.String() == "tab":
-		return m.switchPage(m.relPage(1)), true
-	case msg.String() == "shift+tab":
-		return m.switchPage(m.relPage(-1)), true
 	}
-	// Digit keys 1..9 jump directly to a page.
+
+	if m.focus == focusNav {
+		// The rail owns input and never forwards to the screen.
+		return m.handleNavKey(msg), true
+	}
+	return m.handlePanelKey(msg)
+}
+
+// handleNavKey processes keys while the sidebar rail owns input: move the
+// selection, descend into the panel, quick-jump by digit, or refresh.
+func (m *AppModel) handleNavKey(msg tea.KeyPressMsg) tea.Cmd {
+	k := m.ctx.Keys
+	switch {
+	case key.Matches(msg, k.Up):
+		return m.switchPage(m.relPage(-1))
+	case key.Matches(msg, k.Down):
+		return m.switchPage(m.relPage(1))
+	case key.Matches(msg, k.Enter), key.Matches(msg, k.Right), msg.String() == "tab":
+		m.focus = focusPanel
+		return nil
+	case key.Matches(msg, k.Refresh):
+		return m.screens[m.active].Focus()
+	}
+	// Digit keys 1..9 quick-jump to a page, staying on the rail for fast browsing.
 	if d := msg.String(); len(d) == 1 && d[0] >= '1' && d[0] <= '9' {
 		idx := int(d[0] - '1')
 		order := core.PageOrder()
 		if idx < len(order) {
-			return m.switchPage(order[idx].ID), true
+			return m.switchPage(order[idx].ID)
 		}
+	}
+	return nil
+}
+
+// handlePanelKey processes keys while the active screen owns input: esc climbs
+// back to the rail, and every other key falls through to the screen.
+func (m *AppModel) handlePanelKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if key.Matches(msg, m.ctx.Keys.Back) {
+		m.focus = focusNav
+		return nil, true
 	}
 	return nil, false
 }
@@ -440,6 +486,7 @@ func (m *AppModel) View() tea.View {
 		Items:    sidebarItems(),
 		Selected: activeIndex(m.active),
 		Height:   ch,
+		Focused:  m.focus == focusNav,
 	}.Render(th)
 
 	var middle string

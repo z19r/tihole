@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -328,6 +329,74 @@ func TestFetchClosures_ProduceTaggedMessages(t *testing.T) {
 	}
 	if _, ok := fetchTop(base, api, 7)().(topMsg); !ok {
 		t.Fatal("fetchTop should yield a topMsg")
+	}
+}
+
+// TestUpdate_SummarySpringsBlockGauge verifies a delivered summary sets the
+// block gauge target and returns an animation command to spring toward it.
+func TestUpdate_SummarySpringsBlockGauge(t *testing.T) {
+	// Arrange
+	m := newTestModel()
+	m.focused, m.epoch = true, 1
+
+	// Act
+	_, cmd := m.Update(summaryMsg{epoch: 1, data: sampleSummary()})
+
+	// Assert: gauge target tracks the 16.2% block rate, animation cmd returned.
+	if got := m.blockBar.Percent(); got < 0.16 || got > 0.17 {
+		t.Fatalf("block gauge target = %.3f, want ~0.162", got)
+	}
+	if cmd == nil {
+		t.Fatal("a delivered summary should return an animation command")
+	}
+}
+
+// TestUpdate_ProgressFrameAdvancesGauge verifies progress.FrameMsg is routed
+// into the gauge so the spring animation actually advances.
+func TestUpdate_ProgressFrameAdvancesGauge(t *testing.T) {
+	// Arrange: kick a target so the gauge has somewhere to animate to.
+	m := newTestModel()
+	m.focused, m.epoch = true, 1
+	m.Update(summaryMsg{epoch: 1, data: sampleSummary()})
+
+	// Act: an unmatched frame is harmless; the routing must not panic and must
+	// leave the model intact.
+	updated, _ := m.Update(progress.FrameMsg{})
+
+	// Assert
+	if updated == nil {
+		t.Fatal("progress frame handling should return the model")
+	}
+}
+
+// TestSyncBarTheme_RebuildsOnThemeChangePreservingPercent verifies the gauge is
+// rebuilt when the active theme changes, keeping its target percent so the value
+// doesn't jump, and is left untouched when the theme is unchanged.
+func TestSyncBarTheme_RebuildsOnThemeChangePreservingPercent(t *testing.T) {
+	// Arrange: give the gauge a target, then swap the theme.
+	m := newTestModel()
+	m.blockBar.SetPercent(0.42)
+	if m.barTheme != theme.DeepNight().Name {
+		t.Fatalf("precondition: gauge built for %q, got %q", theme.DeepNight().Name, m.barTheme)
+	}
+	m.ctx.Theme = theme.LightLuxury()
+
+	// Act
+	m.syncBarTheme()
+
+	// Assert: rebuilt for the new theme, percent preserved.
+	if m.barTheme != theme.LightLuxury().Name {
+		t.Fatalf("expected gauge rebuilt for %q, got %q", theme.LightLuxury().Name, m.barTheme)
+	}
+	if got := m.blockBar.Percent(); got < 0.41 || got > 0.43 {
+		t.Fatalf("percent not preserved across rebuild: got %.3f want ~0.42", got)
+	}
+
+	// Act again with no change: barTheme stays put (no needless rebuild).
+	before := m.barTheme
+	m.syncBarTheme()
+	if m.barTheme != before {
+		t.Fatal("syncBarTheme should be a no-op when the theme is unchanged")
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/zackkitzmiller/tihole/internal/config"
 	"github.com/zackkitzmiller/tihole/internal/pihole"
@@ -66,38 +67,59 @@ func TestDigitKeyJumpsToEachPage(t *testing.T) {
 	}
 }
 
-func TestTabCyclesForwardWithWrap(t *testing.T) {
+func TestNavArrowsCycleForwardWithWrap(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	order := core.PageOrder()
 
+	// On the rail, ↓ walks the sidebar and wraps back to the top.
 	for i := 1; i <= len(order); i++ {
-		updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+		updated, _ := m.Update(keyPress("down", tea.KeyDown))
 		m = updated.(*AppModel)
 		want := order[i%len(order)].ID
 		if m.active != want {
-			t.Fatalf("after %d tabs expected %v, got %v", i, want, m.active)
+			t.Fatalf("after %d downs expected %v, got %v", i, want, m.active)
 		}
 	}
-	// A full cycle wraps back to Dashboard.
 	if m.active != core.PageDashboard {
-		t.Fatalf("tab cycle should wrap to Dashboard, got %v", m.active)
+		t.Fatalf("nav cycle should wrap to Dashboard, got %v", m.active)
 	}
 }
 
-func TestShiftTabCyclesBackwardWithWrap(t *testing.T) {
+func TestNavArrowsCycleBackwardWithWrap(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	order := core.PageOrder()
 
 	for i := 1; i <= len(order); i++ {
-		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
+		updated, _ := m.Update(keyPress("up", tea.KeyUp))
 		m = updated.(*AppModel)
 		want := order[(len(order)-i)%len(order)].ID
 		if m.active != want {
-			t.Fatalf("after %d shift+tabs expected %v, got %v", i, want, m.active)
+			t.Fatalf("after %d ups expected %v, got %v", i, want, m.active)
 		}
 	}
 	if m.active != core.PageDashboard {
-		t.Fatalf("shift+tab cycle should wrap to Dashboard, got %v", m.active)
+		t.Fatalf("nav cycle should wrap to Dashboard, got %v", m.active)
+	}
+}
+
+func TestPanelFocusDelegatesNonEscToScreen(t *testing.T) {
+	// Arrange: descend into the panel.
+	m := sized(t, newTestModel(t), 120, 36)
+	updated, _ := m.Update(keyPress("tab", tea.KeyTab))
+	m = updated.(*AppModel)
+
+	// Act: a page-jump digit is NOT a global in panel focus — it falls through
+	// to the screen, so the active page is unchanged.
+	before := m.active
+	updated, _ = m.Update(keyPress("3", '3'))
+	m = updated.(*AppModel)
+
+	// Assert
+	if m.active != before {
+		t.Fatalf("panel focus must not honor digit page-jumps, moved to %v", m.active)
+	}
+	if m.focus != focusPanel {
+		t.Fatalf("expected to remain in panel focus, got %v", m.focus)
 	}
 }
 
@@ -291,16 +313,16 @@ func TestThemeCmdValidResolvesTheme(t *testing.T) {
 }
 
 func TestThemeCmdUnknownFallsBackToDefault(t *testing.T) {
-	// theme.Resolve returns the DeepNight default (no error) for unknown names,
-	// so themeCmd emits a SetThemeMsg carrying that fallback rather than an error.
+	// theme.Resolve returns the Auto default (no error) for unknown names, so
+	// themeCmd emits a SetThemeMsg carrying that fallback rather than an error.
 	msg := themeCmd("does-not-exist")()
 
 	setMsg, ok := msg.(core.SetThemeMsg)
 	if !ok {
 		t.Fatalf("expected core.SetThemeMsg fallback, got %T", msg)
 	}
-	if setMsg.Theme == nil || setMsg.Theme.Name != theme.NameDeepNight {
-		t.Fatalf("expected DeepNight fallback, got %+v", setMsg.Theme)
+	if setMsg.Theme == nil || setMsg.Theme.Name != theme.NameAuto {
+		t.Fatalf("expected Auto fallback, got %+v", setMsg.Theme)
 	}
 }
 
@@ -336,7 +358,9 @@ func TestPaletteCommandRunsEmitExpectedMessages(t *testing.T) {
 
 func TestNormalRenderShowsChrome(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
-	out := m.View().Content
+	// The gradient wordmark colors each rune separately, so strip ANSI before
+	// matching plain text.
+	out := ansi.Strip(m.View().Content)
 
 	for _, want := range []string{"tihole", "Dashboard", "home", "Query Log", "Settings"} {
 		if !strings.Contains(out, want) {
@@ -359,7 +383,7 @@ func TestViewZeroSizeReturnsEmptyAltScreen(t *testing.T) {
 func TestToggleBlockKeyReturnsCommand(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 
-	cmd, handled := m.handleGlobalKey(keyPress("d", 'd'))
+	cmd, handled := m.handleKey(keyPress("d", 'd'))
 	if !handled {
 		t.Fatal("toggle-block key should be handled")
 	}
@@ -375,7 +399,7 @@ func TestSwitchInstanceKeyIsHandled(t *testing.T) {
 	// and a failure surfaces later as a fetch banner, not a synchronous crash.
 	m.cfg.Instances[1].URL = "http://127.0.0.1:1"
 
-	_, handled := m.handleGlobalKey(keyPress("s", 's'))
+	_, handled := m.handleKey(keyPress("s", 's'))
 	if !handled {
 		t.Fatal("switch-instance key should be handled")
 	}

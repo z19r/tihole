@@ -95,7 +95,7 @@ func loadOmarchyFrom(dir string) (*Theme, error) {
 //     together with the underlying error so the caller may log it; the returned
 //     *Theme is always non-nil and usable, so callers may safely ignore err.
 //   - a known built-in name: that built-in, nil error.
-//   - anything else (including ""): DeepNight() as the default, nil error.
+//   - anything else (including ""): Auto() as the default, nil error.
 func Resolve(name string) (*Theme, error) {
 	if name == "omarchy" {
 		dir, err := omarchyThemeDir()
@@ -107,7 +107,7 @@ func Resolve(name string) (*Theme, error) {
 	if t, ok := Builtin(name); ok {
 		return t, nil
 	}
-	return DeepNight(), nil
+	return Auto(), nil
 }
 
 // resolveFrom is the injectable core of Resolve for the Omarchy path.

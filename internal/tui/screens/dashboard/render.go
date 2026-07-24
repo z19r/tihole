@@ -45,9 +45,7 @@ func (m *Model) renderTiles() string {
 
 	tiles := []string{
 		m.tile("Total Queries", formatCount(m.summary.Queries.Total), inner),
-		m.tile("Blocked", fmt.Sprintf("%s  %s",
-			formatCount(m.summary.Queries.Blocked),
-			formatPercent(m.summary.Queries.PercentBlocked)), inner),
+		m.blockedTile(inner),
 		m.tile("Active Clients", formatCount(m.summary.Clients.Active), inner),
 		m.tile("Gravity Domains", formatCount(m.summary.Gravity.DomainsBeingBlocked), inner),
 	}
@@ -58,6 +56,26 @@ func (m *Model) renderTiles() string {
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, tiles...)
+}
+
+// blockedTile is the Blocked stat tile with an animated gradient gauge beneath
+// the figure. The gauge springs toward the current block rate as fresh summary
+// data lands, giving the dashboard a bit of motion.
+func (m *Model) blockedTile(inner int) string {
+	th := m.ctx.Theme
+	value := fmt.Sprintf("%s  %s",
+		formatCount(m.summary.Queries.Blocked),
+		formatPercent(m.summary.Queries.PercentBlocked))
+
+	lbl := th.SubtleStyle().Render(truncate("Blocked", inner))
+	fig := th.AccentStyle().Bold(true).Render(truncate(value, inner))
+
+	m.syncBarTheme()
+	m.blockBar.SetWidth(inner)
+	gauge := m.blockBar.View()
+
+	body := lipgloss.JoinVertical(lipgloss.Left, lbl, fig, gauge)
+	return panelBox(th).Width(inner).Render(body)
 }
 
 // tile renders one stat tile: a subtle label above a large accent figure.

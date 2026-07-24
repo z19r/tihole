@@ -85,7 +85,7 @@ func TestBuiltinReturnsFreshInstances(t *testing.T) {
 }
 
 func TestNamesListsAllBuiltinsInOrder(t *testing.T) {
-	want := []string{NameDeepNight, NameLightLuxury, NamePiholeClassic}
+	want := []string{NameAuto, NameDeepNight, NameLightLuxury, NamePiholeClassic}
 
 	got := Names()
 
@@ -333,7 +333,7 @@ func TestResolveReturnsBuiltinByName(t *testing.T) {
 	}
 }
 
-func TestResolveUnknownNameDefaultsToDeepNight(t *testing.T) {
+func TestResolveUnknownNameDefaultsToAuto(t *testing.T) {
 	// Arrange / Act
 	th, err := Resolve("totally-unknown")
 
@@ -341,8 +341,27 @@ func TestResolveUnknownNameDefaultsToDeepNight(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if th.Name != NameDeepNight {
-		t.Errorf("expected DeepNight default, got %q", th.Name)
+	if th.Name != NameAuto {
+		t.Errorf("expected Auto default, got %q", th.Name)
+	}
+}
+
+func TestAutoAdaptsToBackground(t *testing.T) {
+	// Arrange
+	th := Auto()
+
+	// Assert: base renders as the safe dark default before detection.
+	if th.Name != NameAuto {
+		t.Errorf("expected name %q, got %q", NameAuto, th.Name)
+	}
+	tokensNonNil(t, th)
+
+	// Act / Assert: Adapt resolves to a concrete single-mode theme per background.
+	if got := th.Adapt(true); got.Name != NameDeepNight {
+		t.Errorf("dark background: expected %q, got %q", NameDeepNight, got.Name)
+	}
+	if got := th.Adapt(false); got.Name != NameLightLuxury {
+		t.Errorf("light background: expected %q, got %q", NameLightLuxury, got.Name)
 	}
 }
 
