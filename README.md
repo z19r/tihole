@@ -48,11 +48,19 @@ go build -o tihole ./cmd/tihole
 ## Usage
 
 ```bash
-tihole
+tihole           # launch the dashboard
+tihole config    # jump straight to the config editor to add or fix an instance
+tihole help      # usage
 ```
 
 On first run, tihole walks you through a short setup wizard and writes a config
 file. After that it connects to the active instance and opens the dashboard.
+
+A wrong address or password never aborts startup: authentication happens lazily,
+so connection failures show up as in-app error banners, and a structurally
+broken instance drops you straight into the config editor to fix it. You can
+also open the editor any time with `tihole config` or from the command palette
+(`ctrl+k` → Settings).
 
 ### Keys
 

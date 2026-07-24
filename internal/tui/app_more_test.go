@@ -213,8 +213,9 @@ func TestApplyInstancesChangeNilAndEmpty(t *testing.T) {
 }
 
 func TestApplyInstancesChangeDropsActiveInstance(t *testing.T) {
-	// The active instance ("home") is dropped; the surviving instance points at
-	// a closed port so the re-activation login fails fast and surfaces an error.
+	// The active instance ("home") is dropped; the surviving instance is
+	// re-activated. Auth is lazy, so re-activation proceeds without blocking or
+	// synchronously erroring even if the URL is unreachable.
 	m := sized(t, newTestModel(t), 120, 36)
 	verify := true
 	cfg2 := &config.Config{
@@ -229,28 +230,51 @@ func TestApplyInstancesChangeDropsActiveInstance(t *testing.T) {
 	if m.cfg != cfg2 {
 		t.Fatal("config should be swapped in even when active is dropped")
 	}
-	// clientFor tries to log in and fails against the closed port, so the error
-	// banner is set and the instance name is not advanced.
-	if m.err == "" {
-		t.Fatal("expected a login error banner from the re-activation attempt")
+	if m.ctx.InstanceName != "office" {
+		t.Fatalf("surviving instance should be re-activated, got %q", m.ctx.InstanceName)
+	}
+	if m.err != "" {
+		t.Fatalf("re-activation should not synchronously error, got %q", m.err)
 	}
 }
 
-func TestSwitchInstanceLoginErrorSetsBanner(t *testing.T) {
+func TestSwitchInstanceProceedsWithoutBlocking(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
-	// Point the office instance at a closed port so Login fails fast.
+	// Even pointed at a closed port, switching must not block on auth: it
+	// activates the instance and returns a fetch command; failures surface later.
 	m.cfg.Instances[1].URL = "http://127.0.0.1:1"
 
 	cmd := m.switchInstance("office")
 
+	if cmd == nil {
+		t.Fatal("switch should return a (fetch) command, not nil")
+	}
+	if m.err != "" {
+		t.Fatalf("switch should not synchronously error, got %q", m.err)
+	}
+	if m.ctx.InstanceName != "office" {
+		t.Fatalf("instance name should advance to office, got %q", m.ctx.InstanceName)
+	}
+}
+
+func TestSwitchInstanceStructuralErrorSetsBanner(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	// Give office an unset password_env: clientFor can't resolve it, which is a
+	// structural config error that must still surface as a banner (not a crash),
+	// leaving the active instance unchanged.
+	m.cfg.Instances[1].Password = ""
+	m.cfg.Instances[1].PasswordEnv = "TIHOLE_TEST_UNSET_PW"
+
+	cmd := m.switchInstance("office")
+
 	if cmd != nil {
-		t.Fatal("failed instance switch should return nil cmd")
+		t.Fatal("structural failure should return nil cmd")
 	}
 	if m.err == "" {
-		t.Fatal("expected error banner after failed login")
+		t.Fatal("structural config error should surface a banner")
 	}
 	if m.ctx.InstanceName != "home" {
-		t.Fatalf("instance name should remain home after failed switch, got %q", m.ctx.InstanceName)
+		t.Fatalf("active instance should remain home, got %q", m.ctx.InstanceName)
 	}
 }
 
@@ -346,15 +370,20 @@ func TestToggleBlockKeyReturnsCommand(t *testing.T) {
 
 func TestSwitchInstanceKeyIsHandled(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
-	// Point the next instance at a closed port so the login fails fast.
+	// Point the next instance at a closed port. Switching must NOT block on
+	// authentication — the client authenticates lazily, so the switch proceeds
+	// and a failure surfaces later as a fetch banner, not a synchronous crash.
 	m.cfg.Instances[1].URL = "http://127.0.0.1:1"
 
 	_, handled := m.handleGlobalKey(keyPress("s", 's'))
 	if !handled {
 		t.Fatal("switch-instance key should be handled")
 	}
-	if m.err == "" {
-		t.Fatal("failed switch should surface an error banner")
+	if m.ctx.InstanceName != "office" {
+		t.Fatalf("switch should activate the next instance, got %q", m.ctx.InstanceName)
+	}
+	if m.err != "" {
+		t.Fatalf("switch should not synchronously error, got %q", m.err)
 	}
 }
 
