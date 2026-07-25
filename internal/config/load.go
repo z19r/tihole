@@ -73,7 +73,10 @@ func (i *Instance) ResolvePassword() (string, error) {
 		if v := os.Getenv(i.PasswordEnv); v != "" {
 			return v, nil
 		}
-		return "", fmt.Errorf("password_env %q is empty or unset", i.PasswordEnv)
+		return "", fmt.Errorf(
+			"password_env %q is empty or unset",
+			i.PasswordEnv,
+		)
 	}
 	return "", fmt.Errorf("instance %q has no password or password_env", i.Name)
 }

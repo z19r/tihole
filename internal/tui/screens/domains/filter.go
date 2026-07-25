@@ -2,7 +2,8 @@ package domains
 
 import "github.com/zackkitzmiller/tihole/internal/pihole"
 
-// filterTab selects which subset of the fetched domains is shown. The tabs cycle
+// filterTab selects which subset of the fetched domains is shown. The tabs
+// cycle
 // through the four allow/deny × exact/regex combinations plus an "all" view.
 type filterTab int
 
@@ -42,7 +43,8 @@ func (f filterTab) prev() filterTab {
 	return (f + filterCount - 1) % filterCount
 }
 
-// typeKind resolves the tab's domain type and kind. Only meaningful for the four
+// typeKind resolves the tab's domain type and kind. Only meaningful for the
+// four
 // concrete tabs; filterAll is handled separately by filterDomains.
 func (f filterTab) typeKind() (pihole.DomainType, pihole.DomainKind) {
 	switch f {
@@ -59,7 +61,8 @@ func (f filterTab) typeKind() (pihole.DomainType, pihole.DomainKind) {
 	}
 }
 
-// filterDomains returns the subset of domains matching the given tab. The result
+// filterDomains returns the subset of domains matching the given tab. The
+// result
 // is a fresh slice, never a view onto the input.
 func filterDomains(domains []pihole.Domain, f filterTab) []pihole.Domain {
 	if f == filterAll {

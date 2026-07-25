@@ -18,7 +18,12 @@ func validConfig() *Config {
 			"querylog":  2,
 		},
 		Instances: []Instance{
-			{Name: "home", URL: "https://192.168.1.2", Password: "secret", VerifyTLS: boolPtr(false)},
+			{
+				Name:      "home",
+				URL:       "https://192.168.1.2",
+				Password:  "secret",
+				VerifyTLS: boolPtr(false),
+			},
 		},
 	}
 }
@@ -59,7 +64,10 @@ func TestSaveThenLoadRoundTripsConfig(t *testing.T) {
 		t.Fatalf("instances not preserved: %+v", got.Instances)
 	}
 	if got.Instances[0].VerifyTLSValue() != false {
-		t.Fatalf("verify_tls not preserved, got %v", got.Instances[0].VerifyTLSValue())
+		t.Fatalf(
+			"verify_tls not preserved, got %v",
+			got.Instances[0].VerifyTLSValue(),
+		)
 	}
 	if got.Refresh["dashboard"] != 5 {
 		t.Fatalf("refresh not preserved: %+v", got.Refresh)

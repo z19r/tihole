@@ -44,7 +44,8 @@ type suggestionsMsg struct {
 	err         error
 }
 
-// mutationMsg carries the result of an add/update/delete, tagged with its epoch.
+// mutationMsg carries the result of an add/update/delete, tagged with its
+// epoch.
 type mutationMsg struct {
 	epoch int
 	err   error
@@ -101,7 +102,8 @@ func (m *Model) Init() tea.Cmd { return nil }
 func (m *Model) Title() string { return "Clients" }
 
 // CapturesInput reports whether the add/edit form is focused, so the root
-// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+// delivers raw keys instead of firing global shortcuts (see
+// core.InputCapturer).
 func (m *Model) CapturesInput() bool { return m.form.active }
 
 // Focus activates the screen: bump the epoch and fetch a fresh client list.
@@ -298,6 +300,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) syncRows() {
 	widths := columnWidthsFrom(m.table.Columns())
 	idx := m.table.Cursor()
+	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.table.SetRows(clientRows(m.clients, widths))
 	m.table.SetCursor(idx)
 }
@@ -320,7 +323,7 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
@@ -339,7 +342,7 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	if m.err != nil {
 		second = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, second)
+	return strings.Join([]string{line, second}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -361,13 +364,29 @@ func (m *Model) renderBody(th *theme.Theme) string {
 	}
 
 	if m.loading && len(m.clients) == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading clients…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading clients…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if len(m.clients) == 0 {
-		empty := th.SubtleStyle().Render("no clients configured — a to add, S for suggestions")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		empty := th.SubtleStyle().
+			Render("no clients configured — a to add, S for suggestions")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	return m.table.View()

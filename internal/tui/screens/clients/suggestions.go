@@ -47,35 +47,63 @@ func (s *suggestState) moveDown() {
 // candidate address, its resolved name, MAC vendor, and last-seen time.
 func (s *suggestState) render(th *theme.Theme, spin string, w, h int) string {
 	var lines []string
-	lines = append(lines, th.AccentStyle().Bold(true).Render("Client suggestions"), "")
+	lines = append(
+		lines,
+		th.AccentStyle().Bold(true).Render("Client suggestions"),
+		"",
+	)
 
 	switch {
 	case s.loading:
-		lines = append(lines, th.SubtleStyle().Render(spin+" loading suggestions…"))
+		lines = append(
+			lines,
+			th.SubtleStyle().Render(spin+" loading suggestions…"),
+		)
 	case s.err != nil:
-		lines = append(lines, th.BlockStyle().Bold(true).Render("error: "+s.err.Error()))
+		lines = append(
+			lines,
+			th.BlockStyle().Bold(true).Render("error: "+s.err.Error()),
+		)
 	case len(s.suggestions) == 0:
-		lines = append(lines, th.SubtleStyle().Render("no unconfigured clients seen"))
+		lines = append(
+			lines,
+			th.SubtleStyle().Render("no unconfigured clients seen"),
+		)
 	default:
 		for i, sg := range s.suggestions {
 			lines = append(lines, s.rowLine(th, i, sg))
 		}
 	}
 
-	lines = append(lines, "", th.SubtleStyle().Render("↑↓ move · enter add · esc close"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().Render("↑↓ move · enter add · esc close"),
+	)
 
 	panel := th.PanelStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Accent).
 		Padding(1, 2).
 		Width(maxInt(minInt(w-2, 72), 24)).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		th.SurfaceWhitespace(),
+	)
 }
 
 // rowLine formats one suggestion, marking the cursor row with the accent color.
-func (s *suggestState) rowLine(th *theme.Theme, i int, sg pihole.ClientSuggestion) string {
+func (s *suggestState) rowLine(
+	th *theme.Theme,
+	i int,
+	sg pihole.ClientSuggestion,
+) string {
 	addr := orDash(firstAddress(sg.Addresses))
 	meta := suggestionMeta(sg)
 

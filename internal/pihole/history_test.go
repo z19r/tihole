@@ -11,8 +11,11 @@ func TestHistory(t *testing.T) {
 		if r.URL.Path != "/api/history" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		writeJSON(w, http.StatusOK,
-			`{"history":[{"timestamp":1000,"total":10,"cached":3,"blocked":2,"forwarded":5}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"history":[{"timestamp":1000,"total":10,"cached":3,"blocked":2,"forwarded":5}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 
@@ -20,7 +23,8 @@ func TestHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("History error: %v", err)
 	}
-	if len(got.History) != 1 || got.History[0].Total != 10 || got.History[0].Blocked != 2 {
+	if len(got.History) != 1 || got.History[0].Total != 10 ||
+		got.History[0].Blocked != 2 {
 		t.Errorf("history = %+v", got.History)
 	}
 }
@@ -29,8 +33,11 @@ func TestHistoryClientsBuildsNParam(t *testing.T) {
 	var gotQuery string
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
-		writeJSON(w, http.StatusOK,
-			`{"clients":{"10.0.0.1":{"name":"host","total":9}},"history":[{"timestamp":1000,"data":{"10.0.0.1":9}}],"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"clients":{"10.0.0.1":{"name":"host","total":9}},"history":[{"timestamp":1000,"data":{"10.0.0.1":9}}],"took":0.0}`,
+		)
 	})
 	client.setSID("S")
 

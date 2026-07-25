@@ -44,7 +44,8 @@ func (s Sidebar) Render(th *theme.Theme) string {
 	var rows []string
 	rows = append(rows, brand)
 
-	// The selection glows on the accent when the rail is focused; when the panel
+	// The selection glows on the accent when the rail is focused; when the
+	// panel
 	// owns input the rail steps back to a muted, bordered pill so it's clear
 	// where the keyboard is going.
 	selFg, selBg := th.Surface, th.Accent
@@ -52,7 +53,13 @@ func (s Sidebar) Render(th *theme.Theme) string {
 		selFg, selBg = th.Text, th.Border
 	}
 
-	itemBase := lipgloss.NewStyle().Width(width-2).Padding(0, 1)
+	// itemBase carries the Panel background so the Width padding after each
+	// (fg-only) label paints the rail surface instead of leaking the terminal
+	// background through the trailing cells.
+	itemBase := lipgloss.NewStyle().
+		Width(width-2).
+		Padding(0, 1).
+		Background(th.Panel)
 	for i, item := range s.Items {
 		marker := "  "
 		if i == s.Selected {

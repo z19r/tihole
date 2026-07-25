@@ -15,37 +15,59 @@ type StatusBar struct {
 	Width      int
 }
 
-// Render returns the styled top status bar for the given theme.
+// Render returns the styled top status bar for the given theme: a filled brand
+// badge, the active instance, the current screen, and a right-aligned theme
+// segment — all sitting as colored blocks on the panel, lipgloss-style.
 func (b StatusBar) Render(th *theme.Theme) string {
-	left := lipgloss.NewStyle().
-		Foreground(th.Accent).
+	// A filled brand badge anchors the bar the way lipgloss's "STATUS" pill
+	// does.
+	badge := lipgloss.NewStyle().
+		Foreground(th.Surface).
+		Background(th.Accent).
 		Bold(true).
 		Padding(0, 1).
-		Render("⬢ " + orDash(b.Instance))
+		Render("⬢ TIHOLE")
+
+	// Interior segments carry the panel background explicitly. A fill-only
+	// style
+	// (fg without bg) resets to the terminal's own background after its run, so
+	// the panel band would otherwise bleed between the badge and the segments.
+	instance := lipgloss.NewStyle().
+		Foreground(th.Accent).
+		Background(th.Panel).
+		Bold(true).
+		Padding(0, 1).
+		Render(orDash(b.Instance))
 
 	center := lipgloss.NewStyle().
 		Foreground(th.Text).
+		Background(th.Panel).
+		Bold(true).
 		Padding(0, 1).
 		Render(b.ScreenName)
 
-	// Advertise the active theme and how to change it, so appearance stops being
-	// a palette-only secret.
+	// Advertise the active theme and how to change it as a filled segment, so
+	// appearance stops being a palette-only secret.
 	right := lipgloss.NewStyle().
-		Foreground(th.Subtle).
+		Foreground(th.Text).
+		Background(th.Border).
 		Padding(0, 1).
-		Render("◐ " + th.Name + " (⌃T)")
+		Render("◐ " + th.Name + " ⌃T")
 
-	gap := b.Width - lipgloss.Width(left) - lipgloss.Width(center) - lipgloss.Width(right)
+	left := lipgloss.JoinHorizontal(lipgloss.Top, badge, instance, center)
+
+	gap := b.Width - lipgloss.Width(left) - lipgloss.Width(right)
 	if gap < 0 {
 		gap = 0
 	}
-	spacer := lipgloss.NewStyle().Width(gap).Render("")
+	spacer := lipgloss.NewStyle().Background(th.Panel).Width(gap).Render("")
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, left, center, spacer, right)
+	row := lipgloss.JoinHorizontal(lipgloss.Top, left, spacer, right)
 
 	return lipgloss.NewStyle().
 		Width(b.Width).
 		Background(th.Panel).
+		MaxWidth(b.Width).
 		Render(row)
 }
 

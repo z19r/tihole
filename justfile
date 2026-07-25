@@ -11,19 +11,19 @@ default:
 
 # Build the binary into ./bin
 build:
-    go build -o {{out}} {{pkg}}
+    go build -o {{ out }} {{ pkg }}
 
 # Run the TUI
 run *args:
-    go run {{pkg}} {{args}}
+    go run {{ pkg }} {{ args }}
 
 # Install to $GOBIN / $GOPATH/bin
 install:
-    go install {{pkg}}
+    go install {{ pkg }}
 
 # Run all tests
 test *args:
-    go test ./... {{args}}
+    go test ./... {{ args }}
 
 # Run tests with coverage summary (house standard: 80%+)
 cover:
@@ -34,13 +34,35 @@ cover:
 cover-html: cover
     go tool cover -html=coverage.out
 
-# Format all Go source
+# Format all Go source (gofmt + golines at 80 cols)
 fmt:
     gofmt -w .
+    PATH="$(go env GOPATH)/bin:$PATH" golines \
+        --base-formatter=gofmt --max-len=80 \
+        --shorten-comments -w . \
+        || go run github.com/segmentio/golines@latest \
+        --base-formatter=gofmt --max-len=80 \
+        --shorten-comments -w .
 
 # Verify formatting (fails if anything is unformatted)
 fmt-check:
-    @test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bad="$(gofmt -l .)"
+    if [[ -n "$bad" ]]; then
+        echo "$bad"
+        exit 1
+    fi
+    export PATH="$(go env GOPATH)/bin:$PATH"
+    if ! command -v golines >/dev/null; then
+        go install github.com/segmentio/golines@latest
+    fi
+    bad="$(golines --base-formatter=gofmt --max-len=80 \
+        --shorten-comments -l .)"
+    if [[ -n "$bad" ]]; then
+        echo "$bad"
+        exit 1
+    fi
 
 # go vet
 vet:

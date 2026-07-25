@@ -1,13 +1,15 @@
 // Package domains implements the PiHole v6 Domains screen: allow/deny ×
-// exact/regex management. It presents a filterable table of managed domains with
-// inline add/edit forms, an enabled toggle, and a guarded delete. Data is loaded
-// on focus and on manual refresh (no continuous poll). It satisfies core.Screen.
+// exact/regex management. It presents a filterable table of managed domains
+// with inline add/edit forms, an enabled toggle, and a guarded delete. Data is
+// loaded on focus and on manual refresh (no continuous poll). It satisfies
+// core.Screen.
 package domains
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -39,7 +41,8 @@ type domainsMsg struct {
 	err     error
 }
 
-// mutationMsg carries the result of an add/update/delete, tagged with its epoch.
+// mutationMsg carries the result of an add/update/delete, tagged with its
+// epoch.
 // On success the screen refetches the full list.
 type mutationMsg struct {
 	epoch int
@@ -127,7 +130,10 @@ func (m *Model) Help() []key.Binding {
 		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
 		key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit")),
 		key.NewBinding(key.WithKeys(" ", "t"), key.WithHelp("space", "toggle")),
-		key.NewBinding(key.WithKeys("x", "delete"), key.WithHelp("x", "delete")),
+		key.NewBinding(
+			key.WithKeys("x", "delete"),
+			key.WithHelp("x", "delete"),
+		),
 		key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "filter")),
 		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	}
@@ -158,7 +164,8 @@ func (m *Model) SetSize(w, h int) {
 }
 
 // fetch issues a list request. The context+cancel are stored on the model
-// (Update runs on the main loop, so this mutation is safe); the closure performs
+// (Update runs on the main loop, so this mutation is safe); the closure
+// performs
 // the only I/O, off the Update path.
 func (m *Model) fetch() tea.Cmd {
 	if m.cancel != nil {
@@ -176,7 +183,8 @@ func (m *Model) fetch() tea.Cmd {
 	}
 }
 
-// mutate wraps a write operation in a timeout context and returns a command that
+// mutate wraps a write operation in a timeout context and returns a command
+// that
 // reports the outcome as a mutationMsg. Loading is set so the spinner shows.
 func (m *Model) mutate(op func(context.Context, *pihole.Client) error) tea.Cmd {
 	if m.cancel != nil {
@@ -266,7 +274,12 @@ func (m *Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		target := *d
 		return m, m.mutate(func(ctx context.Context, api *pihole.Client) error {
-			return api.DeleteDomain(ctx, pihole.DomainType(target.Type), pihole.DomainKind(target.Kind), target.Domain)
+			return api.DeleteDomain(
+				ctx,
+				pihole.DomainType(target.Type),
+				pihole.DomainKind(target.Kind),
+				target.Domain,
+			)
 		})
 	case "n", "esc":
 		m.confirm = m.confirm.Hide()
@@ -331,7 +344,15 @@ func (m *Model) submitForm() (tea.Model, tea.Cmd) {
 
 	return m, m.mutate(func(ctx context.Context, api *pihole.Client) error {
 		if editing {
-			_, err := api.UpdateDomain(ctx, dtype, dkind, target, comment, groups, enabled)
+			_, err := api.UpdateDomain(
+				ctx,
+				dtype,
+				dkind,
+				target,
+				comment,
+				groups,
+				enabled,
+			)
 			return err
 		}
 		_, err := api.AddDomain(ctx, dtype, dkind, domain, comment, groups)
@@ -394,7 +415,15 @@ func (m *Model) toggleSelected() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, m.mutate(func(ctx context.Context, api *pihole.Client) error {
-		_, err := api.UpdateDomain(ctx, pihole.DomainType(d.Type), pihole.DomainKind(d.Kind), d.Domain, d.Comment, d.Groups, !d.Enabled)
+		_, err := api.UpdateDomain(
+			ctx,
+			pihole.DomainType(d.Type),
+			pihole.DomainKind(d.Kind),
+			d.Domain,
+			d.Comment,
+			d.Groups,
+			!d.Enabled,
+		)
 		return err
 	})
 }
@@ -419,6 +448,7 @@ func (m *Model) applyFilter() {
 func (m *Model) syncRows() {
 	widths := columnWidthsFrom(m.table.Columns())
 	idx := m.table.Cursor()
+	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.table.SetRows(styledRows(m.ctx.Theme, m.visible, widths))
 	if idx >= len(m.visible) {
 		idx = len(m.visible) - 1
@@ -442,7 +472,7 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
@@ -452,7 +482,8 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	for f := filterTab(0); f < filterCount; f++ {
 		labels = append(labels, f.label())
 	}
-	count := th.SubtleStyle().Render(fmt.Sprintf("%d shown · %d total", len(m.visible), len(m.domains)))
+	count := th.SubtleStyle().
+		Render(fmt.Sprintf("%d shown · %d total", len(m.visible), len(m.domains)))
 
 	line := components.SectionTabs{
 		Title:  m.Title(),
@@ -466,7 +497,7 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	if m.err != nil {
 		second = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, second)
+	return strings.Join([]string{line, second}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -488,13 +519,28 @@ func (m *Model) renderBody(th *theme.Theme) string {
 	}
 
 	if m.loading && len(m.domains) == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading domains…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading domains…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	if len(m.visible) == 0 {
 		empty := th.SubtleStyle().Render("no domains match this filter")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 
 	return m.table.View()

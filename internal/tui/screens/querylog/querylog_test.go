@@ -258,7 +258,9 @@ func TestUpdateIgnoresStaleQueriesResult(t *testing.T) {
 	m.loading = true
 
 	// Act
-	_, _ = m.Update(queriesMsg{epoch: 8, page: pihole.QueriesPage{RecordsTotal: 100}})
+	_, _ = m.Update(
+		queriesMsg{epoch: 8, page: pihole.QueriesPage{RecordsTotal: 100}},
+	)
 
 	// Assert
 	if m.total == 100 {

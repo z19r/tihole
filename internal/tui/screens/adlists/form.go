@@ -212,28 +212,62 @@ func (f formModel) view(th *theme.Theme, width int) string {
 	if f.mode == formAdd {
 		addressField = f.address.View()
 	}
-	lines = append(lines, sel(fieldAddress)+" "+label.Render("Address")+addressField)
-	lines = append(lines, sel(fieldComment)+" "+label.Render("Comment")+f.comment.View())
-	lines = append(lines, sel(fieldGroups)+" "+label.Render("Groups")+f.groups.View())
+	lines = append(
+		lines,
+		sel(fieldAddress)+" "+label.Render("Address")+addressField,
+	)
+	lines = append(
+		lines,
+		sel(fieldComment)+" "+label.Render("Comment")+f.comment.View(),
+	)
+	lines = append(
+		lines,
+		sel(fieldGroups)+" "+label.Render("Groups")+f.groups.View(),
+	)
 
 	typeStyle := styleForToken(th, typeToken(string(f.listType)))
-	lines = append(lines, sel(fieldType)+" "+label.Render("Type")+typeStyle.Render(string(f.listType))+th.SubtleStyle().Render("  (←/→)"))
+	lines = append(
+		lines,
+		sel(
+			fieldType,
+		)+" "+label.Render(
+			"Type",
+		)+typeStyle.Render(
+			string(f.listType),
+		)+th.SubtleStyle().
+			Render("  (←/→)"),
+	)
 
 	if f.mode == formEdit {
 		enTok := tokenAllow
 		if !f.enabled {
 			enTok = tokenNeutral
 		}
-		lines = append(lines, sel(fieldEnabled)+" "+label.Render("Enabled")+styleForToken(th, enTok).Render(enabledCell(f.enabled)))
+		lines = append(
+			lines,
+			sel(
+				fieldEnabled,
+			)+" "+label.Render(
+				"Enabled",
+			)+styleForToken(
+				th,
+				enTok,
+			).Render(enabledCell(f.enabled)),
+		)
 	}
 
-	lines = append(lines, "", th.SubtleStyle().Render("tab next · ←/→ toggle · enter save · esc cancel"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().
+			Render("tab next · ←/→ toggle · enter save · esc cancel"),
+	)
 
 	panel := th.PanelStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(maxInt(minInt(width-2, 70), 24)).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 	return panel
 }

@@ -58,7 +58,10 @@ func (c *Client) Routes(ctx context.Context) (map[string]any, error) {
 }
 
 // networkObject fetches a network endpoint that returns an open-ended object.
-func (c *Client) networkObject(ctx context.Context, path string) (map[string]any, error) {
+func (c *Client) networkObject(
+	ctx context.Context,
+	path string,
+) (map[string]any, error) {
 	var out map[string]any
 	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
 		return nil, err

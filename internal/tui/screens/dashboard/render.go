@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 
@@ -9,7 +10,8 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/theme"
 )
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it has to cut. A width <= 0 yields "".
 func truncate(s string, width int) string {
 	if width <= 0 {
@@ -25,11 +27,18 @@ func truncate(s string, width int) string {
 	return string(r[:width-1]) + "…"
 }
 
-// panelBox is the shared bordered surface for every dashboard panel.
+// panelBox is the shared bordered surface for every dashboard panel. It carries
+// the raised Panel background explicitly: without it, the card interior and the
+// spaces JoinVertical adds to equalize line widths sit after a styled run's
+// reset and paint in the terminal's own background, bleeding through as gray
+// gaps under and after text.
 func panelBox(th *theme.Theme) lipgloss.Style {
 	return lipgloss.NewStyle().
+		Background(th.Panel).
+		Foreground(th.Text).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Border).
+		BorderBackground(th.Surface).
 		Padding(0, 1)
 }
 
@@ -47,15 +56,29 @@ func (m *Model) renderTiles() string {
 		m.tile("Total Queries", formatCount(m.summary.Queries.Total), inner),
 		m.blockedTile(inner),
 		m.tile("Active Clients", formatCount(m.summary.Clients.Active), inner),
-		m.tile("Gravity Domains", formatCount(m.summary.Gravity.DomainsBeingBlocked), inner),
+		m.tile(
+			"Gravity Domains",
+			formatCount(m.summary.Gravity.DomainsBeingBlocked),
+			inner,
+		),
 	}
 
 	if m.errSummary != "" {
 		return panelBox(th).Width(m.w - 4).Render(
-			th.BlockStyle().Render("summary unavailable: ") + th.SubtleStyle().Render(truncate(m.errSummary, m.w-24)))
+			th.BlockStyle().
+				Render("summary unavailable: ") +
+				th.SubtleStyle().
+					Render(truncate(m.errSummary, m.w-24)),
+		)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, tiles...)
+	// The Blocked tile carries a gauge line the others lack, so equalize
+	// heights first to keep JoinHorizontal from bleeding under the shorter
+	// tiles.
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		equalizeHeights(th, tiles...)...,
+	)
 }
 
 // blockedTile is the Blocked stat tile with an animated gradient gauge beneath
@@ -74,7 +97,7 @@ func (m *Model) blockedTile(inner int) string {
 	m.blockBar.SetWidth(inner)
 	gauge := m.blockBar.View()
 
-	body := lipgloss.JoinVertical(lipgloss.Left, lbl, fig, gauge)
+	body := strings.Join([]string{lbl, fig, gauge}, "\n")
 	return panelBox(th).Width(inner).Render(body)
 }
 
@@ -83,7 +106,7 @@ func (m *Model) tile(label, value string, inner int) string {
 	th := m.ctx.Theme
 	lbl := th.SubtleStyle().Render(truncate(label, inner))
 	fig := th.AccentStyle().Bold(true).Render(truncate(value, inner))
-	body := lipgloss.JoinVertical(lipgloss.Left, lbl, fig)
+	body := strings.Join([]string{lbl, fig}, "\n")
 	return panelBox(th).Width(inner).Render(body)
 }
 
@@ -100,7 +123,8 @@ func (m *Model) renderSparkline() string {
 	var line string
 	switch {
 	case m.errHistory != "":
-		line = th.BlockStyle().Render(truncate("history unavailable: "+m.errHistory, inner))
+		line = th.BlockStyle().
+			Render(truncate("history unavailable: "+m.errHistory, inner))
 	case len(m.history.History) == 0:
 		line = th.SubtleStyle().Render("no history yet")
 	default:
@@ -112,11 +136,15 @@ func (m *Model) renderSparkline() string {
 		}
 		totalLine := th.AccentStyle().Render(sparklineInt(totals, inner))
 		blockedLine := th.BlockStyle().Render(sparklineInt(blocked, inner))
-		legend := th.SubtleStyle().Render(fmt.Sprintf("total (accent) / blocked  —  %d buckets", len(m.history.History)))
-		line = lipgloss.JoinVertical(lipgloss.Left, totalLine, blockedLine, legend)
+		legend := th.SubtleStyle().
+			Render(fmt.Sprintf("total (accent) / blocked  —  %d buckets", len(m.history.History)))
+		line = strings.Join(
+			[]string{totalLine, blockedLine, legend},
+			"\n",
+		)
 	}
 
-	body := lipgloss.JoinVertical(lipgloss.Left, title, line)
+	body := strings.Join([]string{title, line}, "\n")
 	return panelBox(th).Width(inner).Render(body)
 }
 
@@ -128,30 +156,82 @@ func (m *Model) renderLower() string {
 		inner = 6
 	}
 
-	col1 := lipgloss.JoinVertical(lipgloss.Left,
-		m.breakdownPanel("Query Types", typeItems(m.types.Types), m.errTypes, inner),
-		m.breakdownPanel("Upstreams", upstreamItems(m.upstreams.Upstreams), m.errUpstreams, inner),
+	col1 := lipgloss.JoinVertical(
+		lipgloss.Left,
+		m.breakdownPanel(
+			"Query Types",
+			typeItems(m.types.Types),
+			m.errTypes,
+			inner,
+		),
+		m.breakdownPanel(
+			"Upstreams",
+			upstreamItems(m.upstreams.Upstreams),
+			m.errUpstreams,
+			inner,
+		),
 	)
 	col2 := lipgloss.JoinVertical(lipgloss.Left,
 		m.listPanel("Top Domains", domainItems(m.domains), m.errDomains, inner),
 		m.listPanel("Top Blocked", domainItems(m.blocked), m.errBlocked, inner),
 	)
-	col3 := m.listPanel("Top Clients", clientItems(m.clients), m.errClients, inner)
+	col3 := m.listPanel(
+		"Top Clients",
+		clientItems(m.clients),
+		m.errClients,
+		inner,
+	)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, col1, col2, col3)
+	// JoinHorizontal pads the shorter column with bare (unstyled) lines, which
+	// would bleed the terminal background beneath it. Equalize every column to
+	// the tallest one first, filling with the surface color.
+	cols := equalizeHeights(m.ctx.Theme, col1, col2, col3)
+	return lipgloss.JoinHorizontal(lipgloss.Top, cols...)
+}
+
+// equalizeHeights pads each block to the tallest block's height, filling the
+// added lines with the surface background so a short column can't bleed the
+// terminal background where JoinHorizontal would otherwise insert blank cells.
+func equalizeHeights(th *theme.Theme, blocks ...string) []string {
+	maxH := 0
+	for _, b := range blocks {
+		if h := lipgloss.Height(b); h > maxH {
+			maxH = h
+		}
+	}
+	out := make([]string, len(blocks))
+	for i, b := range blocks {
+		out[i] = lipgloss.NewStyle().
+			Background(th.Surface).
+			Width(lipgloss.Width(b)).
+			Height(maxH).
+			Render(b)
+	}
+	return out
 }
 
 // breakdownPanel renders labeled counts as mini horizontal bars.
-func (m *Model) breakdownPanel(title string, items []labeledCount, errStr string, inner int) string {
+func (m *Model) breakdownPanel(
+	title string,
+	items []labeledCount,
+	errStr string,
+	inner int,
+) string {
 	th := m.ctx.Theme
 	head := th.TextStyle().Bold(true).Render(truncate(title, inner))
 
 	if errStr != "" {
-		body := lipgloss.JoinVertical(lipgloss.Left, head, th.BlockStyle().Render(truncate(errStr, inner)))
+		body := strings.Join(
+			[]string{head, th.BlockStyle().Render(truncate(errStr, inner))},
+			"\n",
+		)
 		return panelBox(th).Width(inner).Render(body)
 	}
 	if len(items) == 0 {
-		body := lipgloss.JoinVertical(lipgloss.Left, head, th.SubtleStyle().Render("no data"))
+		body := strings.Join(
+			[]string{head, th.SubtleStyle().Render("no data")},
+			"\n",
+		)
 		return panelBox(th).Width(inner).Render(body)
 	}
 
@@ -175,25 +255,37 @@ func (m *Model) breakdownPanel(title string, items []labeledCount, errStr string
 		if max > 0 {
 			frac = float64(it.count) / float64(max)
 		}
-		label := th.SubtleStyle().Render(padRight(truncate(it.label, labelW), labelW))
+		label := th.SubtleStyle().
+			Render(padRight(truncate(it.label, labelW), labelW))
 		bar := th.AccentStyle().Render(miniBar(frac, barW))
 		count := th.TextStyle().Render(padLeft(formatCount(it.count), countW))
 		rows = append(rows, fmt.Sprintf("%s %s %s", label, bar, count))
 	}
-	return panelBox(th).Width(inner).Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	return panelBox(th).Width(inner).Render(strings.Join(rows, "\n"))
 }
 
 // listPanel renders a ranked label/count list.
-func (m *Model) listPanel(title string, items []labeledCount, errStr string, inner int) string {
+func (m *Model) listPanel(
+	title string,
+	items []labeledCount,
+	errStr string,
+	inner int,
+) string {
 	th := m.ctx.Theme
 	head := th.TextStyle().Bold(true).Render(truncate(title, inner))
 
 	if errStr != "" {
-		body := lipgloss.JoinVertical(lipgloss.Left, head, th.BlockStyle().Render(truncate(errStr, inner)))
+		body := strings.Join(
+			[]string{head, th.BlockStyle().Render(truncate(errStr, inner))},
+			"\n",
+		)
 		return panelBox(th).Width(inner).Render(body)
 	}
 	if len(items) == 0 {
-		body := lipgloss.JoinVertical(lipgloss.Left, head, th.SubtleStyle().Render("no data"))
+		body := strings.Join(
+			[]string{head, th.SubtleStyle().Render("no data")},
+			"\n",
+		)
 		return panelBox(th).Width(inner).Render(body)
 	}
 
@@ -210,11 +302,12 @@ func (m *Model) listPanel(title string, items []labeledCount, errStr string, inn
 
 	rows := []string{head}
 	for _, it := range items {
-		label := th.TextStyle().Render(padRight(truncate(it.label, labelW), labelW))
+		label := th.TextStyle().
+			Render(padRight(truncate(it.label, labelW), labelW))
 		count := th.AccentStyle().Render(padLeft(formatCount(it.count), countW))
 		rows = append(rows, label+" "+count)
 	}
-	return panelBox(th).Width(inner).Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	return panelBox(th).Width(inner).Render(strings.Join(rows, "\n"))
 }
 
 func padRight(s string, w int) string {

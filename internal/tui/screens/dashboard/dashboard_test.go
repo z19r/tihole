@@ -138,7 +138,13 @@ func TestMiniBar_HalfFractionFillsHalf(t *testing.T) {
 	got := miniBar(0.5, 10)
 
 	// Assert
-	want := strings.Repeat(string(barFilled), 5) + strings.Repeat(string(barEmpty), 5)
+	want := strings.Repeat(
+		string(barFilled),
+		5,
+	) + strings.Repeat(
+		string(barEmpty),
+		5,
+	)
 	if got != want {
 		t.Fatalf("expected half-filled bar %q, got %q", want, got)
 	}
@@ -255,7 +261,10 @@ func TestUpdate_StaleResultIsDiscarded(t *testing.T) {
 
 	// Assert
 	if m.errSummary != "" {
-		t.Fatalf("stale summary result should be ignored, got err %q", m.errSummary)
+		t.Fatalf(
+			"stale summary result should be ignored, got err %q",
+			m.errSummary,
+		)
 	}
 	if m.loaded {
 		t.Fatal("stale result should not mark model as loaded")

@@ -115,9 +115,11 @@ func (m *Model) Init() tea.Cmd { return nil }
 func (m *Model) Title() string { return "Settings" }
 
 // CapturesInput reports whether a text field or modal is focused, so the root
-// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+// delivers raw keys instead of firing global shortcuts (see
+// core.InputCapturer).
 func (m *Model) CapturesInput() bool {
-	return m.filtering || m.edit != nil || m.connForm != nil || m.themePicker != nil
+	return m.filtering || m.edit != nil || m.connForm != nil ||
+		m.themePicker != nil
 }
 
 // Focus activates the screen and fetches the live config tree.
@@ -316,10 +318,34 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.filtering {
 		return m.handleFilterKey(msg)
 	}
+	switch msg.String() {
+	case "tab":
+		m.cycleMode(1)
+		return m, nil
+	case "shift+tab":
+		m.cycleMode(-1)
+		return m, nil
+	}
 	if m.mode == modeConnections {
 		return m.handleConnKey(msg)
 	}
 	return m.handleTreeKey(msg)
+}
+
+// cycleMode advances the active section tab by delta, wrapping around, and
+// rebuilds the connections rows when landing there. The single-key c toggle and
+// the tab keys share this so both stay in lockstep.
+func (m *Model) cycleMode(delta int) {
+	n := len(sectionLabels)
+	next := screenMode((int(m.mode) + delta + n) % n)
+	if next == m.mode {
+		return
+	}
+	m.mode = next
+	m.err = nil
+	if next == modeConnections && m.ctx.Config != nil {
+		m.rebuildConnRows()
+	}
 }
 
 // handleTreeKey routes config-tree shortcuts and otherwise defers to the table.
@@ -434,6 +460,7 @@ func (m *Model) applyFilter() {
 func (m *Model) syncTreeRows() {
 	widths := computeTreeWidths(m.w)
 	idx := m.tree.Cursor()
+	m.tree.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.tree.SetRows(treeRows(m.ctx.Theme, m.visible, widths))
 	if idx >= len(m.visible) {
 		idx = len(m.visible) - 1
@@ -460,37 +487,53 @@ func (m *Model) View() tea.View {
 	body := m.renderBody(th)
 	footer := m.renderFooter(th)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	// Join with plain newlines rather than lipgloss.JoinVertical: JoinVertical
+	// pads short lines to the block width with *unstyled* spaces, which bleed
+	// the terminal background. Newline-joined, the outer SurfaceStyle pads
+	// every line
+	// itself and re-applies the surface background across the padding.
+	content := strings.Join([]string{header, body, footer}, "\n")
 	view := th.SurfaceStyle().Width(m.w).Height(m.h).Render(content)
 	return tea.NewView(view)
 }
 
+// sectionLabels is the ordered tab set, indexed by screenMode.
+var sectionLabels = []string{"Configuration", "Connections"}
+
+// sectionBlurb is the one-line explanation shown beneath the tabs for each
+// mode,
+// so the screen teaches what it does instead of relying on muscle memory.
+func sectionBlurb(mode screenMode) string {
+	if mode == modeConnections {
+		return "Manage Pi-hole instances and the app theme · " +
+			"a add · e edit · x delete · t theme"
+	}
+	return "Live FTL configuration · enter edits a key and writes it " +
+		"back instantly · / filter · r refresh"
+}
+
 func (m *Model) renderHeader(th *theme.Theme) string {
-	title := th.AccentStyle().Bold(true).Render(m.Title())
-
-	modeLabel := "Configuration"
+	var right string
 	if m.mode == modeConnections {
-		modeLabel = "Connections"
-	}
-	chip := lipgloss.NewStyle().
-		Foreground(th.Surface).
-		Background(th.Accent).
-		Padding(0, 1).
-		Render(modeLabel)
-
-	var count string
-	if m.mode == modeConnections {
-		count = th.SubtleStyle().Render(fmt.Sprintf("%d instances", m.instanceCount()))
+		right = fmt.Sprintf("%d instances", m.instanceCount())
 	} else {
-		count = th.SubtleStyle().Render(fmt.Sprintf("%d shown · %d total", len(m.visible), len(m.leaves)))
+		right = fmt.Sprintf(
+			"%d shown · %d total",
+			len(m.visible),
+			len(m.leaves),
+		)
 	}
 
-	left := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", chip)
-	gap := m.w - lipgloss.Width(left) - lipgloss.Width(count)
-	if gap < 1 {
-		gap = 1
-	}
-	line := left + strings.Repeat(" ", gap) + count
+	tabs := components.SectionTabs{
+		Title:  m.Title(),
+		Labels: sectionLabels,
+		Active: int(m.mode),
+		Right:  right,
+		Width:  m.w,
+	}.Render(th)
+
+	explain := th.SubtleStyle().
+		Render(truncate(sectionBlurb(m.mode), maxInt(m.w, 8)))
 
 	second := ""
 	if m.filtering {
@@ -498,7 +541,10 @@ func (m *Model) renderHeader(th *theme.Theme) string {
 	} else if m.err != nil {
 		second = m.errBanner(th)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, line, second)
+	// Newline-joined, not JoinVertical: the outer SurfaceStyle in View pads
+	// each
+	// line with the surface background, so short header rows don't bleed.
+	return strings.Join([]string{tabs, explain, second}, "\n")
 }
 
 func (m *Model) errBanner(th *theme.Theme) string {
@@ -520,20 +566,35 @@ func (m *Model) renderBody(th *theme.Theme) string {
 		return m.edit.render(th, m.w, bodyH)
 	}
 	if m.loading && len(m.leaves) == 0 {
-		line := m.spinner.View() + " " + th.SubtleStyle().Render("loading config…")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, line)
+		line := m.spinner.View() + " " + th.SubtleStyle().
+			Render("loading config…")
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			line,
+			surfaceWhitespace(th),
+		)
 	}
 	if len(m.visible) == 0 {
 		empty := th.SubtleStyle().Render("no config keys match this filter")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			surfaceWhitespace(th),
+		)
 	}
 	return m.tree.View()
 }
 
 func (m *Model) renderFooter(th *theme.Theme) string {
-	hint := "↑↓ navigate · enter edit · / filter · c connections · r refresh"
+	hint := "↑↓ navigate · enter edit · / filter · tab section · r refresh"
 	if m.mode == modeConnections {
-		hint = "↑↓ navigate · a add · e edit · x delete · t theme · c config"
+		hint = "↑↓ navigate · a add · e edit · x delete · t theme · tab section"
 	}
 	return th.SubtleStyle().Render(truncate(hint, maxInt(m.w, 8)))
 }

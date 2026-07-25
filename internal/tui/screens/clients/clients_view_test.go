@@ -174,13 +174,21 @@ func TestViewSuggestionsStates(t *testing.T) {
 
 	// empty branch
 	m.suggest.err = nil
-	if out := m.View().Content; !strings.Contains(out, "no unconfigured clients") {
+	if out := m.View().Content; !strings.Contains(
+		out,
+		"no unconfigured clients",
+	) {
 		t.Fatalf("suggest empty should render label")
 	}
 
 	// populated branch (exercises rowLine + suggestionMeta + formatLastSeen)
 	m.suggest.suggestions = []pihole.ClientSuggestion{
-		{Addresses: "10.0.0.5", Name: "phone", MACVendor: "Apple", LastQuery: 1_700_000_000},
+		{
+			Addresses: "10.0.0.5",
+			Name:      "phone",
+			MACVendor: "Apple",
+			LastQuery: 1_700_000_000,
+		},
 		{Addresses: "10.0.0.6"},
 	}
 	m.suggest.cursor = 0

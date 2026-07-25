@@ -145,18 +145,33 @@ func (f *clientForm) render(th *theme.Theme, w, h int) string {
 	)
 
 	if f.err != nil {
-		lines = append(lines, "", th.BlockStyle().Bold(true).Render("error: "+f.err.Error()))
+		lines = append(
+			lines,
+			"",
+			th.BlockStyle().Bold(true).Render("error: "+f.err.Error()),
+		)
 	}
-	lines = append(lines, "", th.SubtleStyle().Render("tab next · enter save · esc cancel"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().Render("tab next · enter save · esc cancel"),
+	)
 
 	panel := th.PanelStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Accent).
 		Padding(1, 2).
 		Width(maxInt(minInt(w-2, 64), 24)).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		th.SurfaceWhitespace(),
+	)
 }
 
 // formValues extracts the trimmed, parsed field values for submission.

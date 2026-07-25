@@ -1,0 +1,20 @@
+{
+  "editor.rulers": [80],
+  "[go]": {
+    "editor.rulers": [80],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "golang.go"
+  },
+  "go.formatTool": "golines",
+  "go.formatFlags": [
+    "--max-len=80",
+    "--base-formatter=gofmt",
+    "--shorten-comments",
+    "--write-output"
+  ],
+  "golines": {
+    "maxLen": 80,
+    "shortenComments": true,
+    "reformatTags": true
+  }
+}

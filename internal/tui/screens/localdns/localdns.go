@@ -83,11 +83,15 @@ type Model struct {
 // New constructs the Local DNS screen from the shared app context.
 func New(ctx *core.AppContext) *Model {
 	ht := table.New(
-		table.WithColumns(tableColumns(hostColumnTitles, computeHostColumnWidths(80))),
+		table.WithColumns(
+			tableColumns(hostColumnTitles, computeHostColumnWidths(80)),
+		),
 		table.WithFocused(true),
 	)
 	ct := table.New(
-		table.WithColumns(tableColumns(cnameColumnTitles, computeCNAMEColumnWidths(80))),
+		table.WithColumns(
+			tableColumns(cnameColumnTitles, computeCNAMEColumnWidths(80)),
+		),
 		table.WithFocused(true),
 	)
 
@@ -138,7 +142,10 @@ func (m *Model) Blur() {
 func (m *Model) Help() []key.Binding {
 	return []key.Binding{
 		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
-		key.NewBinding(key.WithKeys("x", "delete"), key.WithHelp("x", "delete")),
+		key.NewBinding(
+			key.WithKeys("x", "delete"),
+			key.WithHelp("x", "delete"),
+		),
 		key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "switch kind")),
 		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	}
@@ -148,9 +155,13 @@ func (m *Model) Help() []key.Binding {
 func (m *Model) SetSize(w, h int) {
 	m.w, m.h = w, h
 
-	m.hostTable.SetColumns(tableColumns(hostColumnTitles, computeHostColumnWidths(w)))
+	m.hostTable.SetColumns(
+		tableColumns(hostColumnTitles, computeHostColumnWidths(w)),
+	)
 	m.hostTable.SetWidth(w)
-	m.cnameTable.SetColumns(tableColumns(cnameColumnTitles, computeCNAMEColumnWidths(w)))
+	m.cnameTable.SetColumns(
+		tableColumns(cnameColumnTitles, computeCNAMEColumnWidths(w)),
+	)
 	m.cnameTable.SetWidth(w)
 
 	tableH := h - headerHeight - footerHeight
@@ -282,6 +293,7 @@ func (m *Model) syncRows() {
 func (m *Model) syncHostRows() {
 	widths := columnWidthsFrom(m.hostTable.Columns())
 	idx := m.hostTable.Cursor()
+	m.hostTable.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.hostTable.SetRows(styledHostRows(m.ctx.Theme, m.hosts, widths))
 	m.hostTable.SetCursor(clampCursor(idx, len(m.hosts)))
 }
@@ -290,6 +302,7 @@ func (m *Model) syncHostRows() {
 func (m *Model) syncCNAMERows() {
 	widths := columnWidthsFrom(m.cnameTable.Columns())
 	idx := m.cnameTable.Cursor()
+	m.cnameTable.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.cnameTable.SetRows(styledCNAMERows(m.ctx.Theme, m.cnames, widths))
 	m.cnameTable.SetCursor(clampCursor(idx, len(m.cnames)))
 }

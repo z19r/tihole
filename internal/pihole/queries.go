@@ -76,7 +76,10 @@ func (f QueryFilter) values() url.Values {
 
 // Queries fetches GET /api/queries with cursor pagination. Only the filter
 // fields that are set are included in the request.
-func (c *Client) Queries(ctx context.Context, filter QueryFilter) (QueriesPage, error) {
+func (c *Client) Queries(
+	ctx context.Context,
+	filter QueryFilter,
+) (QueriesPage, error) {
 	path := "/queries"
 	if q := filter.values().Encode(); q != "" {
 		path += "?" + q

@@ -151,7 +151,11 @@ func TestQueriesMsgPopulatesStateAndClearsLoading(t *testing.T) {
 		t.Fatalf("queriesMsg should store queries, got %d", len(m.queries))
 	}
 	if m.filtered != 2 || m.total != 500 {
-		t.Fatalf("queriesMsg should carry counts: filtered=%d total=%d", m.filtered, m.total)
+		t.Fatalf(
+			"queriesMsg should carry counts: filtered=%d total=%d",
+			m.filtered,
+			m.total,
+		)
 	}
 	if m.err != nil {
 		t.Fatalf("a successful result should clear the error")
@@ -223,7 +227,10 @@ func TestSlashOpensSearchSeededWithFilter(t *testing.T) {
 		t.Fatalf("'/' should enter search mode")
 	}
 	if m.search.Value() != "seed.example.com" {
-		t.Fatalf("search box should seed with the active filter, got %q", m.search.Value())
+		t.Fatalf(
+			"search box should seed with the active filter, got %q",
+			m.search.Value(),
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("'/' should return the input focus command")
@@ -276,7 +283,10 @@ func TestSearchEscRestoresPriorFilter(t *testing.T) {
 		t.Fatalf("esc should not change the applied filter")
 	}
 	if m.search.Value() != "keep.example.com" {
-		t.Fatalf("esc should reset the box to the applied filter, got %q", m.search.Value())
+		t.Fatalf(
+			"esc should reset the box to the applied filter, got %q",
+			m.search.Value(),
+		)
 	}
 	if cmd != nil {
 		t.Fatalf("esc out of search should not issue a command")
@@ -293,14 +303,22 @@ func TestSearchTypingEditsBox(t *testing.T) {
 
 	// Assert
 	if !strings.Contains(m.search.Value(), "x") {
-		t.Fatalf("typing in search mode should edit the box, got %q", m.search.Value())
+		t.Fatalf(
+			"typing in search mode should edit the box, got %q",
+			m.search.Value(),
+		)
 	}
 }
 
 func TestEnterOpensDetailForCursorRow(t *testing.T) {
 	// Arrange
 	m := newModel()
-	_, _ = m.Update(queriesMsg{epoch: m.epoch, page: pihole.QueriesPage{Queries: sampleQueries()}})
+	_, _ = m.Update(
+		queriesMsg{
+			epoch: m.epoch,
+			page:  pihole.QueriesPage{Queries: sampleQueries()},
+		},
+	)
 
 	// Act
 	_, _ = m.Update(keyPress("enter"))
@@ -332,7 +350,12 @@ func TestDetailEscCloses(t *testing.T) {
 func TestNavigationKeyPassesToTableWithoutPanic(t *testing.T) {
 	// Arrange
 	m := newModel()
-	_, _ = m.Update(queriesMsg{epoch: m.epoch, page: pihole.QueriesPage{Queries: sampleQueries()}})
+	_, _ = m.Update(
+		queriesMsg{
+			epoch: m.epoch,
+			page:  pihole.QueriesPage{Queries: sampleQueries()},
+		},
+	)
 
 	// Act / Assert (no panic, routes to table)
 	_, _ = m.Update(keyPress("j"))
@@ -367,7 +390,12 @@ func TestViewShowsFilterChipWhenFiltering(t *testing.T) {
 	// Arrange
 	m := newModel()
 	m.filterDomain = "ads.example.com"
-	_, _ = m.Update(queriesMsg{epoch: m.epoch, page: pihole.QueriesPage{Queries: sampleQueries()}})
+	_, _ = m.Update(
+		queriesMsg{
+			epoch: m.epoch,
+			page:  pihole.QueriesPage{Queries: sampleQueries()},
+		},
+	)
 
 	// Act
 	out := m.View().Content
@@ -511,8 +539,15 @@ func TestMaxMinInt(t *testing.T) {
 func TestStyleForTokenRendersText(t *testing.T) {
 	th := theme.DeepNight()
 	for _, tok := range []string{tokenBlock, tokenAllow, tokenNeutral, "unknown"} {
-		if out := styleForToken(th, tok).Render("cell"); !strings.Contains(out, "cell") {
-			t.Fatalf("styleForToken(%q) should render its text, got %q", tok, out)
+		if out := styleForToken(th, tok).Render("cell"); !strings.Contains(
+			out,
+			"cell",
+		) {
+			t.Fatalf(
+				"styleForToken(%q) should render its text, got %q",
+				tok,
+				out,
+			)
 		}
 	}
 }
@@ -551,7 +586,12 @@ func TestColumnWidthsFromRoundTrips(t *testing.T) {
 	}
 	for i := range widths {
 		if got[i] != widths[i] {
-			t.Fatalf("column %d width mismatch: got %d want %d", i, got[i], widths[i])
+			t.Fatalf(
+				"column %d width mismatch: got %d want %d",
+				i,
+				got[i],
+				widths[i],
+			)
 		}
 	}
 }

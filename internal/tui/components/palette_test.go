@@ -57,7 +57,9 @@ func TestPaletteFilterMultiTerm(t *testing.T) {
 func TestPaletteEnterRunsSelectedCommand(t *testing.T) {
 	// Arrange
 	ran := false
-	cmds := []Command{{Title: "Do it", Run: func() tea.Msg { ran = true; return nil }}}
+	cmds := []Command{
+		{Title: "Do it", Run: func() tea.Msg { ran = true; return nil }},
+	}
 	p := NewPalette()
 	p, _ = p.Open(cmds)
 
@@ -233,7 +235,10 @@ func TestPaletteRenderScrollsWithManyCommands(t *testing.T) {
 	// Arrange: more commands than paletteMaxRows forces windowBounds scrolling.
 	var cmds []Command
 	for i := 0; i < 20; i++ {
-		cmds = append(cmds, Command{Title: "Command " + string(rune('A'+i)), Desc: "desc"})
+		cmds = append(
+			cmds,
+			Command{Title: "Command " + string(rune('A'+i)), Desc: "desc"},
+		)
 	}
 	p := NewPalette()
 	p, _ = p.Open(cmds)
@@ -246,7 +251,10 @@ func TestPaletteRenderScrollsWithManyCommands(t *testing.T) {
 
 	// Assert: a later command is visible; the first is scrolled out of view.
 	if !strings.Contains(out, "Command P") {
-		t.Fatalf("expected scrolled window to show a later command, got %q", out)
+		t.Fatalf(
+			"expected scrolled window to show a later command, got %q",
+			out,
+		)
 	}
 }
 

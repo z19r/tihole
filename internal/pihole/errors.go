@@ -40,7 +40,12 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("pihole: %s (status %d, key %q): %s [hint: %s]",
 			e.Message, e.Status, e.Key, e.Message, e.Hint)
 	}
-	return fmt.Sprintf("pihole: %s (status %d, key %q)", e.Message, e.Status, e.Key)
+	return fmt.Sprintf(
+		"pihole: %s (status %d, key %q)",
+		e.Message,
+		e.Status,
+		e.Key,
+	)
 }
 
 // AuthError indicates an authentication or authorization failure that could
@@ -51,7 +56,11 @@ type AuthError struct {
 }
 
 func (e *AuthError) Error() string {
-	return fmt.Sprintf("pihole: authentication failed (status %d): %s", e.Status, e.Message)
+	return fmt.Sprintf(
+		"pihole: authentication failed (status %d): %s",
+		e.Status,
+		e.Message,
+	)
 }
 
 // NetworkError wraps a transport-level failure (DNS, connection refused, TLS,

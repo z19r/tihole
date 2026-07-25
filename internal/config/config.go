@@ -38,7 +38,8 @@ func (i *Instance) VerifyTLSValue() bool {
 	return *i.VerifyTLS
 }
 
-// DefaultPath returns the default config path: <UserConfigDir>/tihole/config.yaml.
+// DefaultPath returns the default config path:
+// <UserConfigDir>/tihole/config.yaml.
 func DefaultPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {

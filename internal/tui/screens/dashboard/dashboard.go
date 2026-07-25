@@ -9,6 +9,7 @@ import (
 	"context"
 	"image/color"
 	"sort"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -145,6 +146,11 @@ func (m *Model) buildGauges() {
 		progress.WithColors(th.Accent, th.Allow),
 		progress.WithoutPercentage(),
 	)
+	// The default empty-track color is a hardcoded slate gray (#606060) that
+	// reads as a bleed-through rectangle against the themed panel. Repaint it
+	// with the theme's border color so the unfilled track stays a subtle,
+	// on-palette hairline.
+	m.blockBar.EmptyColor = th.Border
 	m.cpuBar = newHealthGauge(th)
 	m.memBar = newHealthGauge(th)
 	m.tempBar = newHealthGauge(th)
@@ -155,7 +161,7 @@ func (m *Model) buildGauges() {
 // calm (allow) under 60%, warn (amber) under 85%, hot (block) above.
 func newHealthGauge(th *theme.Theme) progress.Model {
 	allow, warn, block := th.Allow, th.Warn, th.Block
-	return progress.New(
+	g := progress.New(
 		progress.WithoutPercentage(),
 		progress.WithColorFunc(func(total, _ float64) color.Color {
 			switch {
@@ -168,6 +174,10 @@ func newHealthGauge(th *theme.Theme) progress.Model {
 			}
 		}),
 	)
+	// Repaint the default slate-gray empty track (see buildGauges) so the
+	// unfilled portion blends with the panel instead of bleeding gray.
+	g.EmptyColor = th.Border
+	return g
 }
 
 // syncBarTheme rebuilds every gauge when the active theme changes (the Auto
@@ -209,7 +219,12 @@ func (m *Model) applySystem(msg systemMsg) tea.Cmd {
 		m.memBar.SetPercent(clampFrac(m.system.MemUsedPercent / 100)),
 	}
 	if m.sensors.HasTemp && m.sensors.HotLimit > 0 {
-		cmds = append(cmds, m.tempBar.SetPercent(clampFrac(m.sensors.CPUTemp/m.sensors.HotLimit)))
+		cmds = append(
+			cmds,
+			m.tempBar.SetPercent(
+				clampFrac(m.sensors.CPUTemp/m.sensors.HotLimit),
+			),
+		)
 	}
 	return tea.Batch(cmds...)
 }
@@ -234,7 +249,8 @@ func (m *Model) Title() string { return "Dashboard" }
 
 // Interactive reports false: the dashboard is a read-only overview with nothing
 // to select or edit, so the nav rail never descends into it (see
-// core.PanelInteractor). This keeps enter/tab/→ from dropping focus into a panel
+// core.PanelInteractor). This keeps enter/tab/→ from dropping focus into a
+// panel
 // where no key would do anything.
 func (m *Model) Interactive() bool { return false }
 
@@ -427,13 +443,23 @@ func fetchHistory(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
 	}
 }
 
-func fetchBreakdown(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
+func fetchBreakdown(
+	base context.Context,
+	api *pihole.Client,
+	epoch int,
+) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
 		types, tErr := api.QueryTypes(ctx)
 		up, uErr := api.Upstreams(ctx)
-		return breakdownMsg{epoch: epoch, types: types, upstreams: up, typesErr: tErr, upErr: uErr}
+		return breakdownMsg{
+			epoch:     epoch,
+			types:     types,
+			upstreams: up,
+			typesErr:  tErr,
+			upErr:     uErr,
+		}
 	}
 }
 
@@ -475,7 +501,8 @@ func fetchTop(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
 	}
 }
 
-// sortedTypes returns query-type entries sorted by descending count for a stable
+// sortedTypes returns query-type entries sorted by descending count for a
+// stable
 // breakdown render (Go map order is otherwise random). Extracted for testing.
 func sortedTypes(types map[string]int) []labeledCount {
 	out := make([]labeledCount, 0, len(types))
@@ -506,7 +533,8 @@ func (m *Model) View() tea.View {
 	}
 
 	if !m.loaded {
-		msg := m.spinner.View() + " " + th.SubtleStyle().Render("Loading dashboard…")
+		msg := m.spinner.View() + " " + th.SubtleStyle().
+			Render("Loading dashboard…")
 		body := lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, msg)
 		return tea.NewView(surface.Render(body))
 	}
@@ -517,6 +545,10 @@ func (m *Model) View() tea.View {
 		m.renderSparkline(),
 		m.renderLower(),
 	}
-	body := lipgloss.JoinVertical(lipgloss.Left, sections...)
+	// strings.Join (not JoinVertical) so the surface wrapper repaints each
+	// line's right padding with the surface background: JoinVertical would
+	// pre-pad narrower sections with bare spaces that bleed the terminal
+	// background.
+	body := strings.Join(sections, "\n")
 	return tea.NewView(surface.Render(body))
 }

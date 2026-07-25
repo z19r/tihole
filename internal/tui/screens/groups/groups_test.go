@@ -344,7 +344,10 @@ func TestDeleteKeyOpensConfirm(t *testing.T) {
 		t.Fatalf("'x' should open the confirm dialog")
 	}
 	if m.pendingDelete != "kids" {
-		t.Fatalf("pending delete should be the selected group, got %q", m.pendingDelete)
+		t.Fatalf(
+			"pending delete should be the selected group, got %q",
+			m.pendingDelete,
+		)
 	}
 }
 
@@ -450,7 +453,9 @@ func TestSetSizeSafeAtTinySizes(t *testing.T) {
 func TestEditKeyOpensPrefilledForm(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.groups = []pihole.Group{{Name: "kids", Comment: "phones", Enabled: false, ID: 1}}
+	m.groups = []pihole.Group{
+		{Name: "kids", Comment: "phones", Enabled: false, ID: 1},
+	}
 	m.syncRows()
 
 	// Act
@@ -461,7 +466,10 @@ func TestEditKeyOpensPrefilledForm(t *testing.T) {
 		t.Fatalf("'e' should open the edit form in editing mode")
 	}
 	if m.form.origName != "kids" {
-		t.Fatalf("edit form should key on original name, got %q", m.form.origName)
+		t.Fatalf(
+			"edit form should key on original name, got %q",
+			m.form.origName,
+		)
 	}
 	if m.form.enabled {
 		t.Fatalf("edit form should carry the group's enabled state")
