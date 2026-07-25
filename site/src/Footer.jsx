@@ -47,7 +47,8 @@ function Footer() {
         </div>
 
         <div className="meta">
-          <span>© {new Date().getFullYear()} tihole · MIT</span>
+          <span>© {new Date().getFullYear()} Z19R · MIT</span>
+          <span>MADE IN CHICAGO, WITH 🫀 ©2026 z19r. All rights reserved.</span>
           <span>{meta.sha ? "build " + meta.sha : "github.com/z19r/tihole"} · Pi-hole v6</span>
         </div>
       </div>
