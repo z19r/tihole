@@ -1200,6 +1200,23 @@ html[data-theme="light"] .glow { opacity: 0.22; }
 }
 .screens-cap b { color: var(--accent); font-weight: 700; }
 
+/* real TUI screenshot inside the .tui frame — clamp aspect to avoid CLS */
+.shot-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1440 / 880;
+  background: var(--c-void);
+}
+
+/* section subtitle under a .ws-sec-head heading */
+.ws-sec-sub {
+  margin: var(--s-3) 0 0;
+  font-family: var(--f-mono); font-size: 12px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent-hot);
+}
+
 /* ── KEYCAPS ───────────────────────────────────────── */
 .keys-grid {
   display: grid;
