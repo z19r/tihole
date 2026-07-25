@@ -75,8 +75,8 @@ func TestTitleIsQueryLog(t *testing.T) {
 }
 
 func TestHelpReturnsBindings(t *testing.T) {
-	if got := len(newModel().Help()); got != 3 {
-		t.Fatalf("expected 3 help bindings, got %d", got)
+	if got := len(newModel().Help()); got != 5 {
+		t.Fatalf("expected 5 help bindings, got %d", got)
 	}
 }
 
