@@ -30,15 +30,20 @@ type PageMeta struct {
 
 // pageOrder is the canonical sidebar order.
 var pageOrder = []PageMeta{
+	// Icons must be single display-width glyphs. Emoji-presentation symbols
+	// (Misc Symbols block U+2600–26FF: ⛒ ⛃ ⚙ ☰ …) render as 2 cells in most
+	// terminals while runewidth counts them as 1, which knocks every label
+	// out of alignment.
+	// Stick to BMP math/geometric symbols, which are reliably one cell wide.
 	{PageDashboard, "Dashboard", "▤"},
 	{PageBlocking, "Blocking", "⦸"},
 	{PageQueryLog, "Query Log", "≡"},
-	{PageDomains, "Domains", "⛒"},
-	{PageGroups, "Groups", "⛃"},
+	{PageDomains, "Domains", "⊗"},
+	{PageGroups, "Groups", "⧉"},
 	{PageClients, "Clients", "⌂"},
-	{PageAdlists, "Adlists", "☰"},
+	{PageAdlists, "Adlists", "≣"},
 	{PageLocalDNS, "Local DNS", "◈"},
-	{PageSettings, "Settings", "⚙"},
+	{PageSettings, "Settings", "⊙"},
 	{PageSystem, "System", "❖"},
 }
 
