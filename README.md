@@ -1,5 +1,10 @@
 # tihole
 
+[![CI](https://github.com/z19r/tihole/actions/workflows/ci.yml/badge.svg)](https://github.com/z19r/tihole/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/z19r/tihole.svg)](https://pkg.go.dev/github.com/z19r/tihole)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)
+
 A fast, keyboard-driven terminal UI for [Pi-hole v6](https://pi-hole.net/),
 built in Go on the [Charm](https://charm.sh/) v2 stack (Bubble Tea, Bubbles,
 Lip Gloss). It aims for feature parity with the Pi-hole web admin — query log,
@@ -28,8 +33,9 @@ tools — without leaving your terminal.
   change themes, or switch instances.
 - **Help overlay** (`?`) — context-aware cheat-sheet of global and per-screen
   keys.
-- **Themes** — `deep-night`, `light-luxury`, `pihole-classic`, plus automatic
-  adoption of your [Omarchy](https://omarchy.org/) theme when present.
+- **Themes** — the signature **Gloss** default (multi-stop gradient treatment),
+  plus `deep-night`, `light-luxury`, `pihole-classic`, and automatic adoption of
+  your [Omarchy](https://omarchy.org/) theme when present.
 
 ## Install
 
@@ -67,16 +73,19 @@ also open the editor any time with `tihole config` or from the command palette
 | Key | Action |
 | --- | --- |
 | `1`–`9` | Jump to a screen by number |
-| `tab` / `shift+tab` | Cycle screens forward / back |
-| `↑↓` / `j` `k` | Move within a list |
+| `↑↓` / `j` `k` | Move the selection (screens on the rail, rows in a panel) |
+| `enter` / `→` / `tab` | Descend from the sidebar into the active screen |
+| `esc` | Climb back to the sidebar |
 | `ctrl+k` | Command palette |
 | `s` | Switch to the next instance |
-| `space` | Toggle blocking |
+| `d` | Toggle blocking |
+| `ctrl+t` | Cycle theme |
 | `?` | Help overlay |
 | `q` / `ctrl+c` | Quit |
 
 Per-screen actions (add `a`, edit `e`, delete `x`, refresh `r`, …) are shown in
-the help bar and the `?` overlay.
+the help bar and the `?` overlay. See [`docs/keys.md`](docs/keys.md) for the
+complete reference and an explanation of the two-zone focus model.
 
 ## Configuration
 
@@ -123,9 +132,18 @@ go test -cover ./internal/...   # with coverage
 
 The codebase separates concerns strictly: the domain packages (`internal/pihole`,
 `internal/config`, `internal/theme`) never import the TUI, and screens receive
-their dependencies through a shared `core.AppContext`. See
-`docs/CHARM_V2_API.md` for Charm v2 specifics and
-`docs/superpowers/specs/2026-07-23-tihole-design.md` for the design spec.
+their dependencies through a shared `core.AppContext`.
+
+### Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — package layout, dependency
+  injection, the `Screen` contract, and message flow.
+- [`docs/keys.md`](docs/keys.md) — complete key reference and the focus model.
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — config, TLS, auth, and
+  destructive-action issues.
+- [`docs/CHARM_V2_API.md`](docs/CHARM_V2_API.md) — Charm v2 specifics.
+- [`docs/superpowers/specs/2026-07-23-tihole-design.md`](docs/superpowers/specs/2026-07-23-tihole-design.md)
+  — the original design spec.
 
 ## License
 
