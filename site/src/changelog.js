@@ -2,7 +2,25 @@
 // Source of truth: repo-root CHANGELOG.md.
 window.TIHOLE_CHANGELOG = [
   {
-    "ver": "0.1.0",
+    "ver": "1.0.0-beta.1",
+    "date": "2026-07-26",
+    "sections": [
+      {
+        "name": "changed",
+        "bullets": [
+          "Canonicalized the module path to `github.com/z19r/tihole` so `go install github.com/z19r/tihole/cmd/tihole` resolves."
+        ]
+      },
+      {
+        "name": "added",
+        "bullets": [
+          "MIT license."
+        ]
+      }
+    ]
+  },
+  {
+    "ver": "1.0.0",
     "date": "2026-07-25",
     "sections": [
       {

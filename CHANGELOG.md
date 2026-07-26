@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-07-25
+## [1.0.0-beta.1] - 2026-07-26
+
+First public beta. Ships the full 1.0.0 feature set (below) as prebuilt
+binaries for linux and darwin on amd64/arm64, for testing ahead of the
+1.0.0 final.
+
+### Changed
+
+- Canonicalized the module path to `github.com/z19r/tihole` so
+  `go install github.com/z19r/tihole/cmd/tihole` resolves.
+
+### Added
+
+- MIT license.
+
+## [1.0.0] - 2026-07-25
 
 ### Added
 
@@ -29,5 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failures.
 - ASCII boot splash shown before the dashboard.
 
-[Unreleased]: https://github.com/z19r/tihole/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/z19r/tihole/releases/tag/v0.1.0
+[Unreleased]: https://github.com/z19r/tihole/compare/v1.0.0-beta.1...HEAD
+[1.0.0-beta.1]: https://github.com/z19r/tihole/releases/tag/v1.0.0-beta.1
+[1.0.0]: https://github.com/z19r/tihole/releases/tag/v1.0.0
