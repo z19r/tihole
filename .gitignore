@@ -13,6 +13,8 @@
 .whetstone/
 .rtk/
 .aider*
+.headroom/
+.claude/.headroom_wrap_marker.json
 
 # OS / editor
 .DS_Store
