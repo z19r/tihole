@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/config"
+	"github.com/z19r/tihole/internal/config"
 )
 
 func testConfig() *config.Config {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // sampleSystem returns populated host metrics for health-strip rendering.

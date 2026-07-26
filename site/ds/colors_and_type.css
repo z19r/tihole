@@ -1,0 +1,211 @@
+/* ============================================================
+   WHETSTONE — TOKENS (Colors + Type + Spacing + Shadow + Border)
+   ------------------------------------------------------------
+   Brutalist, hard-edged identity for an OSS token-compression
+   toolkit. Used for: marketing pages, README headers,
+   installation/error screens, release announcements.
+
+   Token philosophy:
+   - Raw color tokens (--c-*)
+   - Type, space, shadow scales (--t-*, --s-*, --sh-*)
+   - Component classes opt in to these
+   - Surface modes via .surface-{void,bone,royal,acid}
+   ============================================================ */
+
+/* ---------- FONT FACES (local files, see /fonts) ---------- */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/JetBrainsMono-latin.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/JetBrainsMono-latin-ext.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/SpaceGrotesk-latin.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/SpaceGrotesk-latin-ext.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* ── GLOSS purple ramp ──────────────────────────── */
+  --c-void:     #0B0412;  /* deep void — page bg */
+  --c-obsidian: #190A2E;  /* obsidian purple — raised panels */
+  --c-grape:    #2A0F5C;
+  --c-bruise:   #4A1FA8;
+  --c-royal:    #6B2FE0;
+  --c-lilac:    #A78BFA;
+  --c-mist:     #DCD0FF;
+  --c-muted:    #9E8FC6;  /* subtle text */
+
+  /* ── contrast detonations + gradient stops ──────── */
+  --c-acid:     #D6FF2E;  /* acid   — ramp stop 5 */
+  --c-magenta:  #FF2E93;  /* hot pink — brand, ramp stop 1 */
+  --c-emag:     #E533C9;  /* magenta — ramp stop 2 */
+  --c-cyan:     #2EE6FF;  /* cyan   — ramp stop 4 */
+  --c-bone:     #F4F1FB;  /* text on void */
+  --c-ink:      #0B0412;
+
+  /* ── semantic status (query log, health) ────────── */
+  --c-allow:    #5CF07A;  /* allowed / positive */
+  --c-block:    #FF4D6D;  /* blocked / negative */
+  --c-warn:     #F5B93D;  /* warn */
+
+  /* ── THE signature gradient ramp ────────────────── */
+  --grad-brand: linear-gradient(100deg,
+    #FF2E93 0%, #E533C9 26%, #6B2FE0 52%, #2EE6FF 76%, #D6FF2E 100%);
+
+  /* ── semantic (default = Gloss void surface) ────── */
+  --bg:           var(--c-void);
+  --bg-elevated:  var(--c-obsidian);
+  --bg-card:      var(--c-obsidian);
+  --fg:           var(--c-bone);
+  --fg-muted:     var(--c-mist);
+  --fg-dim:       var(--c-muted);
+  --accent:       var(--c-magenta);
+  --accent-hot:   var(--c-acid);
+  --brand:        var(--c-royal);
+  --rule:         #3A1E63;
+  --rule-hot:     var(--c-magenta);
+
+  /* ── type families ─────────────────────────────── */
+  --f-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  /* ── type shorthands (font: shortcut) ───────────── */
+  --t-display: 700 clamp(56px, 8vw, 112px)/0.85 var(--f-sans);
+  --t-h1:      700 56px/0.95 var(--f-sans);
+  --t-h2:      700 36px/1.0  var(--f-sans);
+  --t-h3:      600 24px/1.1  var(--f-sans);
+  --t-h4:      600 18px/1.2  var(--f-sans);
+  --t-body:    400 17px/1.5  var(--f-sans);
+  --t-small:   500 13px/1.4  var(--f-sans);
+  --t-mono:    500 15px/1.5  var(--f-mono);
+  --t-tag:     700 11px/1.3  var(--f-mono);
+
+  /* ── spacing (4px base) ─────────────────────────── */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px; --s-9: 96px;
+
+  /* ── borders ────────────────────────────────────── */
+  --b-thin:  1.5px;
+  --b-med:   2px;
+  --b-thick: 4px;
+
+  /* ── hard shadows (no blur — ever) ─────────────── */
+  --sh-sm:    4px 4px 0 0 var(--c-acid);
+  --sh-md:    8px 8px 0 0 var(--c-acid);
+  --sh-lg:    14px 14px 0 0 var(--c-acid);
+  --sh-mag:   8px 8px 0 0 var(--c-magenta);
+  --sh-mag-lg:14px 14px 0 0 var(--c-magenta);
+  --sh-royal: 8px 8px 0 0 var(--c-royal);
+  --sh-bone:  8px 8px 0 0 var(--c-bone);
+  --sh-stack: 8px 8px 0 0 var(--c-magenta), 16px 16px 0 0 var(--c-acid);
+}
+
+/* ============================================================
+   SURFACE MODES — swap semantic tokens per surface.
+   Wrap any block in .surface-bone, .surface-royal, .surface-acid
+   to re-theme its contents.
+   ============================================================ */
+.surface-bone {
+  --bg:           var(--c-bone);
+  --bg-elevated:  #ECE7D6;
+  --bg-card:      var(--c-bone);
+  --fg:           var(--c-ink);
+  --fg-muted:     #2A1B4F;
+  --fg-dim:       #6B2FE0;
+  --accent:       var(--c-magenta);
+  --accent-hot:   var(--c-royal);
+  --rule:         #1F1A0E;
+  --rule-hot:     var(--c-magenta);
+}
+.surface-royal {
+  --bg:           var(--c-royal);
+  --bg-elevated:  var(--c-bruise);
+  --bg-card:      var(--c-bruise);
+  --fg:           var(--c-bone);
+  --fg-muted:     var(--c-mist);
+  --fg-dim:       var(--c-mist);
+  --accent:       var(--c-acid);
+  --accent-hot:   var(--c-magenta);
+  --rule:         rgba(255,255,255,0.18);
+  --rule-hot:     var(--c-acid);
+}
+.surface-acid {
+  --bg:           var(--c-acid);
+  --bg-elevated:  #BFE325;
+  --bg-card:      var(--c-acid);
+  --fg:           var(--c-ink);
+  --fg-muted:     #2A0F5C;
+  --fg-dim:       #4A1FA8;
+  --accent:       var(--c-magenta);
+  --accent-hot:   var(--c-royal);
+  --rule:         #07030E;
+  --rule-hot:     var(--c-magenta);
+}
+
+/* ============================================================
+   SEMANTIC TYPE CLASSES — use these instead of raw --t-*
+   ============================================================ */
+.ws-display { font: var(--t-display); letter-spacing: -0.045em; }
+.ws-h1      { font: var(--t-h1);      letter-spacing: -0.03em;  }
+.ws-h2      { font: var(--t-h2);      letter-spacing: -0.02em;  }
+.ws-h3      { font: var(--t-h3);      letter-spacing: -0.02em;  }
+.ws-h4      { font: var(--t-h4);      letter-spacing: -0.01em;  }
+.ws-body    { font: var(--t-body);    }
+.ws-small   { font: var(--t-small);   }
+.ws-mono    { font: var(--t-mono);    }
+.ws-tag     { font: var(--t-tag); letter-spacing: 0.14em; text-transform: uppercase; }
+
+/* ── GRADIENT RAMP — the signature brand device ────── */
+.grad-ramp {
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+/* a thin gradient rule for section dividers */
+.grad-rule {
+  height: 4px;
+  border: 0;
+  background: var(--grad-brand);
+  margin: 0;
+}
+
+/* ============================================================
+   BASE RESET
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--t-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--accent); text-decoration: none; border-bottom: 1.5px solid currentColor; }
+a:hover { color: var(--accent-hot); }
+hr { border: 0; border-top: var(--b-med) solid var(--rule); margin: var(--s-7) 0; }
+hr.hot { border-top-color: var(--accent); }

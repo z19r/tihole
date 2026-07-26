@@ -36,7 +36,7 @@ tools — without leaving your terminal.
 Requires Go 1.25+.
 
 ```bash
-go install github.com/zackkitzmiller/tihole/cmd/tihole@latest
+go install github.com/z19r/tihole/cmd/tihole@latest
 ```
 
 Or build from a checkout:
@@ -129,4 +129,4 @@ their dependencies through a shared `core.AppContext`. See
 
 ## License
 
-See repository for license details.
+Released under the [MIT License](LICENSE).

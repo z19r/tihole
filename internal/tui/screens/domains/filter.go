@@ -1,6 +1,6 @@
 package domains
 
-import "github.com/zackkitzmiller/tihole/internal/pihole"
+import "github.com/z19r/tihole/internal/pihole"
 
 // filterTab selects which subset of the fetched domains is shown. The tabs
 // cycle
