@@ -14,9 +14,9 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/tui/components"
-	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/tui/components"
+	"github.com/z19r/tihole/internal/tui/core"
 )
 
 const (

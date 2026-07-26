@@ -6,8 +6,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // truncate shortens s to at most width display cells, appending an ellipsis

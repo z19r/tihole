@@ -8,7 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // formState holds the inline add form. Its fields depend on the record kind:

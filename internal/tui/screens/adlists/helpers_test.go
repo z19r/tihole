@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // --- pure helpers -----------------------------------------------------------

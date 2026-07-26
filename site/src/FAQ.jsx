@@ -86,7 +86,6 @@ function FAQ() {
     <section className="section ws-wrap" id="faq">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">06 · FAQ</div>
-        <h2>Straight answers.</h2>
       </div>
       <div className="faq-list">
         {items.map((it, i) => (

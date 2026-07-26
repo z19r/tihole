@@ -7,7 +7,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // newViewModel builds a model sized to a realistic terminal and focused, so the

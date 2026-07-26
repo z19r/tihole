@@ -55,26 +55,6 @@ function App() {
       <main>
         <Hero />
 
-        <div className="marquee" aria-hidden="true">
-          <div className="marquee-track">
-            <span>PI-HOLE V6 <span className="sep">·</span></span>
-            <span>GO 1.23 <span className="sep">·</span></span>
-            <span>10 SCREENS <span className="sep">·</span></span>
-            <span>ONE BINARY <span className="sep">·</span></span>
-            <span>KEYBOARD-DRIVEN <span className="sep">·</span></span>
-            <span>NO TELEMETRY <span className="sep">·</span></span>
-            <span>v{window.TIHOLE_VERSION} <span className="sep">·</span></span>
-            {/* duplicate for seamless loop */}
-            <span>PI-HOLE V6 <span className="sep">·</span></span>
-            <span>GO 1.23 <span className="sep">·</span></span>
-            <span>10 SCREENS <span className="sep">·</span></span>
-            <span>ONE BINARY <span className="sep">·</span></span>
-            <span>KEYBOARD-DRIVEN <span className="sep">·</span></span>
-            <span>NO TELEMETRY <span className="sep">·</span></span>
-            <span>v{window.TIHOLE_VERSION} <span className="sep">·</span></span>
-          </div>
-        </div>
-
         <Screens />
         <InstallTerminal />
         <Numbers />

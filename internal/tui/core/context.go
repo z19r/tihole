@@ -1,9 +1,9 @@
 package core
 
 import (
-	"github.com/zackkitzmiller/tihole/internal/config"
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/config"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // AppContext is the shared, injected dependency set every screen receives at

@@ -6,7 +6,7 @@ window.TIHOLE_META = {
   tagline: "first public cut — the Pi-hole v6 terminal UI",
   screens: 10,
   install: {
-    goLine: "go install github.com/zackkitzmiller/tihole/cmd/tihole@latest",
+    goLine: "go install github.com/z19r/tihole/cmd/tihole@latest",
     configLine: "~/.config/tihole/config.yaml",
   },
 };

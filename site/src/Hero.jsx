@@ -28,6 +28,7 @@ function CopyChip({ cmd, prompt = "$" }) {
 }
 
 function DashboardPreview() {
+  return;
   return (
     <div className="tui" role="img" aria-label="tihole dashboard preview">
       <div className="tui-bar">
@@ -76,7 +77,7 @@ function DashboardPreview() {
 function Hero() {
   const meta = window.TIHOLE_META || {};
   const goLine = (meta.install && meta.install.goLine) ||
-    "go install github.com/zackkitzmiller/tihole/cmd/tihole@latest";
+    "go install github.com/z19r/tihole/cmd/tihole@latest";
 
   return (
     <header className="hero ws-wrap" id="top">
@@ -87,7 +88,6 @@ function Hero() {
         <div>
           <div className="eyebrow-row">
             <span className="bar"></span>
-            PI-HOLE V6 · TERMINAL UI · v{window.TIHOLE_VERSION}
           </div>
 
           <h1 className="display">
@@ -109,12 +109,6 @@ function Hero() {
             </a>
           </div>
 
-          <div className="hero-badges">
-            <span className="ws-badge ws-badge--mag">ONE GO BINARY</span>
-            <span className="ws-badge ws-badge--royal">10 SCREENS</span>
-            <span className="ws-badge ws-badge--acid">NO TELEMETRY</span>
-            <span className="ws-badge ws-badge--ghost">MIT LICENSED</span>
-          </div>
         </div>
 
         <DashboardPreview />

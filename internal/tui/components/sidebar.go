@@ -7,7 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // SidebarItem is one navigable entry rendered in the sidebar.

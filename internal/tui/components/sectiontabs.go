@@ -5,7 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // SectionTabs renders a screen's sub-section chip bar: a title, the full set of

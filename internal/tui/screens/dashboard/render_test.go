@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/theme"
-	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/tui/core"
 )
 
 // newTestModel builds a dashboard model with a non-nil client. No network is

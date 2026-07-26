@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/pihole"
 )
 
 // gravityChanBuffer sizes the line channel so the streaming producer rarely

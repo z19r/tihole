@@ -8,9 +8,9 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/pihole"
-	"github.com/zackkitzmiller/tihole/internal/theme"
-	"github.com/zackkitzmiller/tihole/internal/tui/core"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/tui/core"
 )
 
 func TestInit_IsNoOp(t *testing.T) {

@@ -160,9 +160,8 @@ func TestRenderChangelogJSAssignsGlobals(t *testing.T) {
 	if !strings.Contains(js, "window.TIHOLE_CHANGELOG = ") {
 		t.Fatalf("missing TIHOLE_CHANGELOG assignment:\n%s", js)
 	}
-	if !strings.Contains(js,
-		"window.WHETSTONE_CHANGELOG = window.TIHOLE_CHANGELOG;") {
-		t.Fatalf("missing legacy alias:\n%s", js)
+	if strings.Contains(js, "WHETSTONE") {
+		t.Fatalf("legacy WHETSTONE alias should be gone:\n%s", js)
 	}
 	if !strings.Contains(js, `"ver": "0.1.0"`) {
 		t.Fatalf("expected ver in output:\n%s", js)

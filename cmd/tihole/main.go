@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zackkitzmiller/tihole/internal/tui"
+	"github.com/z19r/tihole/internal/tui"
 )
 
 const usage = `tihole — a terminal UI for PiHole v6

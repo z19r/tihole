@@ -3,7 +3,7 @@ package components
 import (
 	"charm.land/lipgloss/v2"
 
-	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/theme"
 )
 
 // ConfirmDialog is a lightweight, centered modal used by CRUD screens to guard

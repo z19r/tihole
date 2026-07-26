@@ -46,7 +46,6 @@ function Keys() {
     <section className="section ws-wrap" id="keys">
       <div className="ws-sec-head">
         <div className="ws-sec-tag">05 · KEYS</div>
-        <h2>Your hands never leave home row.</h2>
       </div>
       <div className="keys-grid">
         {rows.map((r, i) => (

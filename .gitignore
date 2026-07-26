@@ -19,3 +19,6 @@
 *.swp
 bin/
 coverage.out
+
+# Local Netlify folder
+.netlify
