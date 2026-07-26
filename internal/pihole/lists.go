@@ -72,8 +72,20 @@ func (c *Client) Lists(ctx context.Context, listType ListType) ([]List, error) {
 }
 
 // AddList creates a list via POST /api/lists. The new list is enabled.
-func (c *Client) AddList(ctx context.Context, address string, listType ListType, comment string, groups []int) (List, error) {
-	body := listCreateRequest{Address: address, Type: listType, Comment: comment, Groups: groups, Enabled: true}
+func (c *Client) AddList(
+	ctx context.Context,
+	address string,
+	listType ListType,
+	comment string,
+	groups []int,
+) (List, error) {
+	body := listCreateRequest{
+		Address: address,
+		Type:    listType,
+		Comment: comment,
+		Groups:  groups,
+		Enabled: true,
+	}
 	var out listsEnvelope
 	if err := c.do(ctx, http.MethodPost, "/lists", body, &out); err != nil {
 		return List{}, err
@@ -85,9 +97,25 @@ func (c *Client) AddList(ctx context.Context, address string, listType ListType,
 }
 
 // UpdateList updates a list via PUT /api/lists/{address}?type={listType}.
-func (c *Client) UpdateList(ctx context.Context, address string, listType ListType, comment string, groups []int, enabled bool) (List, error) {
-	body := listUpdateRequest{Type: listType, Comment: comment, Groups: groups, Enabled: enabled}
-	path := "/lists/" + url.PathEscape(address) + "?type=" + url.QueryEscape(string(listType))
+func (c *Client) UpdateList(
+	ctx context.Context,
+	address string,
+	listType ListType,
+	comment string,
+	groups []int,
+	enabled bool,
+) (List, error) {
+	body := listUpdateRequest{
+		Type:    listType,
+		Comment: comment,
+		Groups:  groups,
+		Enabled: enabled,
+	}
+	path := "/lists/" + url.PathEscape(
+		address,
+	) + "?type=" + url.QueryEscape(
+		string(listType),
+	)
 	var out listsEnvelope
 	if err := c.do(ctx, http.MethodPut, path, body, &out); err != nil {
 		return List{}, err
@@ -99,8 +127,16 @@ func (c *Client) UpdateList(ctx context.Context, address string, listType ListTy
 }
 
 // DeleteList removes a list via DELETE /api/lists/{address}?type={listType}.
-func (c *Client) DeleteList(ctx context.Context, address string, listType ListType) error {
-	path := "/lists/" + url.PathEscape(address) + "?type=" + url.QueryEscape(string(listType))
+func (c *Client) DeleteList(
+	ctx context.Context,
+	address string,
+	listType ListType,
+) error {
+	path := "/lists/" + url.PathEscape(
+		address,
+	) + "?type=" + url.QueryEscape(
+		string(listType),
+	)
 	return c.do(ctx, http.MethodDelete, path, nil, nil)
 }
 

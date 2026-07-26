@@ -1,4 +1,5 @@
-// Package adlists implements the PiHole v6 adlists screen: block/allow list CRUD
+// Package adlists implements the PiHole v6 adlists screen: block/allow list
+// CRUD
 // over a bubbles table plus the streamed gravity update. It satisfies
 // core.Screen. All I/O happens inside tea.Cmd closures; Update never blocks.
 package adlists
@@ -115,7 +116,8 @@ func (m *Model) Init() tea.Cmd { return nil }
 func (m *Model) Title() string { return "Adlists" }
 
 // CapturesInput reports whether the add/edit form is focused, so the root
-// delivers raw keys instead of firing global shortcuts (see core.InputCapturer).
+// delivers raw keys instead of firing global shortcuts (see
+// core.InputCapturer).
 func (m *Model) CapturesInput() bool { return m.form.active }
 
 // Focus activates the screen: bump epoch and fetch both list types.
@@ -286,6 +288,7 @@ func (m *Model) syncRows() {
 		widths = computeColumnWidths(80)
 	}
 	idx := m.table.Cursor()
+	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.table.SetRows(styledRows(m.ctx.Theme, m.lists[m.visible], widths))
 	m.table.SetCursor(idx)
 }

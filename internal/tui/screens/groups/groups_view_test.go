@@ -36,7 +36,13 @@ func TestTruncateEdgeCases(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := truncate(tc.in, tc.width); got != tc.want {
-				t.Fatalf("truncate(%q,%d)=%q want %q", tc.in, tc.width, got, tc.want)
+				t.Fatalf(
+					"truncate(%q,%d)=%q want %q",
+					tc.in,
+					tc.width,
+					got,
+					tc.want,
+				)
 			}
 		})
 	}
@@ -123,13 +129,19 @@ func TestFormTabCyclesFocusAndTypes(t *testing.T) {
 	// Type a character into the focused comment field.
 	_, _ = m.Update(keyPress("z"))
 	if m.form.comment.Value() != "z" {
-		t.Fatalf("typing should append to focused field, got %q", m.form.comment.Value())
+		t.Fatalf(
+			"typing should append to focused field, got %q",
+			m.form.comment.Value(),
+		)
 	}
 
 	// Shift+tab wraps back to name.
 	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if m.form.focused() != fieldName {
-		t.Fatalf("shift+tab should move focus back to name, got %d", m.form.focused())
+		t.Fatalf(
+			"shift+tab should move focus back to name, got %d",
+			m.form.focused(),
+		)
 	}
 }
 
@@ -153,7 +165,9 @@ func TestFormSpaceTogglesEnabledField(t *testing.T) {
 
 func TestEditFormSubmitReturnsUpdateCmd(t *testing.T) {
 	m := newViewModel()
-	m.groups = []pihole.Group{{Name: "kids", Comment: "phones", Enabled: true, ID: 1}}
+	m.groups = []pihole.Group{
+		{Name: "kids", Comment: "phones", Enabled: true, ID: 1},
+	}
 	m.syncRows()
 	_, _ = m.Update(keyPress("e"))
 	if !m.form.editing {
@@ -231,7 +245,11 @@ func TestDoubleFocusBumpsEpochEachTime(t *testing.T) {
 	first := m.epoch
 	_ = m.Focus()
 	if m.epoch != first+1 {
-		t.Fatalf("second Focus should bump epoch again: %d -> %d", first, m.epoch)
+		t.Fatalf(
+			"second Focus should bump epoch again: %d -> %d",
+			first,
+			m.epoch,
+		)
 	}
 }
 
@@ -370,7 +388,10 @@ func TestCommandClosuresReturnTaggedMessages(t *testing.T) {
 			t.Fatalf("fetch closure should emit a groupsMsg")
 		}
 		if msg.epoch != 7 || msg.err == nil {
-			t.Fatalf("cancelled fetch should carry epoch 7 and an error, got %+v", msg)
+			t.Fatalf(
+				"cancelled fetch should carry epoch 7 and an error, got %+v",
+				msg,
+			)
 		}
 	})
 
@@ -379,7 +400,10 @@ func TestCommandClosuresReturnTaggedMessages(t *testing.T) {
 		m.cancel()
 		msg, ok := cmd().(mutationMsg)
 		if !ok || msg.epoch != 7 || msg.err == nil {
-			t.Fatalf("cancelled add should emit an errored mutationMsg, got %+v", msg)
+			t.Fatalf(
+				"cancelled add should emit an errored mutationMsg, got %+v",
+				msg,
+			)
 		}
 	})
 
@@ -388,7 +412,10 @@ func TestCommandClosuresReturnTaggedMessages(t *testing.T) {
 		m.cancel()
 		msg, ok := cmd().(mutationMsg)
 		if !ok || msg.epoch != 7 || msg.err == nil {
-			t.Fatalf("cancelled update should emit an errored mutationMsg, got %+v", msg)
+			t.Fatalf(
+				"cancelled update should emit an errored mutationMsg, got %+v",
+				msg,
+			)
 		}
 	})
 
@@ -397,7 +424,10 @@ func TestCommandClosuresReturnTaggedMessages(t *testing.T) {
 		m.cancel()
 		msg, ok := cmd().(mutationMsg)
 		if !ok || msg.epoch != 7 || msg.err == nil {
-			t.Fatalf("cancelled delete should emit an errored mutationMsg, got %+v", msg)
+			t.Fatalf(
+				"cancelled delete should emit an errored mutationMsg, got %+v",
+				msg,
+			)
 		}
 	})
 }

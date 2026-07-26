@@ -39,11 +39,13 @@ func TestLoginSuccess(t *testing.T) {
 func TestLoginWithTOTP(t *testing.T) {
 	// Arrange
 	var gotBody loginRequest
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(data, &gotBody)
-		authOK(w, "SID-TOTP")
-	}))
+	srv := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			data, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(data, &gotBody)
+			authOK(w, "SID-TOTP")
+		}),
+	)
 	t.Cleanup(srv.Close)
 	client := New(srv.URL, "pw", WithHTTPClient(srv.Client()), WithTOTP(123456))
 
@@ -61,8 +63,11 @@ func TestLoginWithTOTP(t *testing.T) {
 func TestLoginInvalidCredentialsReturnsAuthError(t *testing.T) {
 	// Arrange
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusUnauthorized,
-			`{"error":{"key":"unauthorized","message":"Invalid password"},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusUnauthorized,
+			`{"error":{"key":"unauthorized","message":"Invalid password"},"took":0.0}`,
+		)
 	})
 
 	// Act
@@ -81,7 +86,11 @@ func TestLoginInvalidCredentialsReturnsAuthError(t *testing.T) {
 func TestLoginInvalidSessionBody(t *testing.T) {
 	// Arrange
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, `{"session":{"valid":false,"message":"nope"},"took":0.0}`)
+		writeJSON(
+			w,
+			http.StatusOK,
+			`{"session":{"valid":false,"message":"nope"},"took":0.0}`,
+		)
 	})
 
 	// Act

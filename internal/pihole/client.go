@@ -34,16 +34,22 @@ type Client struct {
 type Option func(*Client)
 
 // WithInsecureTLS enables or disables TLS certificate verification. Self-signed
-// certificates are common on PiHole installs, so pass true to skip verification.
+// certificates are common on PiHole installs, so pass true to skip
+// verification.
 func WithInsecureTLS(insecure bool) Option {
 	return func(c *Client) {
 		if !insecure {
 			return
 		}
 		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // opt-in per instance
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			}, //nolint:gosec // opt-in per instance
 		}
-		c.httpClient = &http.Client{Transport: transport, Timeout: c.httpClient.Timeout}
+		c.httpClient = &http.Client{
+			Transport: transport,
+			Timeout:   c.httpClient.Timeout,
+		}
 	}
 }
 
@@ -98,7 +104,11 @@ func (c *Client) setSID(sid string) {
 // relative to the /api root), marshaling body as JSON when non-nil and
 // decoding a 2xx response into out when non-nil. On a 401 it transparently logs
 // in once and retries. Non-2xx responses are decoded into an *APIError.
-func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
+func (c *Client) do(
+	ctx context.Context,
+	method, path string,
+	body, out any,
+) error {
 	if err := c.doOnce(ctx, method, path, body, out, true, true); err != nil {
 		return err
 	}
@@ -124,7 +134,12 @@ func (c *Client) reauth(ctx context.Context, staleSID string) error {
 // 401, it re-authenticates (single-flight) and retries exactly once. sendAuth
 // controls whether the stored X-FTL-SID is attached — login itself passes false
 // so it never sends a stale session and never mutates shared state.
-func (c *Client) doOnce(ctx context.Context, method, path string, body, out any, allowRetry, sendAuth bool) error {
+func (c *Client) doOnce(
+	ctx context.Context,
+	method, path string,
+	body, out any,
+	allowRetry, sendAuth bool,
+) error {
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -143,7 +158,8 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body, out any,
 	}
 	req.Header.Set("Accept", "application/json")
 	// Header auth: send X-FTL-SID when we have a session. No CSRF token is
-	// required for header-based auth. Capture the SID we send so re-auth can tell
+	// required for header-based auth. Capture the SID we send so re-auth can
+	// tell
 	// whether another goroutine already refreshed it.
 	sentSID := ""
 	if sendAuth {
@@ -179,7 +195,12 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body, out any,
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("pihole: decode %s %s response: %w", method, path, err)
+		return fmt.Errorf(
+			"pihole: decode %s %s response: %w",
+			method,
+			path,
+			err,
+		)
 	}
 	return nil
 }

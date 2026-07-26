@@ -1,11 +1,17 @@
 package settings
 
-import "time"
+import (
+	"time"
+
+	"charm.land/lipgloss/v2"
+
+	"github.com/zackkitzmiller/tihole/internal/theme"
+)
 
 const (
 	fetchTimeout = 8 * time.Second
 
-	headerHeight = 2 // title/chip line + banner/spacer
+	headerHeight = 3 // section-tabs line + explanation line + banner/spacer
 	footerHeight = 1 // hint line
 
 	treeCellPad = 2
@@ -14,7 +20,8 @@ const (
 	ellipsis = "…"
 )
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it must cut. Rune-aware so multibyte content is not split mid-rune.
 func truncate(s string, width int) string {
 	if width <= 0 {
@@ -28,6 +35,15 @@ func truncate(s string, width int) string {
 		return ellipsis
 	}
 	return string(r[:width-1]) + ellipsis
+}
+
+// surfaceWhitespace paints lipgloss.Place's fill with the surface background so
+// centered panels and empty states don't bleed the terminal background around
+// the placed content.
+func surfaceWhitespace(th *theme.Theme) lipgloss.WhitespaceOption {
+	return lipgloss.WithWhitespaceStyle(
+		lipgloss.NewStyle().Background(th.Surface),
+	)
 }
 
 func maxInt(a, b int) int {

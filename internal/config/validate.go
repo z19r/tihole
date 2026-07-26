@@ -29,7 +29,10 @@ func Validate(c *Config) error {
 	for idx, inst := range c.Instances {
 		name := strings.TrimSpace(inst.Name)
 		if name == "" {
-			errs = append(errs, fmt.Errorf("instance %d: name is required", idx))
+			errs = append(
+				errs,
+				fmt.Errorf("instance %d: name is required", idx),
+			)
 		} else if seen[name] {
 			errs = append(errs, fmt.Errorf("instance %q: duplicate name", name))
 		} else {
@@ -37,7 +40,10 @@ func Validate(c *Config) error {
 		}
 
 		if err := validateURL(inst.URL); err != nil {
-			errs = append(errs, fmt.Errorf("instance %q: %w", displayName(name, idx), err))
+			errs = append(
+				errs,
+				fmt.Errorf("instance %q: %w", displayName(name, idx), err),
+			)
 		}
 	}
 

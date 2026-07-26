@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"strings"
 
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
 )
@@ -34,8 +35,15 @@ func (m *Model) View() tea.View {
 	th := m.ctx.Theme
 	heading := th.AccentStyle().Bold(true).Render(m.title)
 	sub := th.SubtleStyle().Render("This screen isn't built yet — coming soon.")
-	body := lipgloss.JoinVertical(lipgloss.Center, heading, "", sub)
+	body := strings.Join([]string{heading, "", sub}, "\n")
 
-	content := lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body)
+	content := lipgloss.Place(
+		m.w,
+		m.h,
+		lipgloss.Center,
+		lipgloss.Center,
+		body,
+		th.SurfaceWhitespace(),
+	)
 	return tea.NewView(th.SurfaceStyle().Width(m.w).Height(m.h).Render(content))
 }

@@ -37,7 +37,10 @@ type DNSLogPage struct {
 // ftl|host|system|version|metrics|sensors|database|messages. The section object
 // is returned as an open-ended tree (its top-level key mirrors the section
 // name).
-func (c *Client) Info(ctx context.Context, section string) (map[string]any, error) {
+func (c *Client) Info(
+	ctx context.Context,
+	section string,
+) (map[string]any, error) {
 	path := "/info/" + section
 	var raw map[string]any
 	if err := c.do(ctx, http.MethodGet, path, nil, &raw); err != nil {

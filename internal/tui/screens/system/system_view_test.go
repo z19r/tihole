@@ -20,8 +20,18 @@ func renderedModel() *Model {
 // sampleMessages returns two diagnosis messages for table rendering.
 func sampleMessages() []pihole.DiagnosisMessage {
 	return []pihole.DiagnosisMessage{
-		{ID: 1, Type: "DNSMASQ_WARN", Plain: "config warning", Timestamp: 1_700_000_000},
-		{ID: 2, Type: "SUBNET", Plain: "overlapping subnet detected", Timestamp: 1_700_000_042},
+		{
+			ID:        1,
+			Type:      "DNSMASQ_WARN",
+			Plain:     "config warning",
+			Timestamp: 1_700_000_000,
+		},
+		{
+			ID:        2,
+			Type:      "SUBNET",
+			Plain:     "overlapping subnet detected",
+			Timestamp: 1_700_000_042,
+		},
 	}
 }
 
@@ -61,7 +71,9 @@ func TestHelpReturnsBindings(t *testing.T) {
 func TestViewInfoTabRendersSectionsAndTabBar(t *testing.T) {
 	// Arrange
 	m := renderedModel()
-	m.info = []infoSection{{name: "ftl", rows: []kv{{"version", "6.0.1"}, {"dnssec", "true"}}}}
+	m.info = []infoSection{
+		{name: "ftl", rows: []kv{{"version", "6.0.1"}, {"dnssec", "true"}}},
+	}
 
 	// Act
 	out := m.View().Content
@@ -123,7 +135,10 @@ func TestViewMessagesLoadingAndEmptyStates(t *testing.T) {
 	}
 
 	m.loading = false
-	if out := m.View().Content; !strings.Contains(out, "no diagnosis messages") {
+	if out := m.View().Content; !strings.Contains(
+		out,
+		"no diagnosis messages",
+	) {
 		t.Fatalf("empty+idle Messages should show placeholder:\n%s", out)
 	}
 }
@@ -166,7 +181,10 @@ func TestViewLogTabRendersViewportAndStates(t *testing.T) {
 	// Arrange: waiting state.
 	m := renderedModel()
 	m.activeTab = tabLog
-	if out := m.View().Content; !strings.Contains(out, "waiting for log lines") {
+	if out := m.View().Content; !strings.Contains(
+		out,
+		"waiting for log lines",
+	) {
 		t.Fatalf("empty+idle Log should show waiting text:\n%s", out)
 	}
 
@@ -179,7 +197,9 @@ func TestViewLogTabRendersViewportAndStates(t *testing.T) {
 	// Arrange: populated viewport.
 	m.loading = false
 	m.appendLog(pihole.DNSLogPage{
-		Log:    []pihole.DNSLogLine{{Timestamp: 1_700_000_000, Message: "query A example.com"}},
+		Log: []pihole.DNSLogLine{
+			{Timestamp: 1_700_000_000, Message: "query A example.com"},
+		},
 		NextID: 5,
 	})
 	if out := m.View().Content; !strings.Contains(out, "example.com") {
@@ -255,7 +275,12 @@ func TestViewRendersEveryTabWithoutPanic(t *testing.T) {
 	m.syncMsgRows()
 	m.devices = sampleDevices()
 	m.syncNetRows()
-	m.appendLog(pihole.DNSLogPage{Log: []pihole.DNSLogLine{{Timestamp: 1, Message: "x"}}, NextID: 2})
+	m.appendLog(
+		pihole.DNSLogPage{
+			Log:    []pihole.DNSLogLine{{Timestamp: 1, Message: "x"}},
+			NextID: 2,
+		},
+	)
 
 	// Act / Assert
 	for t2 := tab(0); t2 < tabCount; t2++ {
@@ -284,7 +309,10 @@ func TestMessagesDismissAllArmsConfirm(t *testing.T) {
 		t.Fatalf("dismiss-all should arm a reloading pending op")
 	}
 	if !strings.Contains(m.confirm.Message, "2 messages") {
-		t.Fatalf("dismiss-all confirm should mention the count, got %q", m.confirm.Message)
+		t.Fatalf(
+			"dismiss-all confirm should mention the count, got %q",
+			m.confirm.Message,
+		)
 	}
 }
 
@@ -365,7 +393,9 @@ func TestMutationReloadTriggersActiveLoad(t *testing.T) {
 
 	// Assert
 	if cmd == nil {
-		t.Fatalf("a successful reloading mutation should refetch the active tab")
+		t.Fatalf(
+			"a successful reloading mutation should refetch the active tab",
+		)
 	}
 	if m.epoch != 5 {
 		t.Fatalf("reloading mutation should bump the epoch, got %d", m.epoch)
@@ -379,14 +409,25 @@ func TestMutationErrorSurfacesDestructiveHint(t *testing.T) {
 	m.loading = true
 
 	// Act
-	_, _ = m.Update(mutationMsg{epoch: 2, err: &pihole.APIError{Status: 403, Message: "destructive disabled"}})
+	_, _ = m.Update(
+		mutationMsg{
+			epoch: 2,
+			err: &pihole.APIError{
+				Status:  403,
+				Message: "destructive disabled",
+			},
+		},
+	)
 
 	// Assert
 	if m.loading {
 		t.Fatalf("an errored mutation should clear loading")
 	}
 	if m.err == nil || !strings.Contains(m.err.Error(), "allow_destructive") {
-		t.Fatalf("a 403 mutation error should carry the destructive hint, got %v", m.err)
+		t.Fatalf(
+			"a 403 mutation error should carry the destructive hint, got %v",
+			m.err,
+		)
 	}
 }
 
@@ -401,7 +442,8 @@ func TestLabelReturnsNamesAndDefault(t *testing.T) {
 
 func TestFirstAddressFallbacks(t *testing.T) {
 	// No IPs.
-	if ip, name := firstAddress(pihole.NetworkDevice{}); ip != "-" || name != "-" {
+	if ip, name := firstAddress(pihole.NetworkDevice{}); ip != "-" ||
+		name != "-" {
 		t.Fatalf("no-IP device should yield dashes, got %q/%q", ip, name)
 	}
 	// Blank fields.
@@ -410,7 +452,9 @@ func TestFirstAddressFallbacks(t *testing.T) {
 		t.Fatalf("blank IP/name should yield dashes, got %q/%q", ip, name)
 	}
 	// Populated.
-	d = pihole.NetworkDevice{IPs: []pihole.NetworkAddress{{IP: "10.0.0.1", Name: "box"}}}
+	d = pihole.NetworkDevice{
+		IPs: []pihole.NetworkAddress{{IP: "10.0.0.1", Name: "box"}},
+	}
 	if ip, name := firstAddress(d); ip != "10.0.0.1" || name != "box" {
 		t.Fatalf("populated address wrong, got %q/%q", ip, name)
 	}

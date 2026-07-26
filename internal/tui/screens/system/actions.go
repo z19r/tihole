@@ -73,7 +73,8 @@ func (m *Model) handleActionsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// destructiveHint augments a failed destructive action with an allow_destructive
+// destructiveHint augments a failed destructive action with an
+// allow_destructive
 // remediation note when the error looks like a forbidden/destructive rejection.
 func destructiveHint(err error) error {
 	if err == nil {
@@ -81,9 +82,15 @@ func destructiveHint(err error) error {
 	}
 	var apiErr *pihole.APIError
 	if errors.As(err, &apiErr) {
-		low := strings.ToLower(apiErr.Message + " " + apiErr.Key + " " + apiErr.Hint)
-		if apiErr.Status == 403 || strings.Contains(low, "destructive") || strings.Contains(low, "forbidden") {
-			return fmt.Errorf("%w — enable allow_destructive in the FTL config to permit this", err)
+		low := strings.ToLower(
+			apiErr.Message + " " + apiErr.Key + " " + apiErr.Hint,
+		)
+		if apiErr.Status == 403 || strings.Contains(low, "destructive") ||
+			strings.Contains(low, "forbidden") {
+			return fmt.Errorf(
+				"%w — enable allow_destructive in the FTL config to permit this",
+				err,
+			)
 		}
 	}
 	return err
@@ -93,7 +100,11 @@ func destructiveHint(err error) error {
 func (m *Model) renderActions(th *theme.Theme, bodyH int) string {
 	items := actionItems()
 	var lines []string
-	lines = append(lines, th.AccentStyle().Bold(true).Render("Destructive actions"), "")
+	lines = append(
+		lines,
+		th.AccentStyle().Bold(true).Render("Destructive actions"),
+		"",
+	)
 	for i, item := range items {
 		marker := "  "
 		style := th.TextStyle()
@@ -104,8 +115,12 @@ func (m *Model) renderActions(th *theme.Theme, bodyH int) string {
 		lines = append(lines, marker+style.Render(item.label))
 		lines = append(lines, "    "+th.SubtleStyle().Render(item.desc))
 	}
-	lines = append(lines, "", th.SubtleStyle().Render("enter run · may require allow_destructive"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().Render("enter run · may require allow_destructive"),
+	)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, lines...)
+	content := strings.Join(lines, "\n")
 	return lipgloss.NewStyle().MaxHeight(bodyH).Render(content)
 }

@@ -22,8 +22,13 @@ type blockingRequest struct {
 }
 
 // SetBlocking sets the blocking state via POST /api/dns/blocking. timer is the
-// number of seconds after which blocking reverts, or nil for a permanent change.
-func (c *Client) SetBlocking(ctx context.Context, blocking bool, timer *float64) error {
+// number of seconds after which blocking reverts, or nil for a permanent
+// change.
+func (c *Client) SetBlocking(
+	ctx context.Context,
+	blocking bool,
+	timer *float64,
+) error {
 	reqBody := blockingRequest{Blocking: blocking, Timer: timer}
 	return c.do(ctx, http.MethodPost, "/dns/blocking", reqBody, nil)
 }

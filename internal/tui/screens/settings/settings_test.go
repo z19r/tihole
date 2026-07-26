@@ -25,8 +25,17 @@ func newTestConfig(t *testing.T) (*config.Config, string) {
 		Active: "primary",
 		Theme:  theme.NameDeepNight,
 		Instances: []config.Instance{
-			{Name: "primary", URL: "http://pi.hole", Password: "secret-pw", VerifyTLS: boolPtr(true)},
-			{Name: "secondary", URL: "http://pi2.hole", PasswordEnv: "PIHOLE_PW"},
+			{
+				Name:      "primary",
+				URL:       "http://pi.hole",
+				Password:  "secret-pw",
+				VerifyTLS: boolPtr(true),
+			},
+			{
+				Name:        "secondary",
+				URL:         "http://pi2.hole",
+				PasswordEnv: "PIHOLE_PW",
+			},
 		},
 	}
 	path := filepath.Join(t.TempDir(), "config.yaml")
@@ -94,9 +103,20 @@ func TestFlattenConfigProducesSortedDottedLeaves(t *testing.T) {
 	leaves := flattenConfig(tree)
 
 	// Assert
-	want := []string{"dns.blocking.active", "dns.host", "dns.port", "misc.nice", "webserver.port"}
+	want := []string{
+		"dns.blocking.active",
+		"dns.host",
+		"dns.port",
+		"misc.nice",
+		"webserver.port",
+	}
 	if len(leaves) != len(want) {
-		t.Fatalf("expected %d leaves, got %d: %+v", len(want), len(leaves), leaves)
+		t.Fatalf(
+			"expected %d leaves, got %d: %+v",
+			len(want),
+			len(leaves),
+			leaves,
+		)
 	}
 	for i, p := range want {
 		if leaves[i].path != p {
@@ -105,13 +125,25 @@ func TestFlattenConfigProducesSortedDottedLeaves(t *testing.T) {
 	}
 	// Types preserved.
 	if leaves[0].value != true {
-		t.Fatalf("expected bool leaf, got %T %v", leaves[0].value, leaves[0].value)
+		t.Fatalf(
+			"expected bool leaf, got %T %v",
+			leaves[0].value,
+			leaves[0].value,
+		)
 	}
 	if leaves[2].value != 53 {
-		t.Fatalf("expected int leaf 53, got %T %v", leaves[2].value, leaves[2].value)
+		t.Fatalf(
+			"expected int leaf 53, got %T %v",
+			leaves[2].value,
+			leaves[2].value,
+		)
 	}
 	if leaves[1].value != "pi.hole" {
-		t.Fatalf("expected string leaf, got %T %v", leaves[1].value, leaves[1].value)
+		t.Fatalf(
+			"expected string leaf, got %T %v",
+			leaves[1].value,
+			leaves[1].value,
+		)
 	}
 }
 
@@ -195,7 +227,11 @@ func TestFocusSetsLoadingAndBumpsEpoch(t *testing.T) {
 		t.Fatalf("focus should set loading")
 	}
 	if m.epoch != startEpoch+1 {
-		t.Fatalf("focus should bump epoch: got %d want %d", m.epoch, startEpoch+1)
+		t.Fatalf(
+			"focus should bump epoch: got %d want %d",
+			m.epoch,
+			startEpoch+1,
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("focus should return a fetch command")
@@ -267,7 +303,10 @@ func TestPatchSuccessTriggersRefetch(t *testing.T) {
 
 	// Assert
 	if m.epoch != 5 {
-		t.Fatalf("successful patch should bump epoch for refetch, got %d", m.epoch)
+		t.Fatalf(
+			"successful patch should bump epoch for refetch, got %d",
+			m.epoch,
+		)
 	}
 	if !m.loading {
 		t.Fatalf("refetch should set loading")
@@ -380,7 +419,10 @@ func TestAddInstanceSubmitWritesFileAndEmits(t *testing.T) {
 	}
 	// Local config updated.
 	if len(m.ctx.Config.Instances) != 3 {
-		t.Fatalf("expected 3 instances after add, got %d", len(m.ctx.Config.Instances))
+		t.Fatalf(
+			"expected 3 instances after add, got %d",
+			len(m.ctx.Config.Instances),
+		)
 	}
 	// Command emits InstancesChangedMsg.
 	if cmd == nil {
@@ -392,7 +434,10 @@ func TestAddInstanceSubmitWritesFileAndEmits(t *testing.T) {
 		t.Fatalf("expected InstancesChangedMsg, got %T", msg)
 	}
 	if len(changed.Config.Instances) != 3 {
-		t.Fatalf("emitted config should carry 3 instances, got %d", len(changed.Config.Instances))
+		t.Fatalf(
+			"emitted config should carry 3 instances, got %d",
+			len(changed.Config.Instances),
+		)
 	}
 }
 
@@ -438,7 +483,10 @@ func TestDeleteInstanceConfirmEmits(t *testing.T) {
 		t.Fatalf("confirming should hide the dialog")
 	}
 	if len(m.ctx.Config.Instances) != 1 {
-		t.Fatalf("expected 1 instance after delete, got %d", len(m.ctx.Config.Instances))
+		t.Fatalf(
+			"expected 1 instance after delete, got %d",
+			len(m.ctx.Config.Instances),
+		)
 	}
 	if cmd == nil {
 		t.Fatalf("confirming delete should return a command")
@@ -451,12 +499,21 @@ func TestDeleteInstanceConfirmEmits(t *testing.T) {
 func TestDeleteLastInstanceIsRejected(t *testing.T) {
 	// Arrange: config with a single instance.
 	c := &config.Config{
-		Active:    "only",
-		Theme:     theme.NameDeepNight,
-		Instances: []config.Instance{{Name: "only", URL: "http://pi.hole", Password: "x"}},
+		Active: "only",
+		Theme:  theme.NameDeepNight,
+		Instances: []config.Instance{
+			{Name: "only", URL: "http://pi.hole", Password: "x"},
+		},
 	}
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	m := New(&core.AppContext{API: pihole.New("http://x", "pw"), Theme: theme.DeepNight(), Config: c, ConfigPath: path})
+	m := New(
+		&core.AppContext{
+			API:        pihole.New("http://x", "pw"),
+			Theme:      theme.DeepNight(),
+			Config:     c,
+			ConfigPath: path,
+		},
+	)
 	m.SetSize(100, 24)
 	_, _ = m.Update(keyPress("c"))
 	_, _ = m.Update(keyPress("x"))

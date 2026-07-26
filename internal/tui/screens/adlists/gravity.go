@@ -31,7 +31,12 @@ type gravityDoneMsg struct {
 // pushing each progress line into ch and closing ch when the stream ends. It
 // returns a gravityDoneMsg carrying the terminal error (nil on success). The
 // caller is responsible for cancelling ctx (e.g. on Blur) to stop the stream.
-func runGravity(ctx context.Context, api *pihole.Client, ch chan string, epoch int) tea.Cmd {
+func runGravity(
+	ctx context.Context,
+	api *pihole.Client,
+	ch chan string,
+	epoch int,
+) tea.Cmd {
 	return func() tea.Msg {
 		err := api.UpdateGravity(ctx, func(line string) {
 			ch <- line

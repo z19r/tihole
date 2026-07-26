@@ -17,7 +17,10 @@ func (c *Client) History(ctx context.Context) (History, error) {
 
 // HistoryClients fetches GET /api/history/clients?N — per-client over-time
 // buckets for the top n clients. n <= 0 omits the parameter (server default).
-func (c *Client) HistoryClients(ctx context.Context, n int) (HistoryClients, error) {
+func (c *Client) HistoryClients(
+	ctx context.Context,
+	n int,
+) (HistoryClients, error) {
 	var out HistoryClients
 	path := "/history/clients"
 	if n > 0 {

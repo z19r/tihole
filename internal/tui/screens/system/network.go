@@ -11,6 +11,7 @@ import (
 
 	"github.com/zackkitzmiller/tihole/internal/pihole"
 	"github.com/zackkitzmiller/tihole/internal/theme"
+	"github.com/zackkitzmiller/tihole/internal/tui/components"
 )
 
 const (
@@ -98,7 +99,8 @@ func deviceToRow(d pihole.NetworkDevice, widths []int) []string {
 	}
 }
 
-// formatUnixTime renders a unix-seconds timestamp as HH:MM:SS, or a dash when 0.
+// formatUnixTime renders a unix-seconds timestamp as HH:MM:SS, or a dash when
+// 0.
 func formatUnixTime(sec int64) string {
 	if sec <= 0 {
 		return "-"
@@ -136,6 +138,7 @@ func (m *Model) syncNetRows() {
 	for i, d := range m.devices {
 		rows[i] = table.Row(deviceToRow(d, widths))
 	}
+	m.netTable.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.netTable.SetRows(rows)
 	if idx >= len(rows) {
 		idx = len(rows) - 1
@@ -157,7 +160,11 @@ func (m *Model) handleNetworkKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return api.DeleteNetworkDevice(ctx, id)
 			}
 			m.pendingReload = true
-			m.confirm = m.confirm.Show("Delete device?", ip+" · "+d.HWAddr, true)
+			m.confirm = m.confirm.Show(
+				"Delete device?",
+				ip+" · "+d.HWAddr,
+				true,
+			)
 		}
 		return m, nil
 	}
@@ -173,7 +180,14 @@ func (m *Model) renderNetwork(th *theme.Theme, bodyH int) string {
 	}
 	if len(m.devices) == 0 {
 		empty := th.SubtleStyle().Render("no network devices")
-		return lipgloss.Place(m.w, bodyH, lipgloss.Center, lipgloss.Center, empty)
+		return lipgloss.Place(
+			m.w,
+			bodyH,
+			lipgloss.Center,
+			lipgloss.Center,
+			empty,
+			th.SurfaceWhitespace(),
+		)
 	}
 	m.syncNetRows()
 	return m.netTable.View()

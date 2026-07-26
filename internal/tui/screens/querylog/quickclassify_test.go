@@ -84,7 +84,9 @@ func TestQuickActionSuppressedWhileSearching(t *testing.T) {
 
 	// Assert
 	if m.confirm.Active {
-		t.Fatalf("quick-classify must not trigger while the search field is focused")
+		t.Fatalf(
+			"quick-classify must not trigger while the search field is focused",
+		)
 	}
 }
 
@@ -101,7 +103,10 @@ func TestConfirmCancelHidesDialog(t *testing.T) {
 		t.Fatalf("n should dismiss the confirm dialog")
 	}
 	if m.pendingDomain != "" {
-		t.Fatalf("cancel should clear the pending domain, got %q", m.pendingDomain)
+		t.Fatalf(
+			"cancel should clear the pending domain, got %q",
+			m.pendingDomain,
+		)
 	}
 }
 
@@ -130,7 +135,9 @@ func TestCapturesInputDuringConfirm(t *testing.T) {
 	// Assert: while the confirm is up the screen must own y/n/esc so global
 	// shortcuts (d=toggle-block) and the esc-to-rail climb don't steal them.
 	if !m.CapturesInput() {
-		t.Fatalf("screen should capture input while the confirm dialog is active")
+		t.Fatalf(
+			"screen should capture input while the confirm dialog is active",
+		)
 	}
 }
 
@@ -166,7 +173,9 @@ func TestClassifyErrorSurfacesBanner(t *testing.T) {
 	m := modelWithQuery("ads.example.com")
 
 	// Act
-	_, _ = m.Update(classifyMsg{domain: "ads.example.com", verb: "blocked", err: errTest})
+	_, _ = m.Update(
+		classifyMsg{domain: "ads.example.com", verb: "blocked", err: errTest},
+	)
 
 	// Assert
 	if m.err == nil {
@@ -188,7 +197,10 @@ func TestClassifyWorksFromDetailPane(t *testing.T) {
 
 	// Assert: the confirm targets the detail domain, not the table cursor
 	if m.confirm.Message != "detail.example.com" {
-		t.Fatalf("classify from detail should target the detail domain, got %q", m.confirm.Message)
+		t.Fatalf(
+			"classify from detail should target the detail domain, got %q",
+			m.confirm.Message,
+		)
 	}
 }
 

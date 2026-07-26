@@ -134,7 +134,11 @@ func (f *formState) render(th *theme.Theme, w, h int) string {
 	for i, label := range f.labels {
 		lines = append(lines, f.inputLine(th, i, label, f.inputs[i].View()))
 	}
-	lines = append(lines, "", th.SubtleStyle().Render("tab next · enter save · esc cancel"))
+	lines = append(
+		lines,
+		"",
+		th.SubtleStyle().Render("tab next · enter save · esc cancel"),
+	)
 
 	panelW := w - 4
 	if panelW < 24 {
@@ -149,12 +153,23 @@ func (f *formState) render(th *theme.Theme, w, h int) string {
 		BorderForeground(th.Border).
 		Padding(1, 2).
 		Width(panelW).
-		Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+		Render(strings.Join(lines, "\n"))
 
-	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Top, panel)
+	return lipgloss.Place(
+		w,
+		h,
+		lipgloss.Center,
+		lipgloss.Top,
+		panel,
+		th.SurfaceWhitespace(),
+	)
 }
 
-func (f *formState) inputLine(th *theme.Theme, field int, label, view string) string {
+func (f *formState) inputLine(
+	th *theme.Theme,
+	field int,
+	label, view string,
+) string {
 	marker := "  "
 	style := th.SubtleStyle()
 	if f.focus == field {

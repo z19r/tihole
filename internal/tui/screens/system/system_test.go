@@ -145,7 +145,9 @@ func TestMessagesMsgPopulatesStateAndClearsLoading(t *testing.T) {
 	m := newTestModel()
 	m.epoch = 2
 	m.loading = true
-	msgs := []pihole.DiagnosisMessage{{ID: 1, Type: "DNSMASQ_WARN", Plain: "warn"}}
+	msgs := []pihole.DiagnosisMessage{
+		{ID: 1, Type: "DNSMASQ_WARN", Plain: "warn"},
+	}
 
 	// Act
 	_, _ = m.Update(messagesMsg{epoch: 2, messages: msgs, count: 1})
@@ -155,7 +157,11 @@ func TestMessagesMsgPopulatesStateAndClearsLoading(t *testing.T) {
 		t.Fatalf("messagesMsg should clear loading")
 	}
 	if len(m.messages) != 1 || m.msgCount != 1 {
-		t.Fatalf("messagesMsg should populate messages+count: %+v count=%d", m.messages, m.msgCount)
+		t.Fatalf(
+			"messagesMsg should populate messages+count: %+v count=%d",
+			m.messages,
+			m.msgCount,
+		)
 	}
 }
 
@@ -229,7 +235,12 @@ func TestErrorMsgSetsBanner(t *testing.T) {
 	m.loading = true
 
 	// Act
-	_, _ = m.Update(messagesMsg{epoch: 5, err: &pihole.APIError{Status: 500, Message: "boom"}})
+	_, _ = m.Update(
+		messagesMsg{
+			epoch: 5,
+			err:   &pihole.APIError{Status: 500, Message: "boom"},
+		},
+	)
 
 	// Assert
 	if m.err == nil {
@@ -247,7 +258,9 @@ func TestUpdateIgnoresStaleFetchResult(t *testing.T) {
 	m.loading = true
 
 	// Act
-	_, _ = m.Update(networkMsg{epoch: 8, devices: []pihole.NetworkDevice{{ID: 1}}})
+	_, _ = m.Update(
+		networkMsg{epoch: 8, devices: []pihole.NetworkDevice{{ID: 1}}},
+	)
 
 	// Assert
 	if len(m.devices) != 0 {
@@ -308,7 +321,9 @@ func TestMessagesDeleteArmsConfirmThenRunsDelete(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	m.activeTab = tabMessages
-	m.messages = []pihole.DiagnosisMessage{{ID: 11, Type: "WARN", Plain: "disk low"}}
+	m.messages = []pihole.DiagnosisMessage{
+		{ID: 11, Type: "WARN", Plain: "disk low"},
+	}
 	m.syncMsgRows()
 
 	// Act: x arms the confirm dialog.
@@ -469,7 +484,11 @@ func TestFlattenInfoKeepsScalarsSortedAndSkipsNested(t *testing.T) {
 
 	// Assert
 	if len(rows) != 4 {
-		t.Fatalf("nested map/slice should be skipped, got %d rows: %+v", len(rows), rows)
+		t.Fatalf(
+			"nested map/slice should be skipped, got %d rows: %+v",
+			len(rows),
+			rows,
+		)
 	}
 	// Sorted by key: dnssec, fraction, uptime, version.
 	if rows[0].key != "dnssec" || rows[0].val != "true" {
@@ -495,7 +514,11 @@ func TestComputeMsgWidthsFitsWithinTotal(t *testing.T) {
 
 	// Assert
 	if len(widths) != len(msgColumnTitles) {
-		t.Fatalf("expected %d columns, got %d", len(msgColumnTitles), len(widths))
+		t.Fatalf(
+			"expected %d columns, got %d",
+			len(msgColumnTitles),
+			len(widths),
+		)
 	}
 	sum := len(msgColumnTitles) * cellPad
 	for _, w := range widths {
@@ -518,7 +541,11 @@ func TestSetSizeSafeAtTinySizes(t *testing.T) {
 
 func TestDestructiveHintAugmentsForbiddenError(t *testing.T) {
 	// Arrange
-	err := &pihole.APIError{Status: 403, Key: "forbidden", Message: "destructive action disabled"}
+	err := &pihole.APIError{
+		Status:  403,
+		Key:     "forbidden",
+		Message: "destructive action disabled",
+	}
 
 	// Act
 	got := destructiveHint(err)

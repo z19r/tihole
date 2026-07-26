@@ -75,7 +75,11 @@ func (m *Model) handleTableKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "g":
 		m.confirmKind = confirmGravity
-		m.confirm = m.confirm.Show("Run gravity update?", "Re-download and rebuild all adlists.", false)
+		m.confirm = m.confirm.Show(
+			"Run gravity update?",
+			"Re-download and rebuild all adlists.",
+			false,
+		)
 		return m, nil
 	}
 

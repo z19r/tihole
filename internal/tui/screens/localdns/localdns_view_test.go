@@ -117,7 +117,10 @@ func TestRecordKindPrevAndLabelFallback(t *testing.T) {
 		t.Fatalf("prev of cnames should be hosts")
 	}
 	if kindCount.label() != "Hosts (A/AAAA)" {
-		t.Fatalf("unknown kind should fall back to hosts label, got %q", kindCount.label())
+		t.Fatalf(
+			"unknown kind should fall back to hosts label, got %q",
+			kindCount.label(),
+		)
 	}
 }
 
@@ -181,7 +184,8 @@ func TestViewErrorBannerAtTinyWidth(t *testing.T) {
 
 func TestViewErrorBannerDoesNotOverflowSurface(t *testing.T) {
 	// At a short height with an error banner present, the rendered surface must
-	// stay exactly m.h tall: body height is derived from the real header/footer.
+	// stay exactly m.h tall: body height is derived from the real
+	// header/footer.
 	const h = 8
 	m := newTestModel()
 	m.SetSize(40, h)
@@ -251,7 +255,10 @@ func TestFormNavigationAndTyping(t *testing.T) {
 	// typing routes to the focused input.
 	_, _ = m.Update(keyPress("z"))
 	if !strings.Contains(m.form.inputs[1].Value(), "z") {
-		t.Fatalf("typing should edit the focused input, got %q", m.form.inputs[1].Value())
+		t.Fatalf(
+			"typing should edit the focused input, got %q",
+			m.form.inputs[1].Value(),
+		)
 	}
 
 	// esc closes the form.
@@ -275,7 +282,12 @@ func TestRefreshKeyBumpsEpochAndLoads(t *testing.T) {
 	before := m.epoch
 	_, cmd := m.Update(keyPress("r"))
 	if m.epoch != before+1 || !m.loading || cmd == nil {
-		t.Fatalf("r should refetch: epoch=%d loading=%v cmd=%v", m.epoch, m.loading, cmd)
+		t.Fatalf(
+			"r should refetch: epoch=%d loading=%v cmd=%v",
+			m.epoch,
+			m.loading,
+			cmd,
+		)
 	}
 }
 
@@ -438,11 +450,15 @@ func TestTruncateEdgeCases(t *testing.T) {
 }
 
 func TestDisplayCNAMEIncludesTTLWhenPositive(t *testing.T) {
-	with := displayCNAME(pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 300})
+	with := displayCNAME(
+		pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan", TTL: 300},
+	)
 	if !strings.Contains(with, "ttl 300") {
 		t.Fatalf("positive ttl should appear, got %q", with)
 	}
-	without := displayCNAME(pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan"})
+	without := displayCNAME(
+		pihole.CNAMERecord{Domain: "a.lan", Target: "b.lan"},
+	)
 	if strings.Contains(without, "ttl") {
 		t.Fatalf("zero ttl should be omitted, got %q", without)
 	}

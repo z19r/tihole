@@ -36,7 +36,11 @@ func (c *Client) QueryTypes(ctx context.Context) (QueryTypes, error) {
 
 // TopDomains fetches GET /api/stats/top_domains with the blocked and count
 // query parameters.
-func (c *Client) TopDomains(ctx context.Context, blocked bool, count int) (TopDomains, error) {
+func (c *Client) TopDomains(
+	ctx context.Context,
+	blocked bool,
+	count int,
+) (TopDomains, error) {
 	var out TopDomains
 	path := "/stats/top_domains" + topQuery(blocked, count)
 	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
@@ -47,7 +51,11 @@ func (c *Client) TopDomains(ctx context.Context, blocked bool, count int) (TopDo
 
 // TopClients fetches GET /api/stats/top_clients with the blocked and count
 // query parameters.
-func (c *Client) TopClients(ctx context.Context, blocked bool, count int) (TopClients, error) {
+func (c *Client) TopClients(
+	ctx context.Context,
+	blocked bool,
+	count int,
+) (TopClients, error) {
 	var out TopClients
 	path := "/stats/top_clients" + topQuery(blocked, count)
 	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
@@ -58,7 +66,10 @@ func (c *Client) TopClients(ctx context.Context, blocked bool, count int) (TopCl
 
 // RecentBlocked fetches GET /api/stats/recent_blocked. It returns the list of
 // most-recently blocked domain names.
-func (c *Client) RecentBlocked(ctx context.Context, count int) ([]string, error) {
+func (c *Client) RecentBlocked(
+	ctx context.Context,
+	count int,
+) ([]string, error) {
 	var out struct {
 		Blocked []string `json:"blocked"`
 		Took    float64  `json:"took"`

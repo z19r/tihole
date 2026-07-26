@@ -30,10 +30,15 @@ func clientFor(cfg *config.Config, name string) (*pihole.Client, error) {
 }
 
 // fallbackClient builds a best-effort, unauthenticated client so the TUI can
-// still start (in the config editor) when clientFor fails. It never returns nil.
+// still start (in the config editor) when clientFor fails. It never returns
+// nil.
 func fallbackClient(cfg *config.Config, name string) *pihole.Client {
 	if inst := findInstance(cfg, name); inst != nil {
-		return pihole.New(inst.URL, "", pihole.WithInsecureTLS(!inst.VerifyTLSValue()))
+		return pihole.New(
+			inst.URL,
+			"",
+			pihole.WithInsecureTLS(!inst.VerifyTLSValue()),
+		)
 	}
 	return pihole.New("", "")
 }

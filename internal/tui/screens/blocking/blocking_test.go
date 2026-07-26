@@ -15,29 +15,36 @@ import (
 	"github.com/zackkitzmiller/tihole/internal/tui/core"
 )
 
-// newModel builds a Blocking screen wired to an httptest FTL server. The handler
+// newModel builds a Blocking screen wired to an httptest FTL server. The
+// handler
 // answers the transparent /api/auth login plus GET/POST /api/dns/blocking. The
 // returned capture pointer records the last POST body so tests can assert the
 // timer/blocking values sent.
 func newModel(t *testing.T, get string) (*Model, *string) {
 	t.Helper()
 	var lastPost string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/auth"):
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"session":{"valid":true,"sid":"s","csrf":"c","validity":1800,"totp":false},"took":0.1}`))
-		case strings.HasSuffix(r.URL.Path, "/dns/blocking"):
-			if r.Method == http.MethodPost {
-				b, _ := io.ReadAll(r.Body)
-				lastPost = string(b)
+	srv := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/auth"):
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(
+					[]byte(
+						`{"session":{"valid":true,"sid":"s","csrf":"c","validity":1800,"totp":false},"took":0.1}`,
+					),
+				)
+			case strings.HasSuffix(r.URL.Path, "/dns/blocking"):
+				if r.Method == http.MethodPost {
+					b, _ := io.ReadAll(r.Body)
+					lastPost = string(b)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(get))
+			default:
+				w.WriteHeader(http.StatusNotFound)
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(get))
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
+		}),
+	)
 	t.Cleanup(srv.Close)
 
 	api := pihole.New(srv.URL, "pw", pihole.WithHTTPClient(srv.Client()))
@@ -87,7 +94,11 @@ func TestFocusFetchesStatus(t *testing.T) {
 
 	// Assert
 	if !m.known || !m.status.Blocking {
-		t.Fatalf("expected known+blocking status, got known=%v status=%+v", m.known, m.status)
+		t.Fatalf(
+			"expected known+blocking status, got known=%v status=%+v",
+			m.known,
+			m.status,
+		)
 	}
 }
 
@@ -205,8 +216,16 @@ func TestViewStates(t *testing.T) {
 		want string
 	}{
 		{"loading", func(m *Model) {}, "loading status"},
-		{"on", func(m *Model) { m.known = true; m.status = pihole.BlockingStatus{Blocking: true} }, "blocking is ON"},
-		{"off", func(m *Model) { m.known = true; m.status = pihole.BlockingStatus{Blocking: false} }, "blocking is OFF"},
+		{
+			"on",
+			func(m *Model) { m.known = true; m.status = pihole.BlockingStatus{Blocking: true} },
+			"blocking is ON",
+		},
+		{
+			"off",
+			func(m *Model) { m.known = true; m.status = pihole.BlockingStatus{Blocking: false} },
+			"blocking is OFF",
+		},
 		{"error", func(m *Model) { m.err = io.EOF }, "error"},
 	}
 	for _, tc := range cases {
@@ -231,13 +250,20 @@ func TestOffViewShowsCountdown(t *testing.T) {
 	m.known = true
 	m.status = pihole.BlockingStatus{Blocking: false, Timer: &secs}
 	out := m.View().Content
-	if !strings.Contains(out, "re-enables in") || !strings.Contains(out, "2m05s") {
+	if !strings.Contains(out, "re-enables in") ||
+		!strings.Contains(out, "2m05s") {
 		t.Fatalf("expected countdown in view, got: %s", out)
 	}
 }
 
 func TestHumanCountdown(t *testing.T) {
-	cases := map[int]string{-5: "0s", 0: "0s", 45: "45s", 60: "1m00s", 125: "2m05s"}
+	cases := map[int]string{
+		-5:  "0s",
+		0:   "0s",
+		45:  "45s",
+		60:  "1m00s",
+		125: "2m05s",
+	}
 	for in, want := range cases {
 		if got := humanCountdown(in); got != want {
 			t.Fatalf("humanCountdown(%d) = %q, want %q", in, got, want)

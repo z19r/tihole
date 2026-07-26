@@ -85,14 +85,28 @@ func DefaultKeyMap() KeyMap {
 
 // ShortHelp implements help.KeyMap for the compact help bar.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Palette, k.SwitchInst, k.ToggleBlock, k.CycleTheme, k.Help, k.Quit}
+	return []key.Binding{
+		k.Palette,
+		k.SwitchInst,
+		k.ToggleBlock,
+		k.CycleTheme,
+		k.Help,
+		k.Quit,
+	}
 }
 
 // FullHelp implements help.KeyMap for the expanded help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right, k.Enter, k.Back},
-		{k.Palette, k.SwitchInst, k.ToggleBlock, k.CycleTheme, k.Refresh, k.Splash},
+		{
+			k.Palette,
+			k.SwitchInst,
+			k.ToggleBlock,
+			k.CycleTheme,
+			k.Refresh,
+			k.Splash,
+		},
 		{k.Help, k.Quit},
 	}
 }

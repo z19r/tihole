@@ -27,7 +27,10 @@ instances:
 	// Assert
 	inst := c.Instances[0]
 	if inst.VerifyTLS != nil {
-		t.Fatalf("expected nil pointer for omitted verify_tls, got %v", *inst.VerifyTLS)
+		t.Fatalf(
+			"expected nil pointer for omitted verify_tls, got %v",
+			*inst.VerifyTLS,
+		)
 	}
 	if !inst.VerifyTLSValue() {
 		t.Fatal("omitted verify_tls should default to true")
@@ -59,7 +62,11 @@ instances:
 
 func TestBuildConfigProducesActiveSingleInstance(t *testing.T) {
 	// Arrange
-	in := wizardInputs{Name: " home ", URL: " https://192.168.1.2 ", Password: "secret"}
+	in := wizardInputs{
+		Name:     " home ",
+		URL:      " https://192.168.1.2 ",
+		Password: "secret",
+	}
 
 	// Act
 	c, err := buildConfig(in)
@@ -96,7 +103,11 @@ func TestFinishWritesConfigAndInvokesValidateFunc(t *testing.T) {
 		gotInst = inst
 		return nil
 	}}
-	in := wizardInputs{Name: "home", URL: "https://192.168.1.2", Password: "secret"}
+	in := wizardInputs{
+		Name:     "home",
+		URL:      "https://192.168.1.2",
+		Password: "secret",
+	}
 	path := filepath.Join(t.TempDir(), "config.yaml")
 
 	// Act
@@ -122,7 +133,11 @@ func TestFinishPropagatesValidateFuncError(t *testing.T) {
 	fr := &FirstRun{ValidateFunc: func(inst Instance) error {
 		return os.ErrPermission
 	}}
-	in := wizardInputs{Name: "home", URL: "https://192.168.1.2", Password: "secret"}
+	in := wizardInputs{
+		Name:     "home",
+		URL:      "https://192.168.1.2",
+		Password: "secret",
+	}
 	path := filepath.Join(t.TempDir(), "config.yaml")
 
 	// Act
@@ -153,7 +168,11 @@ func TestFinishRejectsInvalidInputs(t *testing.T) {
 
 func TestBuildConfigResultIsSavable(t *testing.T) {
 	// Arrange
-	in := wizardInputs{Name: "home", URL: "https://192.168.1.2", Password: "secret"}
+	in := wizardInputs{
+		Name:     "home",
+		URL:      "https://192.168.1.2",
+		Password: "secret",
+	}
 	c, err := buildConfig(in)
 	if err != nil {
 		t.Fatalf("buildConfig: %v", err)

@@ -2,7 +2,8 @@ package system
 
 const ellipsis = "…"
 
-// truncate shortens s to at most width display cells, appending an ellipsis when
+// truncate shortens s to at most width display cells, appending an ellipsis
+// when
 // it must cut. Rune-aware so multibyte strings are not split mid-rune.
 func truncate(s string, width int) string {
 	if width <= 0 {

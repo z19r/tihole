@@ -77,9 +77,11 @@ type Screen interface {
 	SetSize(width, height int)
 }
 
-// InputCapturer is an optional Screen capability. A screen returns true while it
+// InputCapturer is an optional Screen capability. A screen returns true while
+// it
 // has an editable text field focused, so the root delivers raw keys straight to
-// it instead of firing global single-key shortcuts (s, d, r, q, j/k, digits, …).
+// it instead of firing global single-key shortcuts (s, d, r, q, j/k, digits,
+// …).
 // Screens without text entry simply don't implement it and default to false.
 type InputCapturer interface {
 	CapturesInput() bool
@@ -87,7 +89,8 @@ type InputCapturer interface {
 
 // PanelInteractor is an optional Screen capability. A screen returns false from
 // Interactive() when it has no actionable content — a read-only dashboard, for
-// instance — so the nav rail refuses to descend into it: enter/tab/→ stay on the
+// instance — so the nav rail refuses to descend into it: enter/tab/→ stay
+// on the
 // rail. Screens that don't implement it default to interactive.
 type PanelInteractor interface {
 	Interactive() bool
