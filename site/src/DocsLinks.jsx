@@ -18,7 +18,7 @@ function DocsLinks() {
       </div>
       <div className="docs-grid">
         {cards.map((c) => (
-          <a className="doc-card" key={c.title} href={c.href} target="_blank" rel="noreferrer">
+          <a className="doc-card" key={c.title} href={c.href} target="_blank" rel="noreferrer" data-umami-event={"docs-" + c.title.toLowerCase().replace(/\s+/g, "-")}>
             <span className="eyebrow">{c.eyebrow}</span>
             <span className="title">{c.title}</span>
             <span className="desc">{c.desc}</span>

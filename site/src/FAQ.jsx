@@ -6,7 +6,7 @@
 function FAQItem({ n, q, children, open, onToggle }) {
   return (
     <div className={"faq-item" + (open ? " is-open" : "")}>
-      <button className="faq-q" aria-expanded={open} onClick={onToggle}>
+      <button className="faq-q" aria-expanded={open} onClick={onToggle} data-umami-event={"faq-" + String(n).padStart(2, "0")}>
         <span className="num">{String(n).padStart(2, "0")}</span>
         <span>{q}</span>
         <span className="glyph">{open ? "−" : "+"}</span>

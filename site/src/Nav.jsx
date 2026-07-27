@@ -37,7 +37,7 @@ function Nav({ theme, onToggleTheme }) {
 
   return (
     <nav className="ws-nav">
-      <a href="#top" className="ws-nav-mark" style={{
+      <a href="#top" className="ws-nav-mark" data-umami-event="nav-logo" style={{
         '--mark-bg': isLight ? '#F5F2E8' : '#110628',
         '--mark-fg': isLight ? '#07030E' : '#F5F2E8',
       }}>
@@ -47,17 +47,17 @@ function Nav({ theme, onToggleTheme }) {
 
       <div className="ws-nav-links">
         {sections.map((s) => (
-          <a key={s.id} href={'#' + s.id} className="ws-nav-link">{s.label}</a>
+          <a key={s.id} href={'#' + s.id} className="ws-nav-link" data-umami-event={"nav-" + s.id}>{s.label}</a>
         ))}
       </div>
 
       <div className="ws-nav-right">
         <span className="ws-badge ws-badge--acid"><span className="pulse"></span>v{window.TIHOLE_VERSION}</span>
-        <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme">
+        <button className="theme-toggle" onClick={onToggleTheme} aria-label="Toggle theme" data-umami-event="theme-toggle">
           <span className="dot"></span>
           {isLight ? 'LIGHT' : 'NIGHT'}
         </button>
-        <a className="ws-btn ws-btn--sm ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer">GITHUB ↗</a>
+        <a className="ws-btn ws-btn--sm ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer" data-umami-event="nav-github">GITHUB ↗</a>
       </div>
     </nav>
   );
