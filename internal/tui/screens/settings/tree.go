@@ -15,10 +15,18 @@ import (
 )
 
 // leaf is a single scalar entry in the flattened config tree, addressed by its
-// dotted path (e.g. "dns.blocking.active").
+// dotted path (e.g. "dns.blocking.active"). When the tree is fetched with
+// detailed=true, FTL annotates each leaf with the same metadata Pi-hole's web
+// UI renders — description, type, default, allowed values and a modified flag —
+// which we carry through for the detail panel.
 type leaf struct {
-	path  string
-	value any
+	path        string
+	value       any
+	description string
+	dataType    string
+	defaultVal  any
+	allowed     []any
+	modified    bool
 }
 
 // flattenConfig walks a nested config tree into a sorted, flat list of scalar
@@ -42,7 +50,7 @@ func walkTree(prefix string, m map[string]any, out *[]leaf) {
 		}
 		if child, ok := v.(map[string]any); ok {
 			if isDetailLeaf(child) {
-				*out = append(*out, leaf{path: path, value: child["value"]})
+				*out = append(*out, newDetailLeaf(path, child))
 			} else {
 				walkTree(path, child, out)
 			}
@@ -52,13 +60,36 @@ func walkTree(prefix string, m map[string]any, out *[]leaf) {
 	}
 }
 
+// newDetailLeaf builds a leaf from a detailed descriptor map, carrying through
+// whatever metadata FTL supplied. Missing keys leave their zero values.
+func newDetailLeaf(path string, m map[string]any) leaf {
+	l := leaf{path: path, value: m["value"]}
+	if s, ok := m["description"].(string); ok {
+		l.description = s
+	}
+	if s, ok := m["type"].(string); ok {
+		l.dataType = s
+	}
+	if d, ok := m["default"]; ok {
+		l.defaultVal = d
+	}
+	if a, ok := m["allowed"].([]any); ok {
+		l.allowed = a
+	}
+	if b, ok := m["modified"].(bool); ok {
+		l.modified = b
+	}
+	return l
+}
+
 // isDetailLeaf reports whether a map is a detailed-leaf descriptor (carries a
 // "value" plus at least one metadata key) rather than a nested config object.
 func isDetailLeaf(m map[string]any) bool {
 	if _, ok := m["value"]; !ok {
 		return false
 	}
-	for _, k := range []string{"type", "description", "default", "flags", "modified"} {
+	meta := []string{"type", "description", "default", "flags", "modified"}
+	for _, k := range meta {
 		if _, ok := m[k]; ok {
 			return true
 		}

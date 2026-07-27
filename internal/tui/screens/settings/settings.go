@@ -174,8 +174,9 @@ func (m *Model) Help() []key.Binding {
 func (m *Model) SetSize(w, h int) {
 	m.w, m.h = w, h
 
-	m.tree.SetColumns(treeColumns(computeTreeWidths(w)))
-	m.tree.SetWidth(w)
+	tableW, _, _ := configSplit(w)
+	m.tree.SetColumns(treeColumns(computeTreeWidths(tableW)))
+	m.tree.SetWidth(tableW)
 	m.connTable.SetColumns(connColumns(computeConnWidths(w)))
 	m.connTable.SetWidth(w)
 
@@ -183,7 +184,7 @@ func (m *Model) SetSize(w, h int) {
 	if bodyH < 1 {
 		bodyH = 1
 	}
-	m.tree.SetHeight(bodyH)
+	m.tree.SetHeight(treeHeight(w, bodyH))
 	// Reserve two lines for the theme summary under the instances table.
 	connH := bodyH - 2
 	if connH < 1 {
@@ -458,7 +459,8 @@ func (m *Model) applyFilter() {
 // syncTreeRows rebuilds the tree table rows from the visible set and theme,
 // clamping the cursor to the new bounds.
 func (m *Model) syncTreeRows() {
-	widths := computeTreeWidths(m.w)
+	tableW, _, _ := configSplit(m.w)
+	widths := computeTreeWidths(tableW)
 	idx := m.tree.Cursor()
 	m.tree.SetStyles(components.TableStyles(m.ctx.Theme))
 	m.tree.SetRows(treeRows(m.ctx.Theme, m.visible, widths))
@@ -588,7 +590,33 @@ func (m *Model) renderBody(th *theme.Theme) string {
 			surfaceWhitespace(th),
 		)
 	}
-	return m.tree.View()
+	return m.renderConfigTree(th, bodyH)
+}
+
+// renderConfigTree composes the config table with a live detail panel for the
+// highlighted leaf: side-by-side on wide terminals, stacked on narrow ones, and
+// table-only when there's no vertical room or no current selection.
+func (m *Model) renderConfigTree(th *theme.Theme, bodyH int) string {
+	tableView := m.tree.View()
+	l, ok := m.selectedLeaf()
+	if !ok || !showDetail(bodyH) {
+		return tableView
+	}
+
+	tableW, detailW, horizontal := configSplit(m.w)
+	if horizontal {
+		panel := renderLeafDetail(th, l, detailW, bodyH)
+		gutter := lipgloss.NewStyle().Background(th.Surface).
+			Width(1).Height(bodyH).Render("")
+		table := lipgloss.Place(
+			tableW, bodyH, lipgloss.Left, lipgloss.Top,
+			tableView, surfaceWhitespace(th),
+		)
+		return lipgloss.JoinHorizontal(lipgloss.Top, table, gutter, panel)
+	}
+
+	panel := renderLeafDetail(th, l, m.w, detailStackH(bodyH))
+	return strings.Join([]string{tableView, panel}, "\n")
 }
 
 func (m *Model) renderFooter(th *theme.Theme) string {
