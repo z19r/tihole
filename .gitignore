@@ -14,7 +14,7 @@
 .rtk/
 .aider*
 .headroom/
-.claude/.headroom_wrap_marker.json
+.claude/
 
 # OS / editor
 .DS_Store

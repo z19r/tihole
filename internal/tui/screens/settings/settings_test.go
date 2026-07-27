@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/z19r/tihole/internal/config"
 	"github.com/z19r/tihole/internal/pihole"
@@ -171,6 +172,113 @@ func TestFlattenConfigCollapsesDetailedLeaves(t *testing.T) {
 	}
 	if leaves[0].value != float64(53) {
 		t.Fatalf("expected collapsed value 53, got %v", leaves[0].value)
+	}
+}
+
+func TestFlattenConfigCapturesLeafMetadata(t *testing.T) {
+	// Arrange: a detailed leaf carrying the full metadata set FTL returns.
+	tree := map[string]any{
+		"dns": map[string]any{
+			"blocking": map[string]any{
+				"mode": map[string]any{
+					"value":       "NULL",
+					"type":        "string",
+					"description": "How blocked queries are answered",
+					"default":     "NULL",
+					"modified":    true,
+					"allowed": []any{
+						map[string]any{
+							"item":        "NULL",
+							"description": "0.0.0.0",
+						},
+						map[string]any{"item": "NXDOMAIN"},
+						"IP",
+					},
+				},
+			},
+		},
+	}
+
+	// Act
+	leaves := flattenConfig(tree)
+
+	// Assert
+	if len(leaves) != 1 {
+		t.Fatalf("expected 1 leaf, got %d: %+v", len(leaves), leaves)
+	}
+	l := leaves[0]
+	if l.description != "How blocked queries are answered" {
+		t.Fatalf("description not captured: %q", l.description)
+	}
+	if l.dataType != "string" {
+		t.Fatalf("type not captured: %q", l.dataType)
+	}
+	if l.defaultVal != "NULL" {
+		t.Fatalf("default not captured: %v", l.defaultVal)
+	}
+	if !l.modified {
+		t.Fatalf("modified flag not captured")
+	}
+	if got := allowedInputs(l); len(got) != 3 ||
+		got[0] != "NULL" || got[1] != "NXDOMAIN" || got[2] != "IP" {
+		t.Fatalf("allowed inputs not captured: %v", got)
+	}
+}
+
+func TestRenderLeafDetailShowsMetadata(t *testing.T) {
+	// Arrange
+	th := theme.Gloss()
+	l := leaf{
+		path:        "dns.blocking.mode",
+		value:       "NULL",
+		description: "How blocked queries are answered",
+		dataType:    "string",
+		defaultVal:  "NULL",
+		allowed:     []any{map[string]any{"item": "NXDOMAIN"}},
+		modified:    true,
+	}
+
+	// Act
+	out := renderLeafDetail(th, l, 48, 20)
+
+	// Assert
+	for _, want := range []string{
+		"dns.blocking.mode", "How blocked queries",
+		"Type", "Default", "Current", "Allowed", "NXDOMAIN", "modified",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("detail panel missing %q in:\n%s", want, out)
+		}
+	}
+}
+
+func TestRenderLeafDetailNeverExceedsNarrowWidth(t *testing.T) {
+	// Arrange: a narrow (sub-24-col) but tall stacked layout, where the old
+	// 20-col panelW floor would render wider than the container and make the
+	// outer surface wrap — shifting every row below the panel.
+	th := theme.Gloss()
+	l := leaf{
+		path:        "dns.blocking.mode",
+		value:       "NULL",
+		description: "How blocked queries are answered by the resolver",
+		dataType:    "string",
+		defaultVal:  "NULL",
+		modified:    true,
+	}
+
+	// Act
+	for _, w := range []int{4, 8, 14, 20, 23} {
+		out := renderLeafDetail(th, l, w, 16)
+
+		// Assert: no rendered line is wider than the allotted width.
+		for i, line := range strings.Split(out, "\n") {
+			if lw := lipgloss.Width(line); lw > w {
+				t.Fatalf(
+					"w=%d line %d width %d exceeds container:\n%s",
+					w, i, lw, out,
+				)
+			}
+		}
 	}
 }
 
