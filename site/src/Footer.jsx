@@ -28,20 +28,20 @@ function Footer() {
           <div className="col">
             <h4>Project</h4>
             <ul>
-              <li><a href={repo} target="_blank" rel="noreferrer">GitHub</a></li>
-              <li><a href={repo + "/releases"} target="_blank" rel="noreferrer">Releases</a></li>
-              <li><a href={repo + "/issues"} target="_blank" rel="noreferrer">Issues</a></li>
-              <li><a href={repo + "/blob/main/CHANGELOG.md"} target="_blank" rel="noreferrer">Changelog</a></li>
+              <li><a href={repo} target="_blank" rel="noreferrer" data-umami-event="footer-github">GitHub</a></li>
+              <li><a href={repo + "/releases"} target="_blank" rel="noreferrer" data-umami-event="footer-releases">Releases</a></li>
+              <li><a href={repo + "/issues"} target="_blank" rel="noreferrer" data-umami-event="footer-issues">Issues</a></li>
+              <li><a href={repo + "/blob/main/CHANGELOG.md"} target="_blank" rel="noreferrer" data-umami-event="footer-changelog">Changelog</a></li>
             </ul>
           </div>
 
           <div className="col">
             <h4>Navigate</h4>
             <ul>
-              <li><a href="#screens">Screens</a></li>
-              <li><a href="#install">Install</a></li>
-              <li><a href="#keys">Keys</a></li>
-              <li><a href="#faq">FAQ</a></li>
+              <li><a href="#screens" data-umami-event="footer-nav-screens">Screens</a></li>
+              <li><a href="#install" data-umami-event="footer-nav-install">Install</a></li>
+              <li><a href="#keys" data-umami-event="footer-nav-keys">Keys</a></li>
+              <li><a href="#faq" data-umami-event="footer-nav-faq">FAQ</a></li>
             </ul>
           </div>
         </div>

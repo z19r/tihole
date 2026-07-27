@@ -27,7 +27,7 @@ function InstallTerminal() {
                 Prefer a prebuilt binary? Download it from the GitHub releases page.
               </div>
               <div style={{ marginTop: "var(--s-3)" }}>
-                <CopyChip cmd={goLine} />
+                <CopyChip cmd={goLine} event="install-copy-go" />
               </div>
             </div>
           </div>
@@ -53,7 +53,7 @@ function InstallTerminal() {
                 Press <code>?</code> any time for the full key map.
               </div>
               <div style={{ marginTop: "var(--s-3)" }}>
-                <CopyChip cmd="tihole" prompt="$" />
+                <CopyChip cmd="tihole" prompt="$" event="install-copy-run" />
               </div>
             </div>
           </div>

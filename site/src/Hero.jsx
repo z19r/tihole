@@ -3,7 +3,7 @@
 // ============================================================
 // HERO — gradient wordmark, one-key value prop, live TUI preview
 // ============================================================
-function CopyChip({ cmd, prompt = "$" }) {
+function CopyChip({ cmd, prompt = "$", event = "copy-command" }) {
   const [copied, setCopied] = React.useState(false);
   const onCopy = () => {
     try {
@@ -20,6 +20,8 @@ function CopyChip({ cmd, prompt = "$" }) {
         className={"copy-btn" + (copied ? " is-copied" : "")}
         onClick={onCopy}
         aria-label="Copy install command"
+        data-umami-event={event}
+        data-umami-event-cmd={cmd}
       >
         {copied ? "COPIED" : "COPY"}
       </button>
@@ -103,8 +105,8 @@ function Hero() {
           </p>
 
           <div className="hero-cta">
-            <CopyChip cmd={goLine} />
-            <a className="ws-btn ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer">
+            <CopyChip cmd={goLine} event="hero-copy-install" />
+            <a className="ws-btn ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer" data-umami-event="hero-github-star">
               STAR ON GITHUB ↗
             </a>
           </div>

@@ -75,6 +75,7 @@ function Screens() {
             aria-selected={active === t.id}
             className={"screens-tab" + (active === t.id ? " is-active" : "")}
             onClick={() => setActive(t.id)}
+            data-umami-event={"screens-tab-" + t.id}
           >
             <span className="ix">{String(i + 1).padStart(2, "0")}</span>
             {t.label}

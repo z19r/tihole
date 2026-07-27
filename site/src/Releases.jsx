@@ -176,6 +176,7 @@ function Releases() {
           href="https://github.com/z19r/tihole/blob/main/CHANGELOG.md"
           target="_blank"
           rel="noreferrer"
+          data-umami-event="releases-full-changelog"
         >
           FULL CHANGELOG ↗
         </a>
