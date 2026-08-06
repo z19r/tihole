@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/z19r/tihole/internal/pihole"
 	"github.com/z19r/tihole/internal/theme"
 	"github.com/z19r/tihole/internal/tui/core"
@@ -148,6 +150,44 @@ func TestView_ErrorBannersRenderWithoutPanic(t *testing.T) {
 	}
 	if !strings.Contains(v.Content, "unavailable") {
 		t.Errorf("expected an 'unavailable' banner, got %q", v.Content)
+	}
+}
+
+// TestTileAndLowerRowsNeverOverflowWidth guards the card-sizing math: because
+// lipgloss Width() counts border+padding inside the total, a too-large content
+// floor could push a box past its per-column budget and overflow the row. The
+// headline tile row and the lower three-column row must both stay within m.w at
+// every width the dashboard actually renders (down to the ~24-col floor).
+func TestTileAndLowerRowsNeverOverflowWidth(t *testing.T) {
+	// Arrange
+	m := loadedModel()
+
+	// Act / Assert
+	for w := 24; w <= 120; w++ {
+		m.SetSize(w, 30)
+
+		if got := lipgloss.Width(m.renderTiles()); got > w {
+			t.Fatalf("tile row width %d exceeds m.w=%d", got, w)
+		}
+		if got := lipgloss.Width(m.renderLower()); got > w {
+			t.Fatalf("lower row width %d exceeds m.w=%d", got, w)
+		}
+	}
+}
+
+// TestTileLabelDoesNotWrapAtNormalWidth confirms the fix's headline case: a
+// two-word tile label fits on one line (no wrap) at a normal terminal width.
+func TestTileLabelDoesNotWrapAtNormalWidth(t *testing.T) {
+	// Arrange
+	m := loadedModel()
+	m.SetSize(100, 30)
+
+	// Act
+	tile := m.tile("Total Queries", "64,473", m.w/4-cardChrome)
+
+	// Assert: label + value = 2 content lines, plus 2 border rows = 4.
+	if h := lipgloss.Height(tile); h != 4 {
+		t.Fatalf("tile height %d, want 4 (label wrapped?):\n%s", h, tile)
 	}
 }
 
