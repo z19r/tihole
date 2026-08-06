@@ -42,14 +42,33 @@ func panelBox(th *theme.Theme) lipgloss.Style {
 		Padding(0, 1)
 }
 
+// cardChrome is the horizontal cost of panelBox's border (2) plus its
+// (0,1) padding (2): lipgloss Width() counts these inside the total, so a
+// panel whose content should be W columns wide must be sized W+cardChrome.
+const cardChrome = 4
+
+// card renders body inside the shared panel, sized so its inner text area
+// is exactly contentW columns — callers size and truncate their text to
+// contentW and it will never wrap. MaxWidth caps the total so an
+// unbreakable styled run (e.g. a padded label wider than a tiny inner
+// width) is clipped rather than expanding the box past its column budget.
+func card(th *theme.Theme, contentW int, body string) string {
+	total := contentW + cardChrome
+	return panelBox(th).Width(total).MaxWidth(total).Render(body)
+}
+
 // renderTiles draws the four headline stat tiles in a single row.
 func (m *Model) renderTiles() string {
 	th := m.ctx.Theme
 
 	outer := m.w / 4
-	inner := outer - 4 // border (2) + padding (2)
-	if inner < 3 {
-		inner = 3
+	// inner is the content width; card adds cardChrome back so the box total
+	// stays outer and the four tiles fill m.w. Floor at 1 (not a larger
+	// aesthetic minimum) so a very narrow terminal can't push a box past
+	// outer and overflow the row — truncate handles the tiny width.
+	inner := outer - cardChrome
+	if inner < 1 {
+		inner = 1
 	}
 
 	tiles := []string{
@@ -64,11 +83,11 @@ func (m *Model) renderTiles() string {
 	}
 
 	if m.errSummary != "" {
-		return panelBox(th).Width(m.w - 4).Render(
-			th.BlockStyle().
-				Render("summary unavailable: ") +
-				th.SubtleStyle().
-					Render(truncate(m.errSummary, m.w-24)),
+		const prefix = "summary unavailable: "
+		avail := m.w - cardChrome - lipgloss.Width(prefix)
+		return card(th, m.w-cardChrome,
+			th.BlockStyle().Render(prefix)+
+				th.SubtleStyle().Render(truncate(m.errSummary, avail)),
 		)
 	}
 
@@ -98,7 +117,7 @@ func (m *Model) blockedTile(inner int) string {
 	gauge := m.blockBar.View()
 
 	body := strings.Join([]string{lbl, fig, gauge}, "\n")
-	return panelBox(th).Width(inner).Render(body)
+	return card(th, inner, body)
 }
 
 // tile renders one stat tile: a subtle label above a large accent figure.
@@ -107,7 +126,7 @@ func (m *Model) tile(label, value string, inner int) string {
 	lbl := th.SubtleStyle().Render(truncate(label, inner))
 	fig := th.AccentStyle().Bold(true).Render(truncate(value, inner))
 	body := strings.Join([]string{lbl, fig}, "\n")
-	return panelBox(th).Width(inner).Render(body)
+	return card(th, inner, body)
 }
 
 // renderSparkline draws the queries-over-time line across the full width.
@@ -145,15 +164,18 @@ func (m *Model) renderSparkline() string {
 	}
 
 	body := strings.Join([]string{title, line}, "\n")
-	return panelBox(th).Width(inner).Render(body)
+	return card(th, inner, body)
 }
 
 // renderLower composes the breakdown and top-list columns.
 func (m *Model) renderLower() string {
 	outer := m.w / 3
-	inner := outer - 4
-	if inner < 6 {
-		inner = 6
+	// Content width; card adds cardChrome back so three columns fill m.w.
+	// Floor at 1 (not a larger minimum) so a narrow terminal can't push a
+	// column past outer and overflow the row.
+	inner := outer - cardChrome
+	if inner < 1 {
+		inner = 1
 	}
 
 	col1 := lipgloss.JoinVertical(
@@ -225,14 +247,14 @@ func (m *Model) breakdownPanel(
 			[]string{head, th.BlockStyle().Render(truncate(errStr, inner))},
 			"\n",
 		)
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 	if len(items) == 0 {
 		body := strings.Join(
 			[]string{head, th.SubtleStyle().Render("no data")},
 			"\n",
 		)
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 
 	max := items[0].count
@@ -261,7 +283,7 @@ func (m *Model) breakdownPanel(
 		count := th.TextStyle().Render(padLeft(formatCount(it.count), countW))
 		rows = append(rows, fmt.Sprintf("%s %s %s", label, bar, count))
 	}
-	return panelBox(th).Width(inner).Render(strings.Join(rows, "\n"))
+	return card(th, inner, strings.Join(rows, "\n"))
 }
 
 // listPanel renders a ranked label/count list.
@@ -279,14 +301,14 @@ func (m *Model) listPanel(
 			[]string{head, th.BlockStyle().Render(truncate(errStr, inner))},
 			"\n",
 		)
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 	if len(items) == 0 {
 		body := strings.Join(
 			[]string{head, th.SubtleStyle().Render("no data")},
 			"\n",
 		)
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 
 	countW := 0
@@ -307,7 +329,7 @@ func (m *Model) listPanel(
 		count := th.AccentStyle().Render(padLeft(formatCount(it.count), countW))
 		rows = append(rows, label+" "+count)
 	}
-	return panelBox(th).Width(inner).Render(strings.Join(rows, "\n"))
+	return card(th, inner, strings.Join(rows, "\n"))
 }
 
 func padRight(s string, w int) string {
