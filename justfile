@@ -82,6 +82,64 @@ check: lint test
 clean:
     rm -rf bin coverage.out
 
+# Delete local branches already merged into origin/main. Uses a content
+# check (cherry-pick equivalence) so squash- and merge-commit-merged PRs
+# are caught — plain `git branch --merged` misses those, which is how
+# stale branches pile up. Pass `just prune-branches dry` to preview only.
+prune-branches MODE="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ "{{ MODE }}" != "" && "{{ MODE }}" != "dry" ]]; then
+        echo "Usage: just prune-branches [dry]"; exit 1
+    fi
+    git fetch --prune origin >/dev/null 2>&1 || true
+    # Resolve the repo's default branch instead of hardcoding "main".
+    base=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD \
+        2>/dev/null || echo origin/main)
+    if ! git rev-parse --verify "$base" >/dev/null 2>&1; then
+        echo "Error: base ref '$base' does not resolve" >&2; exit 1
+    fi
+    base_local="${base#origin/}"
+    current=$(git rev-parse --abbrev-ref HEAD)
+    merged=()
+    while IFS= read -r b; do
+        [[ "$b" == "$base_local" ]] && continue
+        [[ "$b" == "$current" ]] && continue
+        # Empty output = every commit on $b is already in $base.
+        # A nonzero exit means the comparison itself failed (e.g. bad
+        # ref) — that must NOT be treated as "merged".
+        out=$(git rev-list --cherry-pick --right-only \
+            --no-merges "$base...$b") && status=0 || status=$?
+        if [[ $status -ne 0 ]]; then
+            echo "Error: failed to diff '$b' against '$base'" >&2
+            exit 1
+        fi
+        if [[ -z "$out" ]]; then
+            merged+=("$b")
+        fi
+    done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+    if [[ ${#merged[@]} -eq 0 ]]; then
+        echo "No merged branches to prune."; exit 0
+    fi
+    if [[ "{{ MODE }}" == "dry" ]]; then
+        echo "Would delete:"; printf '  %s\n' "${merged[@]}"; exit 0
+    fi
+    deleted=()
+    failed=()
+    for b in "${merged[@]}"; do
+        if git branch -D "$b"; then
+            deleted+=("$b")
+        else
+            failed+=("$b")
+        fi
+    done
+    echo ""
+    echo "Deleted ${#deleted[@]} branch(es)."
+    if [[ ${#failed[@]} -gt 0 ]]; then
+        echo "Failed to delete:"; printf '  %s\n' "${failed[@]}"
+        exit 1
+    fi
+
 # ─── Release ─────────────────────────────────────────────────────
 
 # Regenerate site/src/changelog.js from repo-root CHANGELOG.md
