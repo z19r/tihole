@@ -54,7 +54,7 @@ func (m *Model) gaugeCell(
 	val := th.TextStyle().Bold(true).Render(truncate(value, inner))
 	bar.SetWidth(inner)
 	body := strings.Join([]string{lbl, val, bar.View()}, "\n")
-	return panelBox(th).Width(inner).Render(body)
+	return card(th, inner, body)
 }
 
 // tempCell renders the temperature gauge, or a muted "n/a" line when the host
@@ -67,7 +67,7 @@ func (m *Model) tempCell(inner int) string {
 			th.SubtleStyle().Render("n/a"),
 			th.SubtleStyle().Render("no sensor"),
 		}, "\n")
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 	unit := m.sensors.Unit
 	if unit == "" {
@@ -93,7 +93,7 @@ func (m *Model) loadCell(inner int) string {
 		inner,
 	))
 	body := strings.Join([]string{lbl, load, sub}, "\n")
-	return panelBox(th).Width(inner).Render(body)
+	return card(th, inner, body)
 }
 
 // diagnosticsCell renders FTL's active diagnosis state: a green all-clear badge
@@ -107,13 +107,13 @@ func (m *Model) diagnosticsCell(inner int) string {
 		val := th.WarnStyle().Bold(true).Render("? unknown")
 		sub := th.SubtleStyle().Render(truncate(m.errMessages, inner))
 		body := strings.Join([]string{lbl, val, sub}, "\n")
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 
 	case len(m.messages) == 0:
 		val := th.AllowStyle().Bold(true).Render("✓ All clear")
 		sub := th.SubtleStyle().Render("0 messages")
 		body := strings.Join([]string{lbl, val, sub}, "\n")
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 
 	default:
 		val := th.WarnStyle().
@@ -121,6 +121,6 @@ func (m *Model) diagnosticsCell(inner int) string {
 			Render(truncate(pluralIssues(len(m.messages)), inner))
 		sub := th.BlockStyle().Render(truncate(m.messages[0].Plain, inner))
 		body := strings.Join([]string{lbl, val, sub}, "\n")
-		return panelBox(th).Width(inner).Render(body)
+		return card(th, inner, body)
 	}
 }
