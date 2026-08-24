@@ -1,6 +1,6 @@
 // Package querylog implements the PiHole v6 query-log screen: a
 // cursor-paginated
-// results table with /-triggered domain search, a row-detail pane, live ~2s
+// results table with /-triggered domain search, a row-detail pane, live ~250ms
 // polling while focused, and an inline error banner. It satisfies core.Screen.
 package querylog
 
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	pollInterval = 2 * time.Second
+	pollInterval = 250 * time.Millisecond
 	fetchTimeout = 8 * time.Second
 
 	headerHeight = 2 // title/chip line + spacer
