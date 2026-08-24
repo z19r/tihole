@@ -38,6 +38,13 @@ type Theme struct {
 	// not set it. The Gloss theme fills it with its pink→purple→acid→cyan ramp.
 	Ramp []color.Color
 
+	// Animated marks a theme whose tokens change on every call even though
+	// Name stays constant (Party is the only one today). Screens that cache
+	// a rebuild behind "has Theme.Name changed?" must also check this, or an
+	// animated theme's colors freeze at whatever they were on the first
+	// cached frame.
+	Animated bool
+
 	// adapt, when non-nil, lets a theme return a mode-specific variant from
 	// Adapt(isDark). Built-in themes are committed to a single mode and leave
 	// this nil (Adapt returns the receiver unchanged).

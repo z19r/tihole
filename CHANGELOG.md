@@ -9,9 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.1] - 2026-08-24
 
+### Changed
+
+- Release tooling now pushes `main` and the release tag automatically as
+  part of `just release`.
+
 ## [1.2.0] - 2026-08-24
 
+### Changed
+
+- Dashboard and query log now poll four times a second for snappier
+  updates.
+
+### Fixed
+
+- Health gauge bars on the dashboard no longer wrap onto a second line.
+
 ## [1.1.0] - 2026-08-06
+
+### Added
+
+- Rich per-setting detail panel on the settings screen.
+
+### Fixed
+
+- Dashboard panels now size to their exact content width instead of
+  over- or under-sizing.
 
 ## [1.0.0-beta.1] - 2026-07-26
 

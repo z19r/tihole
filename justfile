@@ -161,6 +161,18 @@ release LEVEL:
     if [[ "$BRANCH" != "main" ]]; then
         echo "Error: release must run from main (on $BRANCH)"; exit 1
     fi
+    # Refuse to promote an empty [Unreleased] section — this is what let
+    # v1.1.0, v1.2.0, and v1.2.1 ship with no changelog content.
+    UNRELEASED=$(awk '
+        /^## \[Unreleased\]/ { found=1; next }
+        found && /^## \[/ { exit }
+        found && /^- / { print; exit }
+    ' CHANGELOG.md)
+    if [[ -z "$UNRELEASED" ]]; then
+        echo "Error: [Unreleased] section in CHANGELOG.md is empty."
+        echo "Add changelog entries before releasing."
+        exit 1
+    fi
     # Release quality gate.
     go build ./...
     go vet ./...
@@ -220,6 +232,17 @@ prerelease:
     BRANCH=$(git rev-parse --abbrev-ref HEAD)
     if [[ "$BRANCH" != "main" ]]; then
         echo "Error: prerelease must run from main (on $BRANCH)"; exit 1
+    fi
+    # Refuse to promote an empty [Unreleased] section.
+    UNRELEASED=$(awk '
+        /^## \[Unreleased\]/ { found=1; next }
+        found && /^## \[/ { exit }
+        found && /^- / { print; exit }
+    ' CHANGELOG.md)
+    if [[ -z "$UNRELEASED" ]]; then
+        echo "Error: [Unreleased] section in CHANGELOG.md is empty."
+        echo "Add changelog entries before releasing."
+        exit 1
     fi
     # Release quality gate.
     go build ./...

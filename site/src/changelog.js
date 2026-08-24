@@ -2,6 +2,54 @@
 // Source of truth: repo-root CHANGELOG.md.
 window.TIHOLE_CHANGELOG = [
   {
+    "ver": "1.2.1",
+    "date": "2026-08-24",
+    "sections": [
+      {
+        "name": "changed",
+        "bullets": [
+          "Release tooling now pushes `main` and the release tag automatically as part of `just release`."
+        ]
+      }
+    ]
+  },
+  {
+    "ver": "1.2.0",
+    "date": "2026-08-24",
+    "sections": [
+      {
+        "name": "changed",
+        "bullets": [
+          "Dashboard and query log now poll four times a second for snappier updates."
+        ]
+      },
+      {
+        "name": "fixed",
+        "bullets": [
+          "Health gauge bars on the dashboard no longer wrap onto a second line."
+        ]
+      }
+    ]
+  },
+  {
+    "ver": "1.1.0",
+    "date": "2026-08-06",
+    "sections": [
+      {
+        "name": "added",
+        "bullets": [
+          "Rich per-setting detail panel on the settings screen."
+        ]
+      },
+      {
+        "name": "fixed",
+        "bullets": [
+          "Dashboard panels now size to their exact content width instead of over- or under-sizing."
+        ]
+      }
+    ]
+  },
+  {
     "ver": "1.0.0-beta.1",
     "date": "2026-07-26",
     "sections": [

@@ -30,6 +30,7 @@ binaries and publish the GitHub release.
 | `.goreleaser.yaml` | Build matrix, archives, checksums, GitHub release. |
 | `.github/workflows/ci.yml` | Build + vet + test on push/PR. |
 | `.github/workflows/release.yml` | goreleaser on tag push `v*`. |
+| `scripts/backfill-changelog.sh` | Drafts and inserts entries for version headings that shipped with no changelog content, and re-syncs the site. |
 
 ## Local flow: `just release <level>`
 
@@ -38,6 +39,9 @@ Preconditions enforced by the recipe:
 - clean working tree
 - on the `main` branch
 - `VERSION` and `CHANGELOG.md` present
+- `## [Unreleased]` has at least one bullet — an empty `[Unreleased]`
+  aborts the release rather than shipping a version with no changelog
+  content (this is what let v1.1.0, v1.2.0, and v1.2.1 go out empty)
 
 Steps performed:
 
@@ -91,6 +95,25 @@ To regenerate the site changelog without cutting a release:
 ```text
 just changelog-sync
 ```
+
+## Recovering a missed changelog entry
+
+If a version was tagged with an empty section in `CHANGELOG.md` (and is
+therefore also missing from `site/src/changelog.js`, since
+`changelog-sync` skips sections with no bullets), draft and backfill it:
+
+```text
+scripts/backfill-changelog.sh            # dry run: prints a draft per
+                                          # empty version, built from the
+                                          # conventional-commit messages
+                                          # between that version's tag and
+                                          # the previous one
+scripts/backfill-changelog.sh --write    # insert the draft and re-run
+                                          # changelog-sync
+```
+
+Review the draft (or the diff after `--write`) before committing — it's a
+starting point assembled from raw commit subjects, not curated prose.
 
 ## Verifying goreleaser config locally
 
