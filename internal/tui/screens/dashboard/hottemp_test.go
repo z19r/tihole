@@ -12,14 +12,20 @@ import (
 func TestMaybePromptHotLimit_ShowsOnceAtFactoryDefault(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.sensors = pihole.Sensors{HasTemp: true, Unit: "C", HotLimit: hotLimitDefault}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		Unit:     "C",
+		HotLimit: hotLimitDefault,
+	}
 
 	// Act
 	m.maybePromptHotLimit()
 
 	// Assert
 	if !m.hotTempPrompt.Active {
-		t.Fatal("expected the hot-temperature prompt to show at the factory default")
+		t.Fatal(
+			"expected the hot-temperature prompt to show at the factory default",
+		)
 	}
 	if !m.hotTempPrompted {
 		t.Fatal("expected hotTempPrompted to latch")
@@ -30,7 +36,9 @@ func TestMaybePromptHotLimit_ShowsOnceAtFactoryDefault(t *testing.T) {
 	m.hotTempPrompt = m.hotTempPrompt.Hide()
 	m.maybePromptHotLimit()
 	if m.hotTempPrompt.Active {
-		t.Fatal("expected the prompt to stay hidden once already shown this session")
+		t.Fatal(
+			"expected the prompt to stay hidden once already shown this session",
+		)
 	}
 }
 
@@ -55,7 +63,11 @@ func TestCapturesInput_TracksHotTempPrompt(t *testing.T) {
 	if m.CapturesInput() {
 		t.Fatal("should not capture input before the prompt is shown")
 	}
-	m.sensors = pihole.Sensors{HasTemp: true, Unit: "C", HotLimit: hotLimitDefault}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		Unit:     "C",
+		HotLimit: hotLimitDefault,
+	}
 	m.maybePromptHotLimit()
 	if !m.CapturesInput() {
 		t.Fatal("should capture input while the prompt is active")
@@ -65,7 +77,11 @@ func TestCapturesInput_TracksHotTempPrompt(t *testing.T) {
 func TestHandleHotTempKey_DeclineHidesWithoutPatching(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.sensors = pihole.Sensors{HasTemp: true, Unit: "C", HotLimit: hotLimitDefault}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		Unit:     "C",
+		HotLimit: hotLimitDefault,
+	}
 	m.maybePromptHotLimit()
 
 	// Act
@@ -83,7 +99,11 @@ func TestHandleHotTempKey_DeclineHidesWithoutPatching(t *testing.T) {
 func TestHandleHotTempKey_ConfirmHidesAndReturnsPatchCmd(t *testing.T) {
 	// Arrange
 	m := newTestModel()
-	m.sensors = pihole.Sensors{HasTemp: true, Unit: "C", HotLimit: hotLimitDefault}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		Unit:     "C",
+		HotLimit: hotLimitDefault,
+	}
 	m.maybePromptHotLimit()
 
 	// Act
@@ -103,7 +123,11 @@ func TestUpdate_HotTempKeyTakesPrecedenceOverRefresh(t *testing.T) {
 	// intercept it instead since 'r' isn't a bound key on the dialog.
 	m := newTestModel()
 	m.Focus()
-	m.sensors = pihole.Sensors{HasTemp: true, Unit: "C", HotLimit: hotLimitDefault}
+	m.sensors = pihole.Sensors{
+		HasTemp:  true,
+		Unit:     "C",
+		HotLimit: hotLimitDefault,
+	}
 	m.maybePromptHotLimit()
 
 	// Act
@@ -111,7 +135,10 @@ func TestUpdate_HotTempKeyTakesPrecedenceOverRefresh(t *testing.T) {
 
 	// Assert
 	if !m.hotTempPrompt.Active {
-		t.Fatal("an unbound key should leave the prompt showing, not fall through to refresh")
+		t.Fatal(
+			"an unbound key should leave the prompt showing, " +
+				"not fall through to refresh",
+		)
 	}
 }
 
@@ -140,7 +167,10 @@ func TestUpdate_HotLimitPatchMsgErrorRecordedOnErrSystem(t *testing.T) {
 
 	// Assert
 	if m.errSystem != errBoom.Error() {
-		t.Fatalf("expected errSystem to record the patch failure, got %q", m.errSystem)
+		t.Fatalf(
+			"expected errSystem to record the patch failure, got %q",
+			m.errSystem,
+		)
 	}
 	if cmd != nil {
 		t.Fatal("a failed patch should not trigger a refetch")

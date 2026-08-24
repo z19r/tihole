@@ -47,11 +47,11 @@ const (
 // hotTempPromptMessage explains why hotLimitDefault trips false "hot"
 // warnings and what raising it to hotLimitSuggested buys instead. Wrapped by
 // hand since components.ConfirmDialog doesn't wrap its body text.
-const hotTempPromptMessage = `Pi-hole's hot-temperature threshold is 60°C, but most
-single-board computers idle in the 45-60°C range and
-routinely reach 60-70°C under normal load — so 60°C
-trips false "hot" warnings on the health gauge. Raise
-it to 85°C, closer to where these CPUs actually throttle?`
+const hotTempPromptMessage = `Pi-hole's hot-temperature threshold is
+60°C, but most single-board computers idle in the 45-60°C range
+and routinely reach 60-70°C under normal load — so 60°C trips
+false "hot" warnings on the health gauge. Raise it to 85°C,
+closer to where these CPUs actually throttle?`
 
 // tickMsg drives the poll loop. epoch is captured when the tick is scheduled so
 // stale ticks left over from a previous Focus are ignored.
@@ -312,7 +312,10 @@ func (m *Model) patchHotLimit() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		return hotLimitPatchMsg{epoch: epoch, err: api.PatchConfig(ctx, patch, false)}
+		return hotLimitPatchMsg{
+			epoch: epoch,
+			err:   api.PatchConfig(ctx, patch, false),
+		}
 	}
 }
 
