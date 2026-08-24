@@ -1,5 +1,6 @@
 {
   "editor.rulers": [80],
+  "go.useLanguageServer": true,
   "[go]": {
     "editor.rulers": [80],
     "editor.formatOnSave": true,

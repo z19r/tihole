@@ -1,6 +1,6 @@
 // Package dashboard implements the PiHole v6 overview Screen: summary stat
 // tiles, a queries-over-time sparkline, query-type/upstream breakdowns and top
-// domain/client/blocked lists. It polls the FTL API roughly every five seconds
+// domain/client/blocked lists. It polls the FTL API roughly four times a second
 // while focused and renders every panel defensively so a single failing request
 // never blanks the screen.
 package dashboard
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	pollInterval = 5 * time.Second
+	pollInterval = 250 * time.Millisecond
 	fetchTimeout = 8 * time.Second
 	topCount     = 8
 	sparkHeight  = 1
