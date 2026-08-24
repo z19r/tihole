@@ -205,7 +205,8 @@ release LEVEL:
     git tag "v${NEW}"
     echo ""
     echo "Committed and tagged v${NEW}."
-    echo "Push with: git push origin main && git push origin v${NEW}"
+    git push origin main
+    git push origin "v${NEW}"
 
 # Cut a prerelease (beta) of the CURRENT VERSION: vX.Y.Z-beta.N.
 # The beta number auto-increments from existing tags. VERSION is left
@@ -264,3 +265,5 @@ prerelease:
     echo ""
     echo "Committed and tagged v${PRE} (VERSION stays ${BASE})."
     echo "Push with: git push origin main && git push origin v${PRE}"
+    git push origin main
+    git push origin "v${PRE}"
