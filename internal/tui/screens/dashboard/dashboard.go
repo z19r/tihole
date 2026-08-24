@@ -217,7 +217,7 @@ func newHealthGauge(th *theme.Theme) progress.Model {
 // colors track the live palette. Current targets are preserved so values don't
 // jump.
 func (m *Model) syncBarTheme() {
-	if m.barTheme == m.ctx.Theme.Name {
+	if m.barTheme == m.ctx.Theme.Name && !m.ctx.Theme.Animated {
 		return
 	}
 	block, cpu, mem, temp := m.blockBar.Percent(), m.cpuBar.Percent(), m.memBar.Percent(), m.tempBar.Percent()

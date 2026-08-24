@@ -43,6 +43,11 @@ const (
 	// always-on top-bar pill reflects external changes (a toggle from the web
 	// UI, an expiring temporary-disable timer) without the user acting.
 	blockPollInterval = 10 * time.Second
+
+	// partyTickInterval drives the Konami-code rainbow theme's animation once
+	// active. Fast enough to read as smooth motion, matching the boot
+	// splash/spinner cadence rather than the multi-second data-poll ones.
+	partyTickInterval = 50 * time.Millisecond
 )
 
 // splashDoneMsg fires when the boot splash's timer elapses.
@@ -51,6 +56,10 @@ type splashDoneMsg struct{}
 // blockPollMsg is the recurring tick that drives a background blocking
 // re-fetch.
 type blockPollMsg struct{}
+
+// partyTickMsg is the recurring tick that advances the Konami-code rainbow
+// theme while it's active.
+type partyTickMsg struct{}
 
 // blockingResultMsg carries a fresh blocking status.
 type blockingResultMsg struct{ status pihole.BlockingStatus }
@@ -90,6 +99,13 @@ type AppModel struct {
 
 	block components.BlockState
 	err   string
+
+	// konami/party back the Konami-code easter egg: entering the sequence
+	// toggles a wall-clock-driven rainbow theme, restoring the prior theme on
+	// re-entry. See handleKey and the partyTickMsg case in Update.
+	konami    core.KonamiDetector
+	party     bool
+	prevTheme *theme.Theme
 }
 
 // New builds the root model from a validated config and an authenticated
@@ -248,6 +264,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case partyTickMsg:
+		if !m.party {
+			return m, nil
+		}
+		m.ctx.Theme = theme.Party()
+		return m, partyTickCmd()
+
 	case blockPollMsg:
 		// Re-fetch in the background and reschedule the next tick. The pill
 		// keeps
@@ -300,6 +323,8 @@ func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	// screen
 	// binds. Everything else is zone-scoped so screen keys are never ambushed.
 	switch {
+	case m.konami.Feed(msg.String()):
+		return m.toggleParty(), true
 	case key.Matches(msg, k.Quit):
 		return tea.Quit, true
 	case key.Matches(msg, k.Help):
@@ -533,6 +558,30 @@ func (m *AppModel) cycleTheme() tea.Cmd {
 		}
 	}
 	return themeCmd(names[(cur+1)%len(names)])
+}
+
+// toggleParty flips the Konami-code easter egg: on entry it stashes the
+// live theme and starts the rainbow ticker; on exit it restores what was
+// showing before, re-adapted in case light/dark detection changed while it
+// ran.
+func (m *AppModel) toggleParty() tea.Cmd {
+	m.party = !m.party
+	if m.party {
+		m.prevTheme = m.ctx.Theme
+		m.ctx.Theme = theme.Party()
+		return partyTickCmd()
+	}
+	m.ctx.Theme = m.prevTheme.Adapt(m.isDark)
+	m.prevTheme = nil
+	return nil
+}
+
+// partyTickCmd schedules the next rainbow-theme animation frame.
+func partyTickCmd() tea.Cmd {
+	return tea.Tick(
+		partyTickInterval,
+		func(time.Time) tea.Msg { return partyTickMsg{} },
+	)
 }
 
 // themeCmd resolves a theme by name and emits a SetThemeMsg (or an ErrorMsg).
