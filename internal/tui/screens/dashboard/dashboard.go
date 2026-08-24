@@ -20,6 +20,7 @@ import (
 
 	"github.com/z19r/tihole/internal/pihole"
 	"github.com/z19r/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/tui/components"
 	"github.com/z19r/tihole/internal/tui/core"
 )
 
@@ -33,7 +34,24 @@ const (
 	// hot is amber, at/above hot is red.
 	healthWarnFrac = 0.60
 	healthHotFrac  = 0.85
+
+	// hotLimitDefault is Pi-hole's factory-default hot-temperature threshold
+	// (misc.temp.limit, °C). It's low enough that many SBCs trip it under
+	// normal load, so the dashboard offers to raise it once per session.
+	hotLimitDefault = 60.0
+	// hotLimitSuggested is the value offered in place of hotLimitDefault,
+	// closer to where these CPUs actually throttle.
+	hotLimitSuggested = 85.0
 )
+
+// hotTempPromptMessage explains why hotLimitDefault trips false "hot"
+// warnings and what raising it to hotLimitSuggested buys instead. Wrapped by
+// hand since components.ConfirmDialog doesn't wrap its body text.
+const hotTempPromptMessage = `Pi-hole's hot-temperature threshold is 60°C, but most
+single-board computers idle in the 45-60°C range and
+routinely reach 60-70°C under normal load — so 60°C
+trips false "hot" warnings on the health gauge. Raise
+it to 85°C, closer to where these CPUs actually throttle?`
 
 // tickMsg drives the poll loop. epoch is captured when the tick is scheduled so
 // stale ticks left over from a previous Focus are ignored.
@@ -84,6 +102,14 @@ type systemMsg struct {
 	msgErr   error
 }
 
+// hotLimitPatchMsg carries the result of raising the hot-temperature
+// threshold, tagged with the epoch so a reply from a since-blurred screen is
+// dropped.
+type hotLimitPatchMsg struct {
+	epoch int
+	err   error
+}
+
 // Model is the dashboard Screen.
 type Model struct {
 	ctx *core.AppContext
@@ -112,6 +138,12 @@ type Model struct {
 	system    pihole.SystemInfo
 	sensors   pihole.Sensors
 	messages  []pihole.DiagnosisMessage
+
+	// hotTempPrompt offers to raise hotLimitDefault to hotLimitSuggested; once
+	// shown (accepted or declined) hotTempPrompted latches so it doesn't nag
+	// again for the rest of the session.
+	hotTempPrompt   components.ConfirmDialog
+	hotTempPrompted bool
 
 	errSummary   string
 	errHistory   string
@@ -208,6 +240,7 @@ func (m *Model) applySystem(msg systemMsg) tea.Cmd {
 	if msg.senErr == nil {
 		m.sensors = msg.sensors
 	}
+	m.maybePromptHotLimit()
 	if msg.msgErr != nil {
 		m.errMessages = msg.msgErr.Error()
 	} else {
@@ -227,6 +260,60 @@ func (m *Model) applySystem(msg systemMsg) tea.Cmd {
 		)
 	}
 	return tea.Batch(cmds...)
+}
+
+// maybePromptHotLimit shows the hot-temperature-threshold suggestion the
+// first time the live sensors report Pi-hole's untouched factory default, so
+// a Celsius host with the stock 60°C limit is asked once per session whether
+// to raise it to hotLimitSuggested.
+func (m *Model) maybePromptHotLimit() {
+	if m.hotTempPrompted || !m.sensors.HasTemp || m.sensors.Unit != "C" ||
+		m.sensors.HotLimit != hotLimitDefault {
+		return
+	}
+	m.hotTempPrompted = true
+	m.hotTempPrompt = m.hotTempPrompt.Show(
+		"Raise hot-temperature threshold?",
+		hotTempPromptMessage,
+		false,
+	)
+}
+
+// CapturesInput reports true while the hot-temperature prompt is showing, so
+// the root delivers raw y/n keys instead of firing global shortcuts (see
+// core.InputCapturer). The dashboard is otherwise non-interactive.
+func (m *Model) CapturesInput() bool { return m.hotTempPrompt.Active }
+
+// handleHotTempKey interprets y/n on the hot-temperature-threshold prompt.
+func (m *Model) handleHotTempKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "enter":
+		m.hotTempPrompt = m.hotTempPrompt.Hide()
+		return m, m.patchHotLimit()
+	case "n", "esc":
+		m.hotTempPrompt = m.hotTempPrompt.Hide()
+	}
+	return m, nil
+}
+
+// patchHotLimit raises FTL's hot-temperature threshold (misc.temp.limit) to
+// hotLimitSuggested via PATCH /config.
+func (m *Model) patchHotLimit() tea.Cmd {
+	if m.ctx == nil || m.ctx.API == nil {
+		return nil
+	}
+	api := m.ctx.API
+	epoch := m.epoch
+	patch := map[string]any{
+		"misc": map[string]any{
+			"temp": map[string]any{"limit": hotLimitSuggested},
+		},
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		defer cancel()
+		return hotLimitPatchMsg{epoch: epoch, err: api.PatchConfig(ctx, patch, false)}
+	}
 }
 
 // clampFrac constrains a gauge fraction to [0,1].
@@ -309,9 +396,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.fetchAll(), m.tick())
 
 	case tea.KeyPressMsg:
+		if m.hotTempPrompt.Active {
+			return m.handleHotTempKey(msg)
+		}
 		if m.focused && msg.String() == "r" {
 			return m, m.fetchAll()
 		}
+
+	case hotLimitPatchMsg:
+		if msg.epoch != m.epoch {
+			return m, nil
+		}
+		if msg.err != nil {
+			m.errSystem = msg.err.Error()
+			return m, nil
+		}
+		return m, m.fetchAll()
 
 	case summaryMsg:
 		if msg.epoch != m.epoch {
@@ -537,6 +637,10 @@ func (m *Model) View() tea.View {
 			Render("Loading dashboard…")
 		body := lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, msg)
 		return tea.NewView(surface.Render(body))
+	}
+
+	if m.hotTempPrompt.Active {
+		return tea.NewView(surface.Render(m.hotTempPrompt.Render(th, m.w, m.h)))
 	}
 
 	sections := []string{
