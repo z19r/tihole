@@ -14,7 +14,9 @@ func feedAll(t *testing.T, keys ...string) bool {
 
 func TestKonamiDetectorFullSequenceCompletes(t *testing.T) {
 	if !feedAll(t, konamiSequence...) {
-		t.Error("expected the full sequence to report completion on the last key")
+		t.Error(
+			"expected the full sequence to report completion on the last key",
+		)
 	}
 }
 
@@ -57,7 +59,9 @@ func TestKonamiDetectorMismatchThatEqualsFirstKeyReloads(t *testing.T) {
 		done = d.Feed(k)
 	}
 	if !done {
-		t.Error("expected re-feeding from the second key onward to still complete")
+		t.Error(
+			"expected re-feeding from the second key onward to still complete",
+		)
 	}
 }
 
@@ -67,7 +71,9 @@ func TestKonamiDetectorIsReusableAfterCompletion(t *testing.T) {
 		d.Feed(k)
 	}
 	if !feedAll(t, konamiSequence...) {
-		t.Error("expected the detector to be triggerable again after completing once")
+		t.Error(
+			"expected the detector to be triggerable again after completing once",
+		)
 	}
 }
 

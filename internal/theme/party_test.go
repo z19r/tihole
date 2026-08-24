@@ -54,7 +54,12 @@ func TestHSVToRGBKnownHues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := hsvToRGB(tc.hue, 1, 1).(color.RGBA)
 			if got != tc.want {
-				t.Errorf("hsvToRGB(%v, 1, 1) = %+v, want %+v", tc.hue, got, tc.want)
+				t.Errorf(
+					"hsvToRGB(%v, 1, 1) = %+v, want %+v",
+					tc.hue,
+					got,
+					tc.want,
+				)
 			}
 		})
 	}

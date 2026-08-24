@@ -49,10 +49,14 @@ func TestKonamiCodeTogglesPartyMode(t *testing.T) {
 		t.Error("expected the party theme to be Animated")
 	}
 	if m.prevTheme != original {
-		t.Error("expected prevTheme to stash the theme active before party mode")
+		t.Error(
+			"expected prevTheme to stash the theme active before party mode",
+		)
 	}
 	if lastCmd == nil {
-		t.Error("expected toggling party mode on to schedule the animation ticker")
+		t.Error(
+			"expected toggling party mode on to schedule the animation ticker",
+		)
 	}
 }
 
@@ -68,10 +72,16 @@ func TestKonamiCodeAgainRestoresPreviousTheme(t *testing.T) {
 	}
 
 	if m.party {
-		t.Fatal("expected party mode to be disabled after a second full sequence")
+		t.Fatal(
+			"expected party mode to be disabled after a second full sequence",
+		)
 	}
 	if m.ctx.Theme.Name != original.Name {
-		t.Errorf("expected theme restored to %q, got %q", original.Name, m.ctx.Theme.Name)
+		t.Errorf(
+			"expected theme restored to %q, got %q",
+			original.Name,
+			m.ctx.Theme.Name,
+		)
 	}
 	if m.prevTheme != nil {
 		t.Error("expected prevTheme to be cleared once party mode ends")
@@ -137,7 +147,11 @@ func TestPartyTickMsgAnimatesAndReschedulesWhilePartying(t *testing.T) {
 		t.Error("expected the tick to regenerate the theme instance")
 	}
 	if got.ctx.Theme.Name != theme.NameParty {
-		t.Errorf("expected theme to stay %q, got %q", theme.NameParty, got.ctx.Theme.Name)
+		t.Errorf(
+			"expected theme to stay %q, got %q",
+			theme.NameParty,
+			got.ctx.Theme.Name,
+		)
 	}
 	if cmd == nil {
 		t.Error("expected the tick to reschedule itself while partying")
