@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.5
-	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/charmbracelet/x/ansi v0.11.8
 	gopkg.in/yaml.v3 v3.0.1
 )
 
