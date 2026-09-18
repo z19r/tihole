@@ -123,3 +123,15 @@ If goreleaser is installed:
 goreleaser check
 goreleaser release --snapshot --clean   # dry run, no publish
 ```
+
+## Verifying release provenance
+
+The release workflow signs a SLSA build-provenance attestation over
+`dist/checksums.txt`, which covers every published archive. Anyone can
+verify a downloaded artifact:
+
+```
+gh attestation verify tihole_1.2.3_linux_amd64.tar.gz --repo z19r/tihole
+```
+
+Attestations only exist for tags released after this workflow step landed.
