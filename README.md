@@ -1,5 +1,7 @@
 # tihole
 
+[![Monitored by Cooper&Wright](https://img.shields.io/badge/monitored%20by-Cooper%26Wright-8a6a3b?style=flat-square)](https://cooperwright.com)
+
 [![CI](https://github.com/z19r/tihole/actions/workflows/ci.yml/badge.svg)](https://github.com/z19r/tihole/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/z19r/tihole.svg)](https://pkg.go.dev/github.com/z19r/tihole)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
