@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-28
+
+### Changed
+
+- cut releases through a PR like whetstone (#26)
+- bump charm.land/bubbletea/v2 from 2.0.10 to 2.1.0 (#23)
+- bump charm.land/bubbletea/v2 from 2.0.9 to 2.0.10 (#22)
+- bump actions/attest-build-provenance from 3 to 4 (#21)
+- attest release build provenance (#20)
+- bump goreleaser/goreleaser-action from 6 to 7 (#13)
+- bump actions/checkout from 4 to 7 (#16)
+- bump charm.land/bubbles/v2 from 2.1.1 to 2.2.1 (#15)
+- bump actions/setup-go from 5 to 7 (#14)
+- bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6 (#17)
+- bump charm.land/bubbletea/v2 from 2.0.8 to 2.0.9 (#19)
+
 ## [1.2.1] - 2026-08-24
 
 ### Changed
@@ -73,9 +89,10 @@ binaries for linux and darwin on amd64/arm64, for testing ahead of the
   failures.
 - ASCII boot splash shown before the dashboard.
 
-[Unreleased]: https://github.com/z19r/tihole/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/z19r/tihole/compare/v1.3.0...HEAD
 [1.0.0-beta.1]: https://github.com/z19r/tihole/releases/tag/v1.0.0-beta.1
 [1.0.0]: https://github.com/z19r/tihole/releases/tag/v1.0.0
 [1.1.0]: https://github.com/z19r/tihole/releases/tag/v1.1.0
 [1.2.0]: https://github.com/z19r/tihole/releases/tag/v1.2.0
 [1.2.1]: https://github.com/z19r/tihole/releases/tag/v1.2.1
+[1.3.0]: https://github.com/z19r/tihole/releases/tag/v1.3.0
