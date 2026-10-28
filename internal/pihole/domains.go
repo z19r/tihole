@@ -58,6 +58,13 @@ type domainRequest struct {
 	Enabled bool   `json:"enabled"`
 }
 
+// addDomainRequest is the body of a domain create. FTL requires the item in
+// the payload on POST and rejects it as a URI segment.
+type addDomainRequest struct {
+	Domain string `json:"domain"`
+	domainRequest
+}
+
 // domainPath builds the /domains/{type}/{kind}/{domain} path, URL-escaping the
 // domain segment so regex patterns (which contain reserved characters) are
 // transmitted safely.
@@ -74,8 +81,8 @@ func (c *Client) Domains(ctx context.Context) ([]Domain, error) {
 	return out.Domains, nil
 }
 
-// AddDomain creates a domain via POST /api/domains/{type}/{kind}/{domain}. The
-// new entry is created enabled.
+// AddDomain creates a domain via POST /api/domains/{type}/{kind}, carrying the
+// domain in the body. The new entry is created enabled.
 func (c *Client) AddDomain(
 	ctx context.Context,
 	dt DomainType,
@@ -83,9 +90,17 @@ func (c *Client) AddDomain(
 	domain, comment string,
 	groups []int,
 ) (Domain, error) {
-	body := domainRequest{Comment: comment, Groups: groups, Enabled: true}
+	body := addDomainRequest{
+		Domain: domain,
+		domainRequest: domainRequest{
+			Comment: comment,
+			Groups:  groups,
+			Enabled: true,
+		},
+	}
+	path := fmt.Sprintf("/domains/%s/%s", dt, dk)
 	var out domainsEnvelope
-	if err := c.do(ctx, http.MethodPost, domainPath(dt, dk, domain), body, &out); err != nil {
+	if err := c.do(ctx, http.MethodPost, path, body, &out); err != nil {
 		return Domain{}, err
 	}
 	if len(out.Domains) > 0 {

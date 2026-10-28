@@ -37,10 +37,10 @@ func TestDomainsListDecodes(t *testing.T) {
 
 func TestAddDomainPostsBodyAndEchoes(t *testing.T) {
 	// Arrange
-	var gotBody domainRequest
+	var gotBody addDomainRequest
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost ||
-			r.URL.Path != "/api/domains/deny/exact/ads.example.com" {
+			r.URL.Path != "/api/domains/deny/exact" {
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
 		}
 		data, _ := io.ReadAll(r.Body)
@@ -70,6 +70,9 @@ func TestAddDomainPostsBodyAndEchoes(t *testing.T) {
 	if got.ID != 9 || got.Domain != "ads.example.com" {
 		t.Errorf("got = %+v, want id=9", got)
 	}
+	if gotBody.Domain != "ads.example.com" {
+		t.Errorf("body domain = %q, want ads.example.com", gotBody.Domain)
+	}
 	if gotBody.Comment != "junk" || !gotBody.Enabled ||
 		len(gotBody.Groups) != 1 ||
 		gotBody.Groups[0] != 1 {
@@ -77,11 +80,17 @@ func TestAddDomainPostsBodyAndEchoes(t *testing.T) {
 	}
 }
 
-func TestAddDomainRegexEscapesPath(t *testing.T) {
+// FTL rejects a POST that names the item in the URI ("Specify item in
+// payload, not as URI parameter"), so the regex must travel in the body,
+// verbatim.
+func TestAddDomainRegexSendsPatternInBody(t *testing.T) {
 	// Arrange
 	var gotRawPath string
+	var gotBody addDomainRequest
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
 		gotRawPath = r.RequestURI
+		data, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(data, &gotBody)
 		writeJSON(
 			w,
 			http.StatusCreated,
@@ -104,9 +113,11 @@ func TestAddDomainRegexEscapesPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddDomain error: %v", err)
 	}
-	want := "/api/domains/allow/regex/%28%5E%7C%5C.%29ads%5C.com$"
-	if gotRawPath != want {
-		t.Errorf("escaped path = %q, want %q", gotRawPath, want)
+	if want := "/api/domains/allow/regex"; gotRawPath != want {
+		t.Errorf("path = %q, want %q", gotRawPath, want)
+	}
+	if want := `(^|\.)ads\.com$`; gotBody.Domain != want {
+		t.Errorf("body domain = %q, want %q", gotBody.Domain, want)
 	}
 }
 
