@@ -2,6 +2,28 @@
 // Source of truth: repo-root CHANGELOG.md.
 window.TIHOLE_CHANGELOG = [
   {
+    "ver": "1.3.0",
+    "date": "2026-10-28",
+    "sections": [
+      {
+        "name": "changed",
+        "bullets": [
+          "cut releases through a PR like whetstone (#26)",
+          "bump charm.land/bubbletea/v2 from 2.0.10 to 2.1.0 (#23)",
+          "bump charm.land/bubbletea/v2 from 2.0.9 to 2.0.10 (#22)",
+          "bump actions/attest-build-provenance from 3 to 4 (#21)",
+          "attest release build provenance (#20)",
+          "bump goreleaser/goreleaser-action from 6 to 7 (#13)",
+          "bump actions/checkout from 4 to 7 (#16)",
+          "bump charm.land/bubbles/v2 from 2.1.1 to 2.2.1 (#15)",
+          "bump actions/setup-go from 5 to 7 (#14)",
+          "bump charm.land/lipgloss/v2 from 2.0.5 to 2.0.6 (#17)",
+          "bump charm.land/bubbletea/v2 from 2.0.8 to 2.0.9 (#19)"
+        ]
+      }
+    ]
+  },
+  {
     "ver": "1.2.1",
     "date": "2026-08-24",
     "sections": [
