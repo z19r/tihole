@@ -1,7 +1,12 @@
 name: Release
 
 on:
+  # Stable releases: `just release` merges a PR that changes VERSION; this
+  # run creates the tag.
   push:
+    branches: [main]
+    paths: [VERSION]
+    # Prereleases: `just prerelease` pushes a vX.Y.Z-beta.N tag directly.
     tags:
       - "v*"
 
@@ -10,18 +15,78 @@ permissions:
   id-token: write
   attestations: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  check-tag:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$(tr -d '[:space:]' < VERSION)"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists; continuing in recovery mode"
+          else
+            echo "Will create release ${TAG}"
+          fi
+
+  verify:
+    name: Verify release commit
+    needs: check-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: extractions/setup-just@v4
+
+      - name: Release check
+        run: just release-check
+
   goreleaser:
     name: goreleaser
+    needs: [check-tag, verify]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      # A tag pushed with GITHUB_TOKEN does not start another workflow run,
+      # so creating it here cannot double-release.
+      - name: Create tag if needed
+        env:
+          TAG: ${{ needs.check-tag.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
           cache: true
 
       - name: Run goreleaser
