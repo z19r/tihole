@@ -62,6 +62,16 @@ function FAQ() {
       ),
     },
     {
+      q: "Is there a phone app?",
+      a: (
+        <React.Fragment>
+          Yes. <a href="https://tihole-ios.z19r.com" target="_blank"
+          rel="noreferrer">tihole for iOS</a> is a native iPhone and iPad
+          port with the same screens, themes and Pi-hole v6 API, for $4.99.
+        </React.Fragment>
+      ),
+    },
+    {
       q: "Does it phone home?",
       a: (
         <React.Fragment>
