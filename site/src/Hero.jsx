@@ -109,6 +109,18 @@ function Hero() {
             <a className="ws-btn ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer" data-umami-event="hero-github-star">
               STAR ON GITHUB ↗
             </a>
+            <a
+              className="ws-btn ws-btn--ghost"
+              href="https://tihole-ios.z19r.com"
+              target="_blank"
+              rel="noreferrer"
+              data-umami-event="hero-ios-app"
+            >
+              <span>
+                GET THE{" "}
+                <span style={{ textTransform: "none" }}>iOS</span> APP ↗
+              </span>
+            </a>
           </div>
 
         </div>

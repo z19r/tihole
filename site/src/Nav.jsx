@@ -57,6 +57,15 @@ function Nav({ theme, onToggleTheme }) {
           <span className="dot"></span>
           {isLight ? 'LIGHT' : 'NIGHT'}
         </button>
+        <a
+          className="ws-btn ws-btn--sm ws-btn--ghost"
+          href="https://tihole-ios.z19r.com"
+          target="_blank"
+          rel="noreferrer"
+          data-umami-event="nav-ios-app"
+        >
+          <span><span style={{ textTransform: "none" }}>iOS</span> APP ↗</span>
+        </a>
         <a className="ws-btn ws-btn--sm ws-btn--ghost" href="https://github.com/z19r/tihole" target="_blank" rel="noreferrer" data-umami-event="nav-github">GITHUB ↗</a>
       </div>
     </nav>

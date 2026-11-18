@@ -31,6 +31,16 @@ function Footer() {
               <li><a href={repo} target="_blank" rel="noreferrer" data-umami-event="footer-github">GitHub</a></li>
               <li><a href={repo + "/releases"} target="_blank" rel="noreferrer" data-umami-event="footer-releases">Releases</a></li>
               <li><a href={repo + "/issues"} target="_blank" rel="noreferrer" data-umami-event="footer-issues">Issues</a></li>
+              <li>
+                <a
+                  href="https://tihole-ios.z19r.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  data-umami-event="footer-ios-app"
+                >
+                  iOS app
+                </a>
+              </li>
               <li><a href={repo + "/blob/main/CHANGELOG.md"} target="_blank" rel="noreferrer" data-umami-event="footer-changelog">Changelog</a></li>
             </ul>
           </div>
