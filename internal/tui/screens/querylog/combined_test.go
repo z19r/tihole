@@ -105,6 +105,12 @@ func TestFooterShowsWriteTarget(t *testing.T) {
 	if out := m.View().Content; !strings.Contains(out, "→ primary") {
 		t.Errorf("footer missing write target\n%s", out)
 	}
+	for _, w := range []int{80, 60} {
+		m.SetSize(w, 30)
+		if out := m.View().Content; !strings.Contains(out, "→ primary") {
+			t.Errorf("width %d: target cut off\n%s", w, out)
+		}
+	}
 	m.ctx.Combined = false
 	if out := m.View().Content; strings.Contains(out, "→") {
 		t.Error("single mode footer should be unchanged")
@@ -136,6 +142,9 @@ func TestBlockActionTargetsActive(t *testing.T) {
 	_ = m.Focus()
 	loadCombined(t, m)
 	m.table.SetCursor(len(m.queries) - 1) // a secondary row
+	if got := m.queries[m.table.Cursor()].Instance; got != "secondary" {
+		t.Fatalf("cursor row instance = %q", got)
+	}
 
 	_, _ = m.Update(keyPress("b"))
 	_, cmd := m.Update(keyPress("y"))

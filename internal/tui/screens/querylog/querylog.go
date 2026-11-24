@@ -131,7 +131,6 @@ func (m *Model) CapturesInput() bool { return m.searching || m.confirm.Active }
 // Focus activates the screen: start the poller and fetch a fresh page.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
-	m.syncColumns()
 	m.epoch++
 	m.loading = true
 	m.err = nil
@@ -550,12 +549,14 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 			fmt.Sprintf("%s (%.1fms)", orDash(q.Reply.Type), q.Reply.Time*1000),
 		},
 		{"Upstream", orDash(q.Upstream)},
-		{"DNSSEC", orDash(q.DNSSEC)},
-		{"Time", formatQueryTime(q.Time)},
 	}
 	if m.ctx.CombinedActive() {
 		rows = append(rows, [2]string{"Pi-hole", orDash(q.Instance)})
 	}
+	rows = append(rows,
+		[2]string{"DNSSEC", orDash(q.DNSSEC)},
+		[2]string{"Time", formatQueryTime(q.Time)},
+	)
 
 	keyStyle := th.SubtleStyle().Width(10)
 	valStyle := styleForToken(th, statusToken(q.Status))
@@ -592,7 +593,7 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 func (m *Model) renderFooter(th *theme.Theme) string {
 	hint := "↑↓ navigate · / search · enter detail · a allow · b block · esc close"
 	if m.ctx.CombinedActive() {
-		hint += " · → " + m.ctx.InstanceName
+		hint = "→ " + m.ctx.InstanceName + " · " + hint
 	}
 	return th.SubtleStyle().Render(truncate(hint, maxInt(m.w, 8)))
 }
