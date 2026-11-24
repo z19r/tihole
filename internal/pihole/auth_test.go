@@ -3,9 +3,11 @@ package pihole
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 )
 
@@ -165,5 +167,41 @@ func TestLogoutNoSessionIsNoop(t *testing.T) {
 	// Act & Assert
 	if err := client.Logout(context.Background()); err != nil {
 		t.Fatalf("Logout error: %v", err)
+	}
+}
+
+func TestCloseStopsReauth(t *testing.T) {
+	var logins, deletes atomic.Int32
+	c, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/auth" && r.Method == http.MethodDelete:
+			deletes.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+		case r.URL.Path == "/api/auth":
+			logins.Add(1)
+			authOK(w, "SID-1")
+		default:
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	})
+	ctx := context.Background()
+	if err := c.Login(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, err := c.Summary(ctx)
+
+	if !errors.Is(err, ErrClosed) {
+		t.Fatalf("err = %v, want ErrClosed", err)
+	}
+	if !errors.Is(c.Login(ctx), ErrClosed) {
+		t.Fatal("Login after Close should fail with ErrClosed")
+	}
+	if logins.Load() != 1 || deletes.Load() != 1 {
+		t.Fatalf("logins = %d, deletes = %d; want 1, 1",
+			logins.Load(), deletes.Load())
 	}
 }

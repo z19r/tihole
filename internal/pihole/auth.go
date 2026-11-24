@@ -2,6 +2,7 @@ package pihole
 
 import (
 	"context"
+	"errors"
 	"net/http"
 )
 
@@ -15,6 +16,9 @@ type loginRequest struct {
 // the returned session ID. It does not use do() so it cannot recurse on 401.
 // The password and SID are never logged.
 func (c *Client) login(ctx context.Context) error {
+	if c.isClosed() {
+		return ErrClosed
+	}
 	reqBody := loginRequest{Password: c.password, TOTP: c.totp}
 
 	var env sessionEnvelope
@@ -64,4 +68,29 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 	c.setSID("")
 	return nil
+}
+
+// ErrClosed is returned by every request on a Client after Close.
+var ErrClosed = errors.New("pihole: client closed")
+
+// Close logs out and retires the client: later requests fail with ErrClosed
+// instead of transparently logging in again, so a request still in flight
+// on a dropped client can't open an orphan session.
+func (c *Client) Close(ctx context.Context) error {
+	c.mu.Lock()
+	c.closed = true
+	sid := c.sid
+	c.mu.Unlock()
+	if sid == "" {
+		return nil
+	}
+	err := c.doOnce(ctx, http.MethodDelete, "/auth", nil, nil, false, true)
+	c.setSID("")
+	return err
+}
+
+func (c *Client) isClosed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
 }
