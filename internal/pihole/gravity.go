@@ -5,6 +5,9 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // UpdateGravity triggers POST /api/action/gravity and streams the chunked
@@ -66,7 +69,7 @@ func (c *Client) streamGravity(
 		default:
 		}
 		if onLine != nil {
-			onLine(scanner.Text())
+			onLine(cleanGravityLine(scanner.Text()))
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -77,4 +80,17 @@ func (c *Client) streamGravity(
 		return &NetworkError{Op: "POST /action/gravity", Err: err}
 	}
 	return nil
+}
+
+// cleanGravityLine reduces a raw gravity.sh line to what a terminal would
+// finally show: the text after the last carriage return (progress lines are
+// overwritten with "\r\e[K"), without colour codes, tabs as spaces. Passing
+// a raw "\r" on would move the TUI's cursor to column 0 and corrupt the
+// screen.
+func cleanGravityLine(line string) string {
+	if i := strings.LastIndexByte(strings.TrimRight(line, "\r"), '\r'); i >= 0 {
+		line = line[i+1:]
+	}
+	line = ansi.Strip(strings.TrimRight(line, "\r"))
+	return strings.ReplaceAll(line, "\t", "    ")
 }
