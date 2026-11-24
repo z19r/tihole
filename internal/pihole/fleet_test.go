@@ -229,7 +229,7 @@ func TestFleetQueriesTagsInstance(t *testing.T) {
 
 func TestFleetSetBlockingPartialError(t *testing.T) {
 	var mu sync.Mutex
-	var bodies []string
+	var methods []string
 	record := func(fail bool) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			var body struct {
@@ -238,7 +238,7 @@ func TestFleetSetBlockingPartialError(t *testing.T) {
 			}
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			mu.Lock()
-			bodies = append(bodies, r.Method)
+			methods = append(methods, r.Method)
 			if body.Blocking || body.Timer == nil || *body.Timer != 60 {
 				t.Errorf("body = %+v", body)
 			}
@@ -252,7 +252,8 @@ func TestFleetSetBlockingPartialError(t *testing.T) {
 	}
 	a, _ := fakeMember(t, "a", record(false))
 	b, _ := fakeMember(t, "b", record(true))
-	g := NewFleet([]Member{a, b}, nil)
+	g := NewFleet([]Member{a, b},
+		map[string]error{"c": errors.New("no url")})
 
 	timer := 60.0
 	err := g.SetBlocking(context.Background(), false, &timer)
@@ -260,11 +261,14 @@ func TestFleetSetBlockingPartialError(t *testing.T) {
 		!strings.Contains(err.Error(), "blocking not changed on b") {
 		t.Fatalf("err = %v", err)
 	}
-	if strings.Contains(err.Error(), "on a") {
+	if strings.Contains(err.Error(), "blocking not changed on a") {
 		t.Fatalf("a should not be named: %v", err)
 	}
-	if !slices.Equal(bodies, []string{"POST", "POST"}) {
-		t.Fatalf("requests = %v", bodies)
+	if !strings.Contains(err.Error(), "blocking not changed on c: no url") {
+		t.Fatalf("failed-at-build c not named: %v", err)
+	}
+	if !slices.Equal(methods, []string{"POST", "POST"}) {
+		t.Fatalf("requests = %v", methods)
 	}
 }
 
@@ -280,5 +284,43 @@ func TestFleetFailedMemberListed(t *testing.T) {
 	}
 	if _, err := g.Summary(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFleetSetBlockingAllFailedAtBuild(t *testing.T) {
+	g := NewFleet(nil, map[string]error{"c": errors.New("no url")})
+	err := g.SetBlocking(context.Background(), true, nil)
+	if err == nil ||
+		!strings.Contains(err.Error(), "blocking not changed on c") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFleetCallerCancelSkipsCooldown(t *testing.T) {
+	done := make(chan struct{})
+	slow := func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(3 * time.Second):
+		case <-done:
+		}
+		summaryHandler(1)(w, r)
+	}
+	a, _ := fakeMember(t, "a", slow)
+	b, _ := fakeMember(t, "b", slow)
+	t.Cleanup(func() { close(done) })
+	g := NewFleet([]Member{a, b}, nil)
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := g.Summary(ctx); err == nil {
+		t.Fatal("want error after caller cancel")
+	}
+	timer := 5.0
+	if err := g.SetBlocking(ctx, false, &timer); err == nil {
+		t.Fatal("want SetBlocking error after caller cancel")
+	}
+	if u := g.Unreachable(); len(u) != 0 {
+		t.Fatalf("Unreachable = %v, want none", u)
 	}
 }

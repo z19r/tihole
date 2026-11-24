@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sync"
@@ -107,6 +108,10 @@ func fanOut[T any](
 		})
 	}
 	wg.Wait()
+	// The caller gave up; that says nothing about member health.
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 
 	var out []T
 	var names []string
@@ -256,12 +261,18 @@ func (g *Fleet) SetBlocking(
 		})
 	}
 	wg.Wait()
-	g.mu.Lock()
-	for i, m := range g.members {
-		if errs[i] == nil {
-			delete(g.down, m.Name)
+	if ctx.Err() == nil {
+		g.mu.Lock()
+		for i, m := range g.members {
+			if errs[i] == nil {
+				delete(g.down, m.Name)
+			}
 		}
+		g.mu.Unlock()
 	}
-	g.mu.Unlock()
+	for _, name := range slices.Sorted(maps.Keys(g.failed)) {
+		errs = append(errs, fmt.Errorf(
+			"blocking not changed on %s: %w", name, g.failed[name]))
+	}
 	return errors.Join(errs...)
 }
