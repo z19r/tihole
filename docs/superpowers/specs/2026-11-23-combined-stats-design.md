@@ -69,9 +69,19 @@ type Member struct {
     Client *Client
 }
 
-type Fleet struct{ members []Member }
+type Fleet struct {
+    members []Member
+    failed  map[string]error // instances whose client couldn't be built
+    // plus the cooldown state: mu, down (last failure time) and now
+}
 
-func NewFleet(members []Member) *Fleet
+// failed lists instances whose client couldn't be built; Unreachable always
+// reports them and Len counts them.
+func NewFleet(members []Member, failed map[string]error) *Fleet
+
+// Len counts members plus instances that failed to build. It is the N in
+// "all (N)" and the pill's Total.
+func (g *Fleet) Len() int
 
 // Unreachable names members that failed their most recent call (or are in
 // cooldown), sorted. Screens read it at render time for the warning line.
@@ -83,7 +93,7 @@ Merged read methods keep `*Client`'s exact signatures (`(T, error)`), so the
 (the 9 methods below). A call returns an error only when **every** member
 fails; partial failures show up in `Unreachable()`. Fan-out uses one goroutine
 per member under the caller's context. The merge functions are unexported pure
-funcs (`mergeSummary(...)` and so on) and are tested directly.
+funcs (`mergeSummary(...)` and so on) in `merge.go`, and are tested directly.
 
 ### Merge rules
 
@@ -118,9 +128,12 @@ everything`.
 - `core.AppContext` gains `Fleet *pihole.Fleet` and `Combined bool`.
 - The root builds `Fleet` from `cfg.Instances` with the existing `clientFor`.
   It rebuilds `Fleet` in `applyInstancesChange`. The active instance's
-  `*Client` is reused in the group so its session is shared, not duplicated.
+  `*Client` is reused in the fleet so its session is shared, not duplicated.
+  Switching instances (`s`) rebuilds it too, and every rebuild keeps the
+  existing clients of instances whose settings did not change.
 - An instance whose client can't be built (for example, a missing password
-  env var) is left out of the group and reported as failed.
+  env var) is left out of the fleet's members and passed to `NewFleet` as
+  failed.
 - `m` (a new `ToggleCombined` binding in `core.DefaultKeyMap`, help text
   "combined") flips `Combined`, persists it (below) and re-focuses the current
   screen so it refetches with a new epoch. It is a no-op with a toast/banner
@@ -144,8 +157,9 @@ everything`.
   on the active client. A failed hot-temp PATCH shows its own warning line
   ("hot-temperature threshold not changed: …") until the next refocus; it
   never marks the active instance unreachable.
-- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning,
-  "secondary unreachable", in the existing error/banner area. The data still
+- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning
+  naming them, `<names> unreachable` (for example `secondary unreachable`), in
+  the existing error/banner area. The data still
   renders.
 - When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
   tile's value is the max.
@@ -167,8 +181,10 @@ Health strip is replaced by one labelled row per configured instance:
 - **Rows:** config order, with the active instance first and marked `▸`
   (other reachable rows `●`, unreachable `○`), so the mark survives without
   colour. Plain text, no animated gauges.
-- **Unreachable or failed-at-build instances** (`Fleet.Unreachable()`) get a
-  dimmed `unreachable` row with `—` cells.
+- **Unreachable instances** get a dimmed row with `—` for CPU, Mem and Temp,
+  then `unreachable`. That covers members in cooldown, members whose probe
+  failed this round, and instances that failed to build (all from
+  `pihole.EachMember`).
 - **Cap:** at most **4** instance rows. If more exist, the last line reads
   `and N more…`, where N is the hidden count.
 - **Gravity:** a member whose gravity differs from the most common value is
@@ -220,20 +236,21 @@ member, on every page.
   failed, for example `blocking not changed on secondary: <err>`, even when
   the others succeeded.
 - `components.BlockState` gains `On, Total int`; `Total == 0` means single
-  mode. The pill renders `ON 2/2` (calm), `OFF 0/2` (alarm, with countdown
-  from `MinTimer`), or `PARTIAL 1/2` (warn colour) when members disagree. The
+  mode. The pill renders `● ON 2/2` (calm), `⚠ OFF 0/2` (alarm, with the
+  countdown from `CountdownSecs`, set from the merged `Timer`), or
+  `◐ PARTIAL 1/2` (warn colour) when members disagree. The
   pill never renders a bare `ON` while any member is off. Total counts every
   instance, so with a member unreachable and the rest on it reads `ON 1/2 ⚠`
   (warn colour); `d` then disables.
 - `toggleBlocking`, `setBlockingFor`, the palette blocking commands, the
   blocking poll, and the Blocking screen's fetch/apply all go through the
-  group in combined mode. The toggle's desired state is "not every reachable
-  member blocks": partial → enable all. A member that fails a write shows "blocking not
-  changed on secondary", and the refreshed state shows the real per-member
-  count.
+  fleet in combined mode. The toggle's desired state is "not every reachable
+  member blocks": partial → enable all. A member that fails a write shows
+  "blocking not changed on secondary", and the refreshed state shows the real
+  per-member count.
 - The Blocking screen's heading reads "all (N)" in combined mode.
 - `fetchBlocking` on instance switch (`s`) still runs. In combined mode the
-  pill comes from the group, so `s` does not change it.
+  pill comes from the fleet, so `s` does not change it.
 
 ## Slow or unreachable members (decided by the designer)
 
@@ -278,17 +295,18 @@ Pi-holes together by default? You can switch anytime with m."
 
 ## Testing
 
-- Table tests for every merge function in `pihole/fleet_test.go`: sums, the
+- Table tests for every merge function in `pihole/merge_test.go`: sums, the
   ratio recompute, the max/min fields, gravity mismatch, history alignment,
   upstream weighting, top-N tie order, and query merge order and tagging.
-- A fan-out test with an `httptest` server per member, including one failing
-  member → listed by `Unreachable()`, data from the rest; all failing → error.
-- Dashboard and query log model tests: combined toggle → the group is used,
-  the Pi-hole column replaces Upstream, the write target stays active, and a partial
-  warning renders.
+- Fan-out tests in `pihole/fleet_test.go` with an `httptest` server per
+  member, including one failing member → listed by `Unreachable()`, data from
+  the rest; all failing → error.
+- Dashboard and query log model tests: combined toggle → the fleet is used,
+  the Pi-hole column replaces Upstream, the write target stays active, and a
+  partial warning renders.
 - Blocking: merge counts and timers, partial write failure, toggle desired
   state from PARTIAL, pill rendering for ON/OFF/PARTIAL with counts.
-- Root: `m` toggles and persists; it is a no-op with one instance; the group
+- Root: `m` toggles and persists; it is a no-op with one instance; the fleet
   is rebuilt on instance edits.
 - Dashboard cadence: a tick during a round starts nothing; slow panels only
   every 5s; refocus resets the round; per-member request counts are exactly
@@ -299,7 +317,7 @@ Pi-holes together by default? You can switch anytime with m."
 ## Left to the builder
 
 - Exact banner wording and column widths, following existing style.
-- The warning line reads `Unreachable()` once per render, so it never repeats. It
-  should render one line listing the failed names.
+- The warning line reads `Unreachable()` once per render, so it never
+  repeats. It should render one line listing the failed names.
 - Doc updates (done): `docs/keys.md` (the `m` key), README feature list, and
   `docs/architecture.md` (Fleet, Source, dashboard polling).
