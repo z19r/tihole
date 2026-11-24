@@ -69,6 +69,7 @@ type Model struct {
 	connForm    *instanceForm
 	confirm     components.ConfirmDialog
 	pendingDel  int
+	askCombined bool // confirm is asking whether to turn combined view on
 	themePicker *themePicker
 
 	focused bool
@@ -119,7 +120,7 @@ func (m *Model) Title() string { return "Settings" }
 // core.InputCapturer).
 func (m *Model) CapturesInput() bool {
 	return m.filtering || m.edit != nil || m.connForm != nil ||
-		m.themePicker != nil
+		m.themePicker != nil || m.confirm.Active
 }
 
 // Focus activates the screen and fetches the live config tree.
@@ -143,6 +144,7 @@ func (m *Model) Blur() {
 	m.connForm = nil
 	m.confirm = m.confirm.Hide()
 	m.pendingDel = -1
+	m.askCombined = false
 	m.themePicker = nil
 	if m.cancel != nil {
 		m.cancel()
