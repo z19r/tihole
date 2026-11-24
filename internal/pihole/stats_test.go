@@ -121,23 +121,3 @@ func TestTopClientsOmitsCountWhenZero(t *testing.T) {
 		t.Errorf("clients = %+v", got.Clients)
 	}
 }
-
-func TestRecentBlocked(t *testing.T) {
-	var gotQuery string
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		gotQuery = r.URL.RawQuery
-		writeJSON(w, http.StatusOK, `{"blocked":["a.ads","b.ads"],"took":0.0}`)
-	})
-	client.setSID("S")
-
-	got, err := client.RecentBlocked(context.Background(), 2)
-	if err != nil {
-		t.Fatalf("RecentBlocked error: %v", err)
-	}
-	if gotQuery != "count=2" {
-		t.Errorf("query = %q, want count=2", gotQuery)
-	}
-	if len(got) != 2 || got[0] != "a.ads" {
-		t.Errorf("blocked = %v", got)
-	}
-}

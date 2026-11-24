@@ -41,34 +41,6 @@ func (c *Client) NetworkDevices(ctx context.Context) ([]NetworkDevice, error) {
 	return out.Devices, nil
 }
 
-// Gateway fetches GET /api/network/gateway — the default gateway details, as an
-// open-ended object.
-func (c *Client) Gateway(ctx context.Context) (map[string]any, error) {
-	return c.networkObject(ctx, "/network/gateway")
-}
-
-// Interfaces fetches GET /api/network/interfaces — the host network interfaces.
-func (c *Client) Interfaces(ctx context.Context) (map[string]any, error) {
-	return c.networkObject(ctx, "/network/interfaces")
-}
-
-// Routes fetches GET /api/network/routes — the host routing table.
-func (c *Client) Routes(ctx context.Context) (map[string]any, error) {
-	return c.networkObject(ctx, "/network/routes")
-}
-
-// networkObject fetches a network endpoint that returns an open-ended object.
-func (c *Client) networkObject(
-	ctx context.Context,
-	path string,
-) (map[string]any, error) {
-	var out map[string]any
-	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // DeleteNetworkDevice removes a device from FTL's network table via
 // DELETE /api/network/devices/{id}.
 func (c *Client) DeleteNetworkDevice(ctx context.Context, id int) error {

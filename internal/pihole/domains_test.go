@@ -186,31 +186,3 @@ func TestDeleteDomainReturns204(t *testing.T) {
 		t.Fatalf("DeleteDomain error: %v", err)
 	}
 }
-
-func TestBatchDeleteDomainsSendsItemBody(t *testing.T) {
-	// Arrange
-	var raw []map[string]any
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost ||
-			r.URL.Path != "/api/domains:batchDelete" {
-			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
-		}
-		data, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(data, &raw)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	client.setSID("S")
-
-	// Act
-	err := client.BatchDeleteDomains(context.Background(), []DomainRef{
-		{Item: "a.example.com", Type: DomainDeny, Kind: KindExact},
-	})
-
-	// Assert
-	if err != nil {
-		t.Fatalf("BatchDeleteDomains error: %v", err)
-	}
-	if len(raw) != 1 || raw[0]["item"] != "a.example.com" {
-		t.Errorf("body = %+v, want one entry with item key", raw)
-	}
-}

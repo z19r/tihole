@@ -123,28 +123,3 @@ func TestDeleteListReturns204(t *testing.T) {
 		t.Fatalf("DeleteList error: %v", err)
 	}
 }
-
-func TestBatchDeleteListsSendsItemBody(t *testing.T) {
-	var raw []map[string]any
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/lists:batchDelete" {
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-		data, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(data, &raw)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	client.setSID("S")
-
-	err := client.BatchDeleteLists(
-		context.Background(),
-		[]ListRef{{Item: "https://x/list.txt", Type: ListBlock}},
-	)
-	if err != nil {
-		t.Fatalf("BatchDeleteLists error: %v", err)
-	}
-	if len(raw) != 1 || raw[0]["item"] != "https://x/list.txt" ||
-		raw[0]["type"] != "block" {
-		t.Errorf("body = %+v, want [{item,type:block}]", raw)
-	}
-}

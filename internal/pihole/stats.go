@@ -64,26 +64,6 @@ func (c *Client) TopClients(
 	return out, nil
 }
 
-// RecentBlocked fetches GET /api/stats/recent_blocked. It returns the list of
-// most-recently blocked domain names.
-func (c *Client) RecentBlocked(
-	ctx context.Context,
-	count int,
-) ([]string, error) {
-	var out struct {
-		Blocked []string `json:"blocked"`
-		Took    float64  `json:"took"`
-	}
-	path := "/stats/recent_blocked"
-	if count > 0 {
-		path += "?count=" + fmt.Sprintf("%d", count)
-	}
-	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
-		return nil, err
-	}
-	return out.Blocked, nil
-}
-
 // topQuery builds the ?blocked=&count= query string shared by the top_* stats
 // endpoints. count <= 0 omits the count parameter.
 func topQuery(blocked bool, count int) string {

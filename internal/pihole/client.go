@@ -22,7 +22,6 @@ type Client struct {
 	httpClient *http.Client
 
 	password string
-	totp     *int
 
 	mu     sync.Mutex // guards sid and closed
 	sid    string
@@ -52,11 +51,6 @@ func WithInsecureTLS(insecure bool) Option {
 			Timeout:   c.httpClient.Timeout,
 		}
 	}
-}
-
-// WithTOTP sets a TOTP code to send during login (for web passwords with 2FA).
-func WithTOTP(code int) Option {
-	return func(c *Client) { c.totp = &code }
 }
 
 // WithHTTPClient overrides the underlying *http.Client (e.g. for tests or

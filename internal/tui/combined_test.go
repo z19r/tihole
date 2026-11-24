@@ -203,6 +203,8 @@ func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
 			case r.URL.Path == "/api/auth":
 				_, _ = w.Write([]byte(`{"session":{"valid":true,` +
 					`"sid":"s","csrf":"c","validity":1800}}`))
+			case r.Header.Get("X-FTL-SID") == "":
+				w.WriteHeader(http.StatusUnauthorized)
 			case r.Method == http.MethodPost && failPost:
 				w.WriteHeader(http.StatusInternalServerError)
 			default:
@@ -290,7 +292,7 @@ func TestLogoutAllEndsEachSessionOnce(t *testing.T) {
 	a, ha := newHole(t, false)
 	b, hb := newHole(t, false)
 	for _, c := range []*pihole.Client{a, b} {
-		if err := c.Login(context.Background()); err != nil {
+		if err := loginErr(c); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -421,7 +423,7 @@ func TestInstancesChangeRebuildsEditedActiveClient(t *testing.T) {
 func TestPendingLogoutsFlushedAtExit(t *testing.T) {
 	m := newTestModel(t)
 	c, h := newHole(t, false)
-	if err := c.Login(context.Background()); err != nil {
+	if err := loginErr(c); err != nil {
 		t.Fatal(err)
 	}
 	cmd := m.logouts.cmd([]*pihole.Client{c}) // quit before it runs
@@ -437,7 +439,7 @@ func TestPendingLogoutsFlushedAtExit(t *testing.T) {
 func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 	m := newTestModel(t)
 	c, h := newHole(t, false)
-	if err := c.Login(context.Background()); err != nil {
+	if err := loginErr(c); err != nil {
 		t.Fatal(err)
 	}
 	h.hold.Store(true)
@@ -491,4 +493,11 @@ func TestStaleBlockingErrorsDropped(t *testing.T) {
 	if m.err != "" {
 		t.Fatalf("stale error reached the banner: %q", m.err)
 	}
+}
+
+// loginErr opens a session on c: newHole 401s requests without one, so any
+// call logs in transparently.
+func loginErr(c *pihole.Client) error {
+	_, err := c.Blocking(context.Background())
+	return err
 }
