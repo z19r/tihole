@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
@@ -78,8 +79,9 @@ func run(start core.PageID) error {
 type logouts struct {
 	mu      sync.Mutex
 	pending map[*pihole.Client]bool
-	closed  bool           // set by flush; later cmds do nothing
-	wg      sync.WaitGroup // in-flight background logouts
+	claimed map[*pihole.Client]bool // taken by a background logout
+	closed  bool                    // set by flush; later cmds do nothing
+	wg      sync.WaitGroup          // in-flight background logouts
 }
 
 // cmd marks cs pending and returns a cmd that logs out those still pending
@@ -115,18 +117,24 @@ func (l *logouts) claim(cs []*pihole.Client) []*pihole.Client {
 	for _, c := range cs {
 		if l.pending[c] {
 			delete(l.pending, c)
+			l.claimed[c] = true
 			out = append(out, c)
 		}
 	}
 	return out
 }
 
-// flush logs out live plus every still-pending client, then waits for
+// flush logs out live (minus clients a background logout claimed) plus every
+// still-pending client, then waits for
 // in-flight background logouts. Each logout is bounded by logoutTimeout and
 // the in-flight ones started earlier, so this takes about logoutTimeout.
 func (l *logouts) flush(live ...*pihole.Client) {
 	l.mu.Lock()
 	l.closed = true
+	// A claimed client's logout is already in flight; don't repeat it.
+	live = slices.DeleteFunc(live, func(c *pihole.Client) bool {
+		return l.claimed[c]
+	})
 	for c := range l.pending {
 		live = append(live, c)
 	}
@@ -137,7 +145,8 @@ func (l *logouts) flush(live ...*pihole.Client) {
 }
 
 // logoutAll best-effort ends each distinct client's session concurrently so we
-// don't leak seats. Errors are ignored.
+// don't leak seats, and closes the client so it can't log in again. Errors
+// are ignored.
 func logoutAll(clients ...*pihole.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), logoutTimeout)
 	defer cancel()
@@ -148,7 +157,7 @@ func logoutAll(clients ...*pihole.Client) {
 			continue
 		}
 		seen[c] = true
-		wg.Go(func() { _ = c.Logout(ctx) })
+		wg.Go(func() { _ = c.Close(ctx) })
 	}
 	wg.Wait()
 }

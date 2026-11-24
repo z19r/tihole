@@ -157,7 +157,10 @@ func New(
 		palette: components.NewPalette(),
 		booting: true,
 		splash:  sp,
-		logouts: &logouts{pending: map[*pihole.Client]bool{}},
+		logouts: &logouts{
+			pending: map[*pihole.Client]bool{},
+			claimed: map[*pihole.Client]bool{},
+		},
 	}
 	m.screens = buildScreens(ctx)
 	return m

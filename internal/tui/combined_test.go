@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -174,18 +175,30 @@ func TestToggleBlockingPartialEnablesAll(t *testing.T) {
 }
 
 // hole is a fake Pi-hole reporting blocking on. failPost makes POST
-// /api/dns/blocking fail; logouts counts DELETE /api/auth.
-type hole struct{ logouts atomic.Int32 }
+// /api/dns/blocking fail; logouts counts DELETE /api/auth. While hold is set,
+// each DELETE signals arrived and waits for release.
+type hole struct {
+	logouts          atomic.Int32
+	hold             atomic.Bool
+	arrived, release chan struct{}
+}
 
 func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
 	t.Helper()
-	h := &hole{}
+	h := &hole{
+		arrived: make(chan struct{}, 8),
+		release: make(chan struct{}),
+	}
 	srv := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch {
 			case r.URL.Path == "/api/auth" && r.Method == http.MethodDelete:
 				h.logouts.Add(1)
+				if h.hold.Load() {
+					h.arrived <- struct{}{}
+					<-h.release
+				}
 				w.WriteHeader(http.StatusNoContent)
 			case r.URL.Path == "/api/auth":
 				_, _ = w.Write([]byte(`{"session":{"valid":true,` +
@@ -421,17 +434,24 @@ func TestPendingLogoutsFlushedAtExit(t *testing.T) {
 	}
 }
 
-func TestRanLogoutNotRepeatedAtExit(t *testing.T) {
+func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 	m := newTestModel(t)
 	c, h := newHole(t, false)
 	if err := c.Login(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	h.hold.Store(true)
+	cmd := m.logouts.cmd([]*pihole.Client{c})
+	go cmd()
+	<-h.arrived // the background DELETE is in flight, session still set
 
-	m.logouts.cmd([]*pihole.Client{c})()
-	m.logouts.flush()
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(h.release)
+	}()
+	m.logouts.flush(c) // c passed as live too, like the startup client
 
 	if n := h.logouts.Load(); n != 1 {
-		t.Fatalf("logouts = %d, want 1", n)
+		t.Fatalf("DELETE /api/auth = %d, want 1", n)
 	}
 }
