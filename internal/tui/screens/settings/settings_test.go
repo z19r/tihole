@@ -824,3 +824,23 @@ func TestEnterOnListWithCommaItemsShowsNote(t *testing.T) {
 		t.Fatalf("comma-item list must not open an editor (err %v)", m.err)
 	}
 }
+
+func TestEditableRefusesNonScalarListItems(t *testing.T) {
+	for name, v := range map[string]any{
+		"objects": []any{map[string]any{"k": 1.0}},
+		"lists":   []any{[]any{"a"}},
+		"nulls":   []any{nil},
+	} {
+		if editable(v) {
+			t.Errorf("%s: list of non-scalars must not be editable", name)
+		}
+	}
+	for name, v := range map[string]any{
+		"strings": []any{"a"}, "numbers": []any{1.0}, "bools": []any{true},
+		"empty": []any{},
+	} {
+		if !editable(v) {
+			t.Errorf("%s: scalar list should be editable", name)
+		}
+	}
+}

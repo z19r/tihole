@@ -213,14 +213,21 @@ func parseListValue(orig []any, s string) ([]any, error) {
 }
 
 // editable reports whether a leaf can round-trip through the text editor:
-// objects can't, nor can lists whose items themselves contain commas.
+// objects can't, nor can lists of anything but scalars, nor lists whose
+// strings themselves contain commas.
 func editable(v any) bool {
 	switch x := v.(type) {
 	case map[string]any:
 		return false
 	case []any:
 		for _, e := range x {
-			if s, ok := e.(string); ok && strings.Contains(s, ",") {
+			switch el := e.(type) {
+			case string:
+				if strings.Contains(el, ",") {
+					return false
+				}
+			case bool, int, int64, float64:
+			default:
 				return false
 			}
 		}
