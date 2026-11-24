@@ -29,7 +29,7 @@ GitHub release.
 | `site/src/changelog.js` | Generated browser global consumed by the site. |
 | `site/src/version.js` | Generated `TIHOLE_VERSION` for the site. |
 | `site/src/metadata.js` | Generated release date, SHA, tagline, screen count. |
-| `cmd/tihole/changelog_sync.go` | `tihole changelog-sync` — regenerates the JS. |
+| `scripts/changelog-sync/main.go` | `go run ./scripts/changelog-sync` — regenerates the JS. |
 | `justfile` | `release-check`, `release-dry-run`, `release`, `changelog-sync`. |
 | `.goreleaser.yaml` | Build matrix, archives, checksums, GitHub release. |
 | `.github/workflows/ci.yml` | Format + build + vet + test on push/PR. |
@@ -69,7 +69,7 @@ Steps:
 4. Replace `## [Unreleased]` with a fresh empty one above
    `## [X.Y.Z] - <today>` and the generated sections; update the link
    footer.
-5. `tihole changelog-sync` regenerates `site/src/changelog.js`; regenerate
+5. `go run ./scripts/changelog-sync` regenerates `site/src/changelog.js`; regenerate
    `site/src/metadata.js`.
 6. Commit `release: vX.Y.Z` on `release/vX.Y.Z`, push, open the PR.
 7. Wait for CI (`gh pr checks --watch --fail-fast`), then squash-merge
