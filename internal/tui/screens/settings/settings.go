@@ -157,6 +157,7 @@ func (m *Model) Help() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
 			key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit")),
+			key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "duplicate")),
 			key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete")),
 			key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "theme")),
 			key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "config")),
@@ -508,7 +509,7 @@ var sectionLabels = []string{"Configuration", "Connections"}
 func sectionBlurb(mode screenMode) string {
 	if mode == modeConnections {
 		return "Manage Pi-hole instances and the app theme · " +
-			"a add · e edit · x delete · t theme"
+			"a add · e edit · D duplicate · x delete · t theme"
 	}
 	return "Live FTL configuration · enter edits a key and writes it " +
 		"back instantly · / filter · r refresh"
@@ -622,7 +623,8 @@ func (m *Model) renderConfigTree(th *theme.Theme, bodyH int) string {
 func (m *Model) renderFooter(th *theme.Theme) string {
 	hint := "↑↓ navigate · enter edit · / filter · tab section · r refresh"
 	if m.mode == modeConnections {
-		hint = "↑↓ navigate · a add · e edit · x delete · t theme · tab section"
+		hint = "↑↓ navigate · a add · e edit · D duplicate · x delete · " +
+			"t theme · tab section"
 	}
 	return th.SubtleStyle().Render(truncate(hint, maxInt(m.w, 8)))
 }
