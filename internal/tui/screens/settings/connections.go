@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"fmt"
 	"image/color"
 	"strings"
 
@@ -298,6 +299,13 @@ func (m *Model) handleConnKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.connForm.syncFocus()
 		}
 		return m, nil
+	case "D":
+		if inst, _, ok := m.selectedInstance(); ok {
+			m.connForm = newDuplicateInstanceForm(inst, m.copyName(inst.Name))
+			m.connForm.setWidth(m.w)
+			return m, m.connForm.syncFocus()
+		}
+		return m, nil
 	case "x":
 		if inst, idx, ok := m.selectedInstance(); ok {
 			m.pendingDel = idx
@@ -314,6 +322,19 @@ func (m *Model) handleConnKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.connTable, cmd = m.connTable.Update(msg)
 	return m, cmd
+}
+
+// copyName returns the first unused "<name> copy", "<name> copy 2", ... name.
+func (m *Model) copyName(name string) string {
+	taken := map[string]bool{}
+	for _, inst := range m.ctx.Config.Instances {
+		taken[inst.Name] = true
+	}
+	candidate := name + " copy"
+	for n := 2; taken[candidate]; n++ {
+		candidate = fmt.Sprintf("%s copy %d", name, n)
+	}
+	return candidate
 }
 
 // handleConnFormKey drives the instance add/edit form.
