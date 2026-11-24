@@ -88,20 +88,19 @@ func TestRefreshKeyForcesSlowPanels(t *testing.T) {
 	}
 }
 
-func TestRefreshKeyWhileBusyDefersToNextTick(t *testing.T) {
+func TestRefreshKeyWhileBusyRefocuses(t *testing.T) {
+	// The dashboard's own 'r' (reached when focus stayed on the panel after a
+	// palette jump) behaves like the global one: refocus, fresh full round.
 	m := newTestModel()
 	m.Focus()
 	m.inFlight = 1
+	epoch := m.epoch
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
-	if cmd != nil || m.inFlight != 1 {
-		t.Fatalf("busy 'r' started a round (inFlight %d)", m.inFlight)
-	}
 
-	m.inFlight = 0
-	m.Update(tickMsg{epoch: m.epoch})
-	if m.inFlight != allCmds {
-		t.Fatalf("next tick inFlight = %d, want %d", m.inFlight, allCmds)
+	if cmd == nil || m.epoch != epoch+1 || m.inFlight != allCmds {
+		t.Fatalf("busy 'r': epoch %d→%d, inFlight %d; want refocus",
+			epoch, m.epoch, m.inFlight)
 	}
 }
 

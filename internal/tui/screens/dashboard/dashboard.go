@@ -416,7 +416,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleHotTempKey(msg)
 		}
 		if m.focused && msg.String() == "r" {
-			return m, m.fetchAll(true)
+			return m, m.Focus() // same as the global refresh key
 		}
 
 	case hotLimitPatchMsg:
