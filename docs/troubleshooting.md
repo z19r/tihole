@@ -23,7 +23,8 @@ The config failed structural validation. tihole checks that:
 - at least one instance is configured,
 - every instance has a non-empty, **unique** `name`,
 - every instance `url` parses as an absolute `http`/`https` URL with a host,
-- `active` names exactly one existing instance.
+- `active` names exactly one existing instance (surrounding spaces in names
+  and `active` are ignored).
 
 All problems are reported together. Fix them in the config editor (`tihole
 config`) — it opens automatically when validation fails.

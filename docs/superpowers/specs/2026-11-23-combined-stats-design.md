@@ -1,6 +1,6 @@
 # Combined stats across Pi-holes — design
 
-Date: 2026-11-23 · Status: awaiting approval
+Date: 2026-11-23 · Status: shipped in v1.4.0 (2026-11-24)
 
 ## Intent
 
@@ -124,7 +124,7 @@ everything`.
 - `m` (a new `ToggleCombined` binding in `core.DefaultKeyMap`, help text
   "combined") flips `Combined`, persists it (below) and re-focuses the current
   screen so it refetches with a new epoch. It is a no-op with a toast/banner
-  "only one instance configured" when there are fewer than two instances.
+  "combined view needs two or more instances" when there are fewer than two.
 - **Persistence:** `config.Config` gains `Combined bool` (yaml `combined`),
   saved with the existing `config.Save`, so a redundant setup opens combined
   every time.
@@ -137,21 +137,13 @@ everything`.
 
 ### Dashboard
 
-- `fetchSummary`, `fetchHistory`, `fetchBreakdown` and `fetchTop` take a source
-  chosen at `fetchAll` time: the group when `ctx.Combined`, otherwise the
-  client. A small function-typed seam per fetch is enough; no interface.
-- `fetchSystem` (CPU/mem/temp/messages) and the hot-temp `PatchConfig` stay on
-  the active client. The System/health panel title shows the active instance
-  name in combined mode.
-- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning, "secondary unreachable", in the
-  existing error/banner area. The data still renders.
-- When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
-  tile's value is the max.
-
 - `fetchSummary`, `fetchHistory`, `fetchBreakdown` and `fetchTop` read
   through `ctx.Source()`: the fleet in combined mode, otherwise the active
   client.
-- The hot-temp `PatchConfig` stays on the active client.
+- `fetchSystem` (CPU/mem/temp/messages) and the hot-temp `PatchConfig` stay
+  on the active client. A failed hot-temp PATCH shows its own warning line
+  ("hot-temperature threshold not changed: …") until the next refocus; it
+  never marks the active instance unreachable.
 - A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning,
   "secondary unreachable", in the existing error/banner area. The data still
   renders.
@@ -181,11 +173,18 @@ Health strip is replaced by one labelled row per configured instance:
   `and N more…`, where N is the hidden count.
 - **Gravity:** a member whose gravity differs from the most common value is
   shown in the warning colour, which ties in with the tile's `≠`.
-- **Fetch:** in combined mode `fetchSystem` fans out per member (System,
-  SensorsInfo, Messages, Summary for gravity) concurrently with the same 2s
-  per-member deadline. Members in cooldown are not called; they render as
-  unreachable. Results arrive as one message keyed by instance name, guarded
-  by the screen epoch.
+- **Fetch (revised 2026-11-24 by the audit fixes):** each member is asked
+  for each thing once per round.
+  - Gravity comes from the round's summary fetch: `Fleet.SummaryByMember`
+    returns the merged summary (same rules and errors as `Fleet.Summary`,
+    which now calls it) plus each answering member's own summary.
+  - `fetchInstances` probes the other members (System, SensorsInfo,
+    Messages, concurrently, 2s per-member deadline) on the slow 5s cadence.
+    The active instance is skipped with `pihole.ErrSkip` (skipped without
+    touching its health or cooldown) and its row mirrors the dashboard's own
+    `fetchSystem` result.
+  - Members in cooldown are not called; they render as unreachable. Results
+    arrive as one message keyed by instance name, guarded by the epoch.
 - **Narrow widths:** while the name column would be under 12 columns,
   drop Gravity, then Load · Up, Temp, Mem and CPU, in that order. Health is
   never dropped. After that, names truncate (to `…` at worst) and lines are
@@ -245,12 +244,37 @@ cooldown. One blackholed Pi-hole therefore costs at most a 2s lag every 30s,
 instead of an 8s lag on every poll. The cooldown state lives in `Fleet`
 behind a mutex and is tested with an injectable clock.
 
-## Polling cost
+## Polling cost (revised 2026-11-24)
 
-The dashboard polls four times a second. Combined multiplies requests by N
-instances. Each member has its own HTTP client and session, so this is N
-independent connections. That is acceptable for the expected N ≤ 3. There is
-no further throttling beyond the failure cooldown above.
+The dashboard ticks four times a second, but:
+
+- **One round in flight.** A tick while the previous round's replies are
+  still outstanding starts nothing (`inFlight` counts them; a refocus, page
+  switch or `r` resets it, and stale-epoch replies are ignored). A slow
+  Pi-hole therefore slows the dashboard down instead of piling up requests.
+- **Two cadences.** Summary and the active instance's system stats refresh
+  on every free tick. History, query types, upstreams, top lists and the
+  per-instance probe refresh every 5s (`slowEvery`); a refocus or `r` forces
+  them into the next round.
+- **No duplicate calls in combined mode.** Each member gets one
+  `/stats/summary` per round and, on slow rounds, one probe; the active
+  instance's `/info/system` is fetched once.
+
+Each member keeps its own HTTP client and session, so combined costs N
+independent connections, acceptable for the expected N ≤ 3.
+
+## Turning it on (added 2026-11-24)
+
+Adding the **second** instance in Settings → Connections (`a`, or
+duplicating with `D`) asks **Combine dashboards?** "Show stats from both
+Pi-holes together by default? You can switch anytime with m."
+
+- `y`/enter saves `combined: true` and announces the config change, so the
+  app switches to combined view immediately. `n`/esc changes nothing.
+- It is asked only when the instance count goes from one to two and combined
+  view is not already on. Edits and later additions don't ask.
+- While any Settings confirm dialog is open the screen captures input, so
+  global keys such as `m` or `d` cannot act behind it.
 
 ## Testing
 
@@ -266,11 +290,16 @@ no further throttling beyond the failure cooldown above.
   state from PARTIAL, pill rendering for ON/OFF/PARTIAL with counts.
 - Root: `m` toggles and persists; it is a no-op with one instance; the group
   is rebuilt on instance edits.
+- Dashboard cadence: a tick during a round starts nothing; slow panels only
+  every 5s; refocus resets the round; per-member request counts are exactly
+  one summary and one system call per round in combined mode.
+- Settings: the combine prompt appears on the 2nd add only, yes persists and
+  emits, no changes nothing, and it captures input.
 
 ## Left to the builder
 
 - Exact banner wording and column widths, following existing style.
 - The warning line reads `Unreachable()` once per render, so it never repeats. It
   should render one line listing the failed names.
-- Doc updates: `docs/keys.md` (the `m` key), README feature list, and
-  `docs/architecture.md` (Fleet).
+- Doc updates (done): `docs/keys.md` (the `m` key), README feature list, and
+  `docs/architecture.md` (Fleet, Source, dashboard polling).

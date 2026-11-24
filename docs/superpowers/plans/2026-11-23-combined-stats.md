@@ -1,6 +1,6 @@
 # Combined Stats Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** A global `m` toggle shows dashboard stats, the query log and
 blocking state/actions merged across every configured Pi-hole.
@@ -12,10 +12,13 @@ functions. `core.Source` is the 9-method interface both `*Client` and
 otherwise the active client. Screens swap `m.ctx.API` for `m.ctx.Source()`
 only on combined-capable calls.
 
-**Tech Stack:** Go 1.25, Bubble Tea v2 (`charm.land/*/v2`), `net/http`,
+**Tech Stack:** Go 1.26, Bubble Tea v2 (`charm.land/*/v2`), `net/http`,
 `httptest`, `gopkg.in/yaml` (existing).
 
 **Spec:** `docs/superpowers/specs/2026-11-23-combined-stats-design.md`
+
+**Status:** complete. Tasks 1–9 shipped in #34, Task 10 in #35, Task 11
+in #36; released in v1.4.0 (2026-11-24).
 
 ## Global Constraints
 
@@ -96,7 +99,7 @@ only on combined-capable calls.
   `Query.Instance string`, `BlockingStatus.On int`,
   `BlockingStatus.Total int`.
 
-- [ ] **Step 1: Write failing tests in `merge_test.go`**, one test per rule
+- [x] **Step 1: Write failing tests in `merge_test.go`**, one test per rule
   in the spec's merge table. Required tests and key assertions:
   - `TestMergeSummarySumsAndRecomputesPercent`: totals 100/10 and 300/90 →
     Total 400, Blocked 100, PercentBlocked 25.0; Frequency summed.
@@ -121,18 +124,18 @@ only on combined-capable calls.
   - `TestMergeBlocking`: {on}, {off, Timer 30}, {off, Timer 10} → On 1,
     Total 3, Blocking false, Timer 10. All on → Blocking true, Timer nil.
 
-- [ ] **Step 2: Run** `go test ./internal/pihole -run Merge` → FAIL
+- [x] **Step 2: Run** `go test ./internal/pihole -run Merge` → FAIL
   (undefined).
 
-- [ ] **Step 3: Implement `merge.go` and add the type fields.** Ties in
+- [x] **Step 3: Implement `merge.go` and add the type fields.** Ties in
   top-N: count desc, then key asc. `mergeQueries` sorts by `Time` desc with
   `sort.SliceStable`. Put the shortcut comment on `mergeTopDomains`:
   `// shortcut: top-N merge over-fetches 3x, exact only if each member returns everything`
   (wrap at 80 columns).
 
-- [ ] **Step 4: Run** `go test ./internal/pihole` → PASS.
+- [x] **Step 4: Run** `go test ./internal/pihole` → PASS.
 
-- [ ] **Step 5: Commit** `just fmt && just lint`, then commit
+- [x] **Step 5: Commit** `just fmt && just lint`, then commit
   `feat(pihole): merge rules for combined stats`.
 
 ---
@@ -164,7 +167,7 @@ only on combined-capable calls.
   `failed` holds instances whose client couldn't be built. They are always in
   `Unreachable()` and count in `Len()`.
 
-- [ ] **Step 1: Write failing tests** using an `httptest.Server` per member
+- [x] **Step 1: Write failing tests** using an `httptest.Server` per member
   that serves `/api/auth`, `/api/stats/summary` and `/api/dns/blocking`. Copy
   the server setup from existing `internal/pihole/*_test.go` client tests.
   - `TestFleetSummaryMerges`: two members → summed Total.
@@ -186,9 +189,9 @@ only on combined-capable calls.
   - `TestFleetFailedMemberListed`: `NewFleet(nil-ish members, {"c": err})`
     → `Unreachable()` contains "c" and `Len()` counts it.
 
-- [ ] **Step 2: Run** `go test ./internal/pihole -run Fleet` → FAIL.
+- [x] **Step 2: Run** `go test ./internal/pihole -run Fleet` → FAIL.
 
-- [ ] **Step 3: Implement `fleet.go`.** Fields: `members []Member`,
+- [x] **Step 3: Implement `fleet.go`.** Fields: `members []Member`,
   `failed map[string]error`, `mu sync.Mutex`, `down map[string]time.Time`
   (failure time), `now func() time.Time` (default `time.Now`). Constants
   `memberTimeout = 2 * time.Second`, `memberCooldown = 30 * time.Second`.
@@ -201,9 +204,9 @@ only on combined-capable calls.
   - `SetBlocking` does not skip cooldown members, because writes are explicit
     user actions. It joins per-member errors with `errors.Join`.
 
-- [ ] **Step 4: Run** `go test -race ./internal/pihole` → PASS.
+- [x] **Step 4: Run** `go test -race ./internal/pihole` → PASS.
 
-- [ ] **Step 5: Commit** `feat(pihole): fan out reads across a group of instances`.
+- [x] **Step 5: Commit** `feat(pihole): fan out reads across a group of instances`.
 
 ---
 
@@ -238,7 +241,7 @@ only on combined-capable calls.
   ```
   `Source()` uses `CombinedActive()`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - `TestCombinedRoundTrip` (config): Save then Load keeps `Combined: true`.
   - `TestSourcePicksGroup` (core): `Combined` false → the API; true with a
     2-member group → the group; true with nil Fleet → the API. Add
@@ -248,15 +251,15 @@ only on combined-capable calls.
   - `TestToggleCombinedBinding` (core): `DefaultKeyMap().ToggleCombined`
     matches "m".
 
-- [ ] **Step 2: Run** `go test ./internal/config ./internal/tui/core ./internal/tui/screens/settings` → FAIL.
+- [x] **Step 2: Run** `go test ./internal/config ./internal/tui/core ./internal/tui/screens/settings` → FAIL.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
-- [ ] **Step 4: Run** the same packages → PASS. Also check that no screen
+- [x] **Step 4: Run** the same packages → PASS. Also check that no screen
   already binds plain `m`: `grep -rn '"m"' internal/tui --include=*.go`
   should show nothing except keys.go.
 
-- [ ] **Step 5: Commit** `feat(tui): combined flag, Source seam and m binding`.
+- [x] **Step 5: Commit** `feat(tui): combined flag, Source seam and m binding`.
 
 ---
 
@@ -278,7 +281,7 @@ only on combined-capable calls.
     when `CombinedActive()` and the active page is `PageDashboard`,
     `PageQueryLog` or `PageBlocking`; otherwise `ctx.InstanceName`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - `TestBuildFleetSkipsUnbuildableMember`: an instance with
     `password_env` unset → in `Unreachable()`, and `Len()` is 2.
   - `TestToggleCombinedPersists`: 2 instances, press `m` →
@@ -297,9 +300,9 @@ only on combined-capable calls.
     contains `ON 2/2`. `On 0 Total 2` with countdown → `OFF 0/2 0:30`.
     `On 1 Total 2` → `PARTIAL 1/2`, styled with `th.Warn` background.
 
-- [ ] **Step 2: Run** `go test ./internal/tui/...` → FAIL.
+- [x] **Step 2: Run** `go test ./internal/tui/...` → FAIL.
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - `New`: `ctx.Combined = cfg.Combined`; `ctx.Fleet = buildFleet(...)`.
   - `switchInstance` and `applyInstancesChange` rebuild the group.
   - `fetchBlocking`, `toggleBlocking`, `setBlockingFor` and the blocking poll
@@ -311,9 +314,9 @@ only on combined-capable calls.
     `tea.Batch(m.screens[m.active].Focus(), fetchBlocking(m.ctx.Source()))`.
   - A palette command "Toggle combined view" runs the same function.
 
-- [ ] **Step 4: Run** `go test -race ./internal/tui/...` → PASS.
+- [x] **Step 4: Run** `go test -race ./internal/tui/...` → PASS.
 
-- [ ] **Step 5: Commit** `feat(tui): toggle combined view and span blocking across instances`.
+- [x] **Step 5: Commit** `feat(tui): toggle combined view and span blocking across instances`.
 
 ---
 
@@ -331,7 +334,7 @@ only on combined-capable calls.
 - The four fetch funcs take `src core.Source` instead of `*pihole.Client`.
   `fetchSystem` and the hot-temp `PatchConfig` keep `ctx.API`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - `TestFetchAllUsesSource`: a fake `core.Source` with a fixed Summary
     (Total 4242) and combined on → after running the batch, the model's summary
     Total is 4242.
@@ -343,15 +346,15 @@ only on combined-capable calls.
   - `TestSystemPanelNamesActiveWhenCombined`: combined → the system/health
     panel title contains `ctx.InstanceName`; single → unchanged.
 
-- [ ] **Step 2: Run** `go test ./internal/tui/screens/dashboard` → FAIL.
+- [x] **Step 2: Run** `go test ./internal/tui/screens/dashboard` → FAIL.
 
-- [ ] **Step 3: Implement.** The warning goes in the same line/area as the
+- [x] **Step 3: Implement.** The warning goes in the same line/area as the
   existing summary error (`render.go:85`) and uses `th.Warn`. The hot-temp
   `PatchConfig` path is unchanged.
 
-- [ ] **Step 4: Run** → PASS.
+- [x] **Step 4: Run** → PASS.
 
-- [ ] **Step 5: Commit** `feat(dashboard): combined stats across instances`.
+- [x] **Step 5: Commit** `feat(dashboard): combined stats across instances`.
 
 ---
 
@@ -369,7 +372,7 @@ only on combined-capable calls.
   `tableColumns(widths, combined bool)`: when `combined`, column 6 has the
   title `Pi-hole` and shows `q.Instance`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - `TestCombinedColumnShowsInstance`: combined → header `Pi-hole`, and the
     row's last cell == `secondary`.
   - `TestSingleColumnShowsUpstream`: unchanged behavior.
@@ -381,9 +384,9 @@ only on combined-capable calls.
     `secondary` → the `AddDomain` call goes to `ctx.API` (assert with an
     `httptest` server for ctx.API; the group's servers see no POST).
 
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → PASS.
 
-- [ ] **Step 5: Commit** `feat(querylog): merged log with answering instance`.
+- [x] **Step 5: Commit** `feat(querylog): merged log with answering instance`.
 
 ---
 
@@ -394,17 +397,17 @@ only on combined-capable calls.
   `View` heading/status)
 - Test: `internal/tui/screens/blocking/*_test.go`
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - `TestBlockingCombinedHeading`: combined with Fleet.Len 2 → the view
     contains `all (2)`.
   - `TestBlockingCombinedPartialStatus`: status `On 1 Total 2` → the view
     contains `1/2`.
   - `TestBlockingApplyUsesSource`: a fake Source records `SetBlocking(false, 30)`.
 
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement** (`fetch`/`apply` call
+- [x] **Step 2: Run** → FAIL. **Step 3: Implement** (`fetch`/`apply` call
   `m.ctx.Source()`). **Step 4: Run** → PASS.
 
-- [ ] **Step 5: Commit** `feat(blocking): act on every instance in combined view`.
+- [x] **Step 5: Commit** `feat(blocking): act on every instance in combined view`.
 
 ---
 
@@ -412,17 +415,17 @@ only on combined-capable calls.
 
 **Files:** `docs/keys.md`, `README.md`, `docs/architecture.md`
 
-- [ ] **Step 1:** In `docs/keys.md`, add `m` (toggle combined view) to the
+- [x] **Step 1:** In `docs/keys.md`, add `m` (toggle combined view) to the
   global table. In the README feature list, add a line about the combined
   view for redundant Pi-holes. In `docs/architecture.md`, add a short
   `pihole.Fleet` / `core.Source` paragraph.
-- [ ] **Step 2: Run** `just fmt && just lint && go test -race ./...` → all
+- [x] **Step 2: Run** `just fmt && just lint && go test -race ./...` → all
   pass, with no `gofmt`/`golines` diffs.
-- [ ] **Step 3:** Manual check with `go run .` against two configured
+- [x] **Step 3:** Manual check with `go run .` against two configured
   instances, one of them reachable. Press `m`: the status bar shows
   `all (2)`, the warning names the unreachable one, the pill shows a count,
   and `m` again restores single mode.
-- [ ] **Step 4: Commit** `docs: combined view`. Then push and open the PR,
+- [x] **Step 4: Commit** `docs: combined view`. Then push and open the PR,
   with no AI attribution.
 
 ---
@@ -454,11 +457,11 @@ Dashboard.
 - `func (m *Model) renderInstances() string` is used instead of
   `renderHealth()` when `ctx.CombinedActive()`.
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - `TestEachMemberSkipsCooldownAndReportsFailed` (pihole).
   - `TestInstancesRowsLabelled`: 2 members over httptest → the view
     contains the header `Pi-holes`, both names, `CPU`, the active marked
-    `●` first.
+    `▸` first (others `●`, unreachable `○`).
   - `TestInstancesUnreachableRow`: a failed-at-build member → its row
     contains `unreachable` and `—`.
   - `TestInstancesOverflow`: 6 instances → exactly 4 instance rows plus
@@ -468,7 +471,52 @@ Dashboard.
     `th.WarnStyle().Render(...)`).
   - `TestSingleModeKeepsHealthStrip`: not combined → `renderHealth` output
     unchanged (gauges present, no `Pi-holes` header).
-- [ ] **Step 2:** RED run. **Step 3:** implement. Columns are truncated to
-  width; at narrow widths drop Gravity, then Load·Up, before truncating
-  names. **Step 4:** `just fmt && just lint && go test -race ./...`.
-- [ ] **Step 5: Commit** `feat(dashboard): per-instance health rows in combined view`.
+- [x] **Step 2:** RED run. **Step 3:** implement. Columns are truncated to
+  width; while the name column would be under 12
+  columns drop Gravity, Load · Up, Temp, Mem, then CPU; Health is never
+  dropped; then names truncate (`TestInstancesNarrowKeepsHealth`). **Step 4:** `just fmt && just lint && go test -race ./...`.
+- [x] **Step 5: Commit** `feat(dashboard): per-instance health rows in combined view`.
+
+### Task 10: Dashboard polling and shared fan-out (audit follow-up, #35)
+
+**Spec:** "Polling cost" and the revised **Fetch** bullet under
+"Per-instance rows".
+
+**Files:** `internal/pihole/fleet.go` (+ tests),
+`internal/tui/screens/dashboard/dashboard.go`, `instances.go` (+ tests).
+
+**Interfaces:**
+- `func (g *Fleet) SummaryByMember(ctx) (Summary, map[string]Summary, error)`;
+  `Fleet.Summary` calls it.
+- `var ErrSkip`: an `EachMember` call returning it skips that member without
+  touching its cooldown or health.
+- Dashboard: `inFlight int`, `lastSlow time.Time`, `slowEvery = 5s`,
+  `fetchAll(force bool)`, `errPatch string`.
+
+- [x] **Step 1: Failing tests:** a tick during a round issues nothing;
+  slow panels only every 5s; refocus mid-round starts a fresh round
+  (`TestRefocusMidRoundStartsFreshRound`); per-member request counts are one
+  `/stats/summary` and one `/info/system` per round in combined mode; a
+  failed hot-temp PATCH doesn't mark the active row unreachable.
+- [x] **Step 2–4:** RED, implement, `just fmt && just lint && go test -race ./...`.
+- [x] **Step 5: Commits** `fix(dashboard): one fetch round in flight and slow
+  panels every 5s`, `fix(dashboard): fetch each member's summary and system
+  once per round`, `test(dashboard): pin the in-flight reset on refocus`,
+  `fix(dashboard): keep the hot-temp patch error apart from system health`.
+
+### Task 11: Ask to combine when the second instance is added (#36)
+
+**Spec:** "Turning it on".
+
+**Files:** `internal/tui/screens/settings/connections.go`, `settings.go`,
+`combined_prompt_test.go`, `README.md`.
+
+**Interfaces:** `Model.askCombined bool`; `handleCombinedKey`;
+`CapturesInput()` also returns true while `confirm.Active`.
+
+- [x] **Step 1: Failing tests:** `TestAddingSecondInstanceAsksAboutCombined`,
+  `TestCombinedPromptYesSavesAndEmits`, `TestCombinedPromptNoLeavesItOff`,
+  `TestAddingThirdInstanceDoesNotAsk`, `TestCombinedPromptCapturesInput`.
+- [x] **Step 2–4:** RED, implement, `just fmt && just lint && go test -race ./...`.
+- [x] **Step 5: Commit** `feat(settings): ask to combine dashboards when the
+  second instance is added`.

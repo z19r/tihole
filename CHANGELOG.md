@@ -17,7 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- address repo audit findings (#35)
+- dashboard keeps one fetch round in flight and refreshes heavy panels every 5s; combined view asks each Pi-hole once per round (#35)
+- config saves are atomic, write through symlinks, keep top-level comments and unknown keys, and trim instance names and `active` (#35)
+- Settings edits list values as lists and refuses values it would corrupt (#35)
+- gravity re-authentication no longer opens extra sessions; logout is safe when called twice at once (#35)
+- instances with `verify_tls: false` keep proxy settings and timeouts (#35)
+- a failed hot-temperature change shows its own warning (#35)
+- removed unused API client methods, TOTP support and the unused `refresh` config option; `changelog-sync` moved out of the shipped binary (#35)
 
 ### Changed
 

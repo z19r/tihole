@@ -158,6 +158,10 @@ Pure Go, `context`-aware, one `Client` per instance. Verified against the FTL Op
 | Actions | `POST /api/action/{restartdns,flush/logs,flush/network}` (may `403` unless `allow_destructive`) | System/Tools |
 
 Notes: batch delete uses the literal `:batchDelete` verb with a `[{item,...}]` body.
+As of v1.4.0 the client implements only the endpoints the screens use:
+`/recent_blocked`, `/history/clients`, the `:batchDelete` verbs,
+`/network/{gateway,interfaces,routes}` and `GET /api/auth` (session check)
+were removed as unused; the table records the API, not the client.
 Creates return `201` + `Location`; deletes `204`. Regex domains must be JSON/URI-escaped.
 
 ## 6. Screen catalog (full parity)
@@ -180,8 +184,9 @@ each is independently shippable.
   view.
 - **Local DNS** — A/AAAA hosts + CNAME records via config elements.
 - **Settings** — browse/edit config tree (DNS, DHCP, privacy, resolver, webserver, misc);
-  respect `read_only` keys; **Connections** sub-screen to add/edit/remove instances +
-  theme selection.
+  respect `read_only` keys; lists edit as comma-separated items, objects and
+  lists of objects/comma-bearing items are read-only; **Connections** sub-screen
+  to add/edit/duplicate (`D`)/remove instances + theme selection.
 - **System/Tools** — FTL/host/system info, diagnosis messages (view + dismiss), network
   device table, live DNS log tail (`/info/logs/dns` poll), destructive actions
   (restart DNS, flush logs/network) behind confirmation.
@@ -207,7 +212,13 @@ instances:
 - **First-run wizard** (Huh): prompt name + URL + password, **validate by attempting auth**,
   write the file. Add/edit/remove later from Settings → Connections.
 - `password_env` reads a secret from the environment; inline passwords never logged.
-- Validation at load: required fields, URL well-formed, unique names, exactly one `active`.
+- Validation at load: required fields, URL well-formed, unique names, exactly one `active`
+  (names and `active` trimmed).
+- Saves are atomic (temp file + rename, through symlinks) and keep top-level
+  comments and unknown keys.
+- `combined: true` opens the combined view (see
+  `2026-11-23-combined-stats-design.md`). There is no per-screen `refresh`
+  setting; it was removed in v1.4.0 because nothing read it.
 
 ## 8. Theming (`internal/theme`)
 

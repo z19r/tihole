@@ -109,11 +109,17 @@ instances:
     url: http://10.0.0.53
     password: plaintext-ok-but-env-is-better
     verify_tls: false                    # self-signed / no TLS
+combined: true   # optional: open in combined view (toggle with m)
 ```
 
 Each instance needs a `name`, a `url`, and an app password supplied either
 inline (`password`) or, preferably, via `password_env` naming an environment
 variable. Set `verify_tls: false` for self-signed certificates.
+
+Saves are atomic (a temp file renamed over the original), so a crash mid-save
+never leaves a broken config. A symlinked `config.yaml` (e.g. into a dotfiles
+repo) is written through, not replaced. Top-level comments and unknown keys
+survive a save; comments inside the `instances` list do not.
 
 ### Security
 
