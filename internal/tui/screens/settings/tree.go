@@ -180,9 +180,52 @@ func parseLeafValue(orig any, s string) (any, error) {
 			return nil, err
 		}
 		return f, nil
+	case []any:
+		return parseListValue(orig.([]any), s)
 	default:
 		return s, nil
 	}
+}
+
+// parseListValue splits a comma-separated edit (optionally wrapped in [ ])
+// into a list, typing each item like the original's numbers or bools.
+func parseListValue(orig []any, s string) ([]any, error) {
+	s = strings.TrimSuffix(strings.TrimPrefix(s, "["), "]")
+	out := []any{}
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var v any = part
+		if len(orig) > 0 {
+			switch orig[0].(type) {
+			case bool, int, int64, float64:
+				var err error
+				if v, err = parseLeafValue(orig[0], part); err != nil {
+					return nil, err
+				}
+			}
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// editable reports whether a leaf can round-trip through the text editor:
+// objects can't, nor can lists whose items themselves contain commas.
+func editable(v any) bool {
+	switch x := v.(type) {
+	case map[string]any:
+		return false
+	case []any:
+		for _, e := range x {
+			if s, ok := e.(string); ok && strings.Contains(s, ",") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // buildPatch turns a dotted path plus a value into the nested map the config
