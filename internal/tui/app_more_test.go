@@ -201,7 +201,7 @@ func TestBlockingResultWithTimerSetsCountdown(t *testing.T) {
 }
 
 func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
-	// Active instance still present: config swapped, nothing else changes.
+	// Active instance still present: config swapped, only the pill refetches.
 	m := sized(t, newTestModel(t), 120, 36)
 	verify := true
 	cfg2 := &config.Config{
@@ -240,8 +240,8 @@ func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
 			m.ctx.InstanceName,
 		)
 	}
-	if cmd != nil {
-		t.Fatal("surviving active instance should not trigger a switch cmd")
+	if cmd == nil {
+		t.Fatal("surviving active instance should refetch the pill")
 	}
 }
 

@@ -5,6 +5,7 @@ package blocking
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,10 +39,12 @@ var actions = []action{
 	{label: "Disable indefinitely", secs: 0},
 }
 
-// statusMsg carries a fetched/refreshed blocking status (or an error).
+// statusMsg carries a fetched/refreshed blocking status (or a fetch error).
+// writeErr reports a failed write whose status was still refreshed.
 type statusMsg struct {
-	status pihole.BlockingStatus
-	err    error
+	status   pihole.BlockingStatus
+	err      error
+	writeErr error
 }
 
 // Model is the Blocking screen.
@@ -112,11 +115,14 @@ func (m *Model) apply(a action) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		if err := src.SetBlocking(ctx, a.enable, timer); err != nil {
-			return statusMsg{err: err}
-		}
+		// Refresh even after a (partly) failed write so the real per-member
+		// state shows next to the error.
+		werr := src.SetBlocking(ctx, a.enable, timer)
 		st, err := src.Blocking(ctx)
-		return statusMsg{status: st, err: err}
+		if err != nil {
+			return statusMsg{err: errors.Join(werr, err)}
+		}
+		return statusMsg{status: st, writeErr: werr}
 	}
 }
 
@@ -127,9 +133,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		if msg.err != nil {
 			m.err = msg.err
+			m.known = false
 			return m, nil
 		}
-		m.err = nil
+		m.err = msg.writeErr
 		m.known = true
 		m.status = msg.status
 		return m, nil
@@ -176,9 +183,18 @@ func (m *Model) View() tea.View {
 
 // statusLine renders the current blocking state prominently.
 func (m *Model) statusLine(th *theme.Theme) string {
-	if m.err != nil {
-		return th.BlockStyle().Bold(true).Render("error: " + m.err.Error())
+	if m.err == nil {
+		return m.stateLine(th)
 	}
+	e := th.BlockStyle().Bold(true).Render("error: " + m.err.Error())
+	if !m.known {
+		return e
+	}
+	return e + "\n" + m.stateLine(th)
+}
+
+// stateLine renders the known blocking state.
+func (m *Model) stateLine(th *theme.Theme) string {
 	if !m.known {
 		return th.SubtleStyle().Render("loading status…")
 	}

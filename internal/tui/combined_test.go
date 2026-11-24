@@ -1,14 +1,19 @@
 package tui
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/z19r/tihole/internal/config"
+	"github.com/z19r/tihole/internal/pihole"
 	"github.com/z19r/tihole/internal/theme"
 	"github.com/z19r/tihole/internal/tui/components"
 	"github.com/z19r/tihole/internal/tui/core"
@@ -157,5 +162,80 @@ func TestToggleCombinedSavesLiveConfig(t *testing.T) {
 	}
 	if !m.ctx.Config.Combined {
 		t.Fatal("ctx.Config.Combined should be true")
+	}
+}
+
+// hole is a fake Pi-hole reporting blocking on. failPost makes POST
+// /api/dns/blocking fail; logouts counts DELETE /api/auth.
+type hole struct{ logouts atomic.Int32 }
+
+func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
+	t.Helper()
+	h := &hole{}
+	srv := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case r.URL.Path == "/api/auth" && r.Method == http.MethodDelete:
+				h.logouts.Add(1)
+				w.WriteHeader(http.StatusNoContent)
+			case r.URL.Path == "/api/auth":
+				_, _ = w.Write([]byte(`{"session":{"valid":true,` +
+					`"sid":"s","csrf":"c","validity":1800}}`))
+			case r.Method == http.MethodPost && failPost:
+				w.WriteHeader(http.StatusInternalServerError)
+			default:
+				_, _ = w.Write([]byte(`{"blocking":"enabled","took":0.1}`))
+			}
+		}))
+	t.Cleanup(srv.Close)
+	return pihole.New(srv.URL, "pw", pihole.WithHTTPClient(srv.Client())), h
+}
+
+// partialFleet is a combined model whose second member fails writes.
+func partialFleet(t *testing.T) *AppModel {
+	t.Helper()
+	m := sized(t, newTestModel(t), 120, 36)
+	ok, _ := newHole(t, false)
+	bad, _ := newHole(t, true)
+	m.ctx.Fleet = pihole.NewFleet([]pihole.Member{
+		{Name: "home", Client: ok},
+		{Name: "office", Client: bad},
+	}, nil)
+	m.ctx.Combined = true
+	return m
+}
+
+func TestToggleBlockingPartialFailureRefreshes(t *testing.T) {
+	for name, cmd := range map[string]func(*AppModel) tea.Cmd{
+		"toggle":  (*AppModel).toggleBlocking,
+		"disable": func(m *AppModel) tea.Cmd { return m.setBlockingFor(30) },
+	} {
+		m := partialFleet(t)
+
+		updated, _ := m.Update(cmd(m)())
+		m = updated.(*AppModel)
+
+		if m.block.Total != 2 || !m.block.Known {
+			t.Errorf("%s: pill not refreshed: %+v", name, m.block)
+		}
+		if !strings.Contains(m.err, "office") {
+			t.Errorf("%s: err = %q, want office failure", name, m.err)
+		}
+	}
+}
+
+func TestInstancesChangeRefetchesPill(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	m.block = components.BlockState{Known: true, Enabled: true}
+	cfg := *m.cfg
+
+	_, cmd := m.Update(core.InstancesChangedMsg{Config: &cfg})
+
+	if m.block.Known {
+		t.Fatal("pill should reset on an instance edit")
+	}
+	if cmd == nil {
+		t.Fatal("expected a blocking refetch cmd")
 	}
 }

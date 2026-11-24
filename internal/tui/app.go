@@ -4,6 +4,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -62,8 +63,12 @@ type blockPollMsg struct{}
 // theme while it's active.
 type partyTickMsg struct{}
 
-// blockingResultMsg carries a fresh blocking status.
-type blockingResultMsg struct{ status pihole.BlockingStatus }
+// blockingResultMsg carries a fresh blocking status and, after a write, the
+// write's error (if any).
+type blockingResultMsg struct {
+	status pihole.BlockingStatus
+	err    error
+}
 
 // toggleCombinedMsg asks the root to flip combined view (palette entry).
 type toggleCombinedMsg struct{}
@@ -273,6 +278,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if st.Timer != nil && *st.Timer > 0 {
 			m.block.CountdownSecs = int(*st.Timer)
 		}
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
 		return m, nil
 
 	case partyTickMsg:
@@ -462,41 +470,32 @@ func desiredBlocking(b components.BlockState) bool {
 
 // toggleBlocking flips global blocking and refreshes status.
 func (m *AppModel) toggleBlocking() tea.Cmd {
-	desired := desiredBlocking(m.block)
-	api := m.ctx.Source()
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
-		defer cancel()
-		if err := api.SetBlocking(ctx, desired, nil); err != nil {
-			return blockingErrMsg{err}
-		}
-		st, err := api.Blocking(ctx)
-		if err != nil {
-			return blockingErrMsg{err}
-		}
-		return blockingResultMsg{st}
-	}
+	return writeBlocking(m.ctx.Source(), desiredBlocking(m.block), nil)
 }
 
 // setBlockingFor disables blocking for the given number of seconds, then
 // refreshes status. A zero duration disables until manually re-enabled.
 func (m *AppModel) setBlockingFor(secs float64) tea.Cmd {
-	api := m.ctx.Source()
 	var timer *float64
 	if secs > 0 {
 		timer = &secs
 	}
+	return writeBlocking(m.ctx.Source(), false, timer)
+}
+
+// writeBlocking sets blocking, then refreshes status even when the write
+// partly failed, so the pill shows the real per-member state alongside the
+// write error.
+func writeBlocking(api core.Source, on bool, timer *float64) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		if err := api.SetBlocking(ctx, false, timer); err != nil {
-			return blockingErrMsg{err}
-		}
+		werr := api.SetBlocking(ctx, on, timer)
 		st, err := api.Blocking(ctx)
 		if err != nil {
-			return blockingErrMsg{err}
+			return blockingErrMsg{errors.Join(werr, err)}
 		}
-		return blockingResultMsg{st}
+		return blockingResultMsg{status: st, err: werr}
 	}
 }
 
@@ -692,12 +691,13 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	m.cfg = cfg
 	m.ctx.Config = cfg
 	m.ctx.Combined = cfg.Combined
+	m.block = components.BlockState{}
 
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
 			// active instance survived; the member list may have changed
 			m.ctx.Fleet = buildFleet(cfg, m.ctx.InstanceName, m.ctx.API)
-			return nil
+			return fetchBlocking(m.ctx.Source())
 		}
 	}
 	if len(cfg.Instances) == 0 {
@@ -861,7 +861,7 @@ func fetchBlocking(api core.Source) tea.Cmd {
 		if err != nil {
 			return blockingErrMsg{err}
 		}
-		return blockingResultMsg{st}
+		return blockingResultMsg{status: st}
 	}
 }
 

@@ -16,8 +16,9 @@ const authJSON = `{"session":{"valid":true,"sid":"s","csrf":"c",` +
 
 // hole is a fake Pi-hole recording POST /api/dns/blocking bodies.
 type hole struct {
-	mu    sync.Mutex
-	posts []string
+	mu       sync.Mutex
+	posts    []string
+	failPost bool
 }
 
 func (h *hole) client(t *testing.T) *pihole.Client {
@@ -34,6 +35,10 @@ func (h *hole) client(t *testing.T) *pihole.Client {
 				h.mu.Lock()
 				h.posts = append(h.posts, string(b))
 				h.mu.Unlock()
+				if h.failPost {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
 			}
 			_, _ = w.Write([]byte(`{"blocking":"enabled","took":0.1}`))
 		}))
@@ -85,5 +90,17 @@ func TestBlockingApplyUsesSource(t *testing.T) {
 	}
 	if len(h[0].posts) != 0 {
 		t.Errorf("API posts = %v, want none", h[0].posts)
+	}
+}
+
+func TestBlockingApplyPartialFailureRefreshes(t *testing.T) {
+	m, h := combined(t)
+	h[2].failPost = true
+
+	_, _ = m.Update(run(m.apply(actions[1])))
+
+	v := m.View().Content
+	if !strings.Contains(v, "2/2") || !strings.Contains(v, "secondary") {
+		t.Errorf("view lacks refreshed count and error:\n%s", v)
 	}
 }
