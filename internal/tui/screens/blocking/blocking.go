@@ -211,18 +211,18 @@ func (m *Model) stateLine(th *theme.Theme) string {
 	if st.Blocking {
 		return th.AllowStyle().Bold(true).Render("● blocking is ON" + count)
 	}
-	label := "○ blocking is OFF" + count
+	timer := ""
+	if st.Timer != nil && *st.Timer > 0 {
+		timer = "  — re-enables in " + humanCountdown(int(*st.Timer))
+	}
 	if st.On > 0 && st.On < st.Total {
-		label = "◐ blocking is PARTIAL" + count
-		if st.Timer != nil && *st.Timer > 0 {
-			label += "  — re-enables in " + humanCountdown(int(*st.Timer))
-		}
-		return th.WarnStyle().Bold(true).Render(label)
+		return th.WarnStyle().
+			Bold(true).
+			Render("◐ blocking is PARTIAL" + count + timer)
 	}
-	if m.status.Timer != nil && *m.status.Timer > 0 {
-		label += "  — re-enables in " + humanCountdown(int(*m.status.Timer))
-	}
-	return th.BlockStyle().Bold(true).Render(label)
+	return th.BlockStyle().
+		Bold(true).
+		Render("○ blocking is OFF" + count + timer)
 }
 
 // renderMenu renders the action list with the cursor row highlighted.

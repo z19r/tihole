@@ -72,19 +72,28 @@ func TestBlockingCombinedHeading(t *testing.T) {
 func TestBlockingCombinedPartialStatus(t *testing.T) {
 	m, _ := combined(t)
 	_, _ = m.Update(statusMsg{status: pihole.BlockingStatus{On: 1, Total: 2}})
-	if v := m.View().Content; !strings.Contains(v, "1/2") {
-		t.Errorf("view lacks 1/2:\n%s", v)
+	v := m.View().Content
+	if !strings.Contains(v, "PARTIAL (1/2 on)") ||
+		strings.Contains(v, "is ON") {
+		t.Errorf("view should read PARTIAL (1/2 on) and not ON:\n%s", v)
+	}
+}
+
+func TestBlockingCombinedAllOff(t *testing.T) {
+	m, _ := combined(t)
+	_, _ = m.Update(statusMsg{status: pihole.BlockingStatus{Total: 2}})
+	if v := m.View().Content; !strings.Contains(v, "OFF (0/2 on)") {
+		t.Errorf("view lacks OFF (0/2 on):\n%s", v)
 	}
 }
 
 func TestBlockingApplyUsesSource(t *testing.T) {
 	m, h := combined(t)
-	_ = run(m.apply(actions[1])) // disable 5 minutes
 	_ = run(m.apply(action{label: "30s", secs: 30}))
 	for i := 1; i <= 2; i++ {
-		if len(h[i].posts) != 2 ||
-			!strings.Contains(h[i].posts[1], `"blocking":false`) ||
-			!strings.Contains(h[i].posts[1], `"timer":30`) {
+		if len(h[i].posts) != 1 ||
+			!strings.Contains(h[i].posts[0], `"blocking":false`) ||
+			!strings.Contains(h[i].posts[0], `"timer":30`) {
 			t.Errorf("member %d posts = %v", i, h[i].posts)
 		}
 	}
