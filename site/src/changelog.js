@@ -2,6 +2,35 @@
 // Source of truth: repo-root CHANGELOG.md.
 window.TIHOLE_CHANGELOG = [
   {
+    "ver": "1.4.0",
+    "date": "2026-11-24",
+    "sections": [
+      {
+        "name": "added",
+        "bullets": [
+          "ask to combine dashboards on the second instance (#36)",
+          "combined view across redundant Pi-holes (#34)",
+          "duplicate a connection with D (#33)"
+        ]
+      },
+      {
+        "name": "fixed",
+        "bullets": [
+          "address repo audit findings (#35)"
+        ]
+      },
+      {
+        "name": "changed",
+        "bullets": [
+          "pin tihole to claude-opus-5-5 in whetstone (#32)",
+          "bump charm.land/lipgloss/v2 from 2.1.0 to 2.1.1 (#31)",
+          "bump charm.land/lipgloss/v2 from 2.0.6 to 2.1.0 (#29)",
+          "bump charm.land/bubbletea/v2 from 2.1.0 to 2.1.1 (#28)"
+        ]
+      }
+    ]
+  },
+  {
     "ver": "1.3.0",
     "date": "2026-10-28",
     "sections": [
