@@ -66,6 +66,25 @@ func TestToggleCombinedPersists(t *testing.T) {
 	}
 }
 
+func TestToggleCombinedSaveFailureKeepsFlip(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	file := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.cfgPath = filepath.Join(file, "tihole.yaml") // parent is not a dir
+
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	if !m.ctx.Combined {
+		t.Fatal("flip should be kept for the session")
+	}
+	if m.err == "" {
+		t.Fatal("save failure should surface a banner")
+	}
+}
+
 func TestToggleCombinedNeedsTwo(t *testing.T) {
 	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
 	m.cfg.Instances = m.cfg.Instances[:1]
@@ -108,15 +127,23 @@ func TestInstancesChangeRebuildsFleet(t *testing.T) {
 func TestStatusLabelPerPage(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
 	m.ctx.Combined = true
+	statusBar := func() string {
+		return strings.SplitN(ansi.Strip(m.View().Content), "\n", 2)[0]
+	}
 
-	if out := ansi.Strip(m.View().Content); !strings.Contains(out, "all (2)") {
-		t.Fatalf("dashboard should show all (2):\n%s", out)
+	for _, p := range []core.PageID{
+		core.PageDashboard, core.PageQueryLog, core.PageBlocking,
+	} {
+		m.switchPage(p)
+		if bar := statusBar(); !strings.Contains(bar, "all (2)") {
+			t.Errorf("page %v status bar lacks all (2): %q", p, bar)
+		}
 	}
 
 	m.switchPage(core.PageAdlists)
-	out := ansi.Strip(m.View().Content)
-	if strings.Contains(out, "all (2)") || !strings.Contains(out, "home") {
-		t.Fatalf("adlists should show the active name:\n%s", out)
+	if bar := statusBar(); strings.Contains(bar, "all (2)") ||
+		!strings.Contains(bar, "home") {
+		t.Fatalf("adlists status bar should show the active name: %q", bar)
 	}
 }
 
