@@ -42,10 +42,10 @@ func WithInsecureTLS(insecure bool) Option {
 		if !insecure {
 			return
 		}
-		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			}, //nolint:gosec // opt-in per instance
+		// Clone keeps proxy env support and the default dial/TLS timeouts.
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // opt-in per instance
 		}
 		c.httpClient = &http.Client{
 			Transport: transport,
