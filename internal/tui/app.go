@@ -463,12 +463,10 @@ func (m *AppModel) relPage(delta int) core.PageID {
 }
 
 // desiredBlocking is the state the "d" toggle requests: enable unless
-// blocking is known to be on everywhere, so a partial fleet enables all.
+// blocking is known to be on (on every reachable member, for a fleet), so a
+// partial fleet enables all.
 func desiredBlocking(b components.BlockState) bool {
-	if b.Total > 0 {
-		return !b.Known || b.On < b.Total
-	}
-	return !(b.Known && b.Enabled)
+	return !b.Known || !b.Enabled
 }
 
 // toggleBlocking flips global blocking and refreshes status.

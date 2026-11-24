@@ -104,3 +104,13 @@ func TestBlockingApplyPartialFailureRefreshes(t *testing.T) {
 		t.Errorf("view lacks refreshed count and error:\n%s", v)
 	}
 }
+
+func TestBlockingCombinedOnWithMemberDown(t *testing.T) {
+	m, _ := combined(t)
+	_, _ = m.Update(statusMsg{status: pihole.BlockingStatus{
+		Blocking: true, On: 1, Total: 2,
+	}})
+	if v := m.View().Content; !strings.Contains(v, "(1/2 on) ⚠") {
+		t.Errorf("view lacks the down-member warning:\n%s", v)
+	}
+}

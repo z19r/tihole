@@ -352,3 +352,22 @@ func TestFleetSlowSuccessKeepsNewerCooldown(t *testing.T) {
 		t.Fatalf("SetBlocking: Unreachable = %v, want [a]", u)
 	}
 }
+
+func TestFleetBlockingCountsUnreachable(t *testing.T) {
+	on := func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, `{"blocking":"enabled"}`)
+	}
+	a, _ := fakeMember(t, "a", on)
+	b, _ := fakeMember(t, "b", failHandler)
+	g := NewFleet([]Member{a, b},
+		map[string]error{"c": errors.New("no url")})
+
+	got, err := g.Blocking(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Every reachable member blocks, but only 1 of 3 is known to.
+	if !got.Blocking || got.On != 1 || got.Total != 3 {
+		t.Fatalf("got %+v, want Blocking, On 1, Total 3", got)
+	}
+}

@@ -57,7 +57,7 @@ func (b StatusBar) blockingPill(th *theme.Theme) string {
 }
 
 // fleetPill renders the combined-mode pill with the per-member count. It
-// never shows a bare ON while any member is off.
+// never shows a bare ON while any member is off or unreachable.
 func (b StatusBar) fleetPill(th *theme.Theme, base lipgloss.Style) string {
 	on, total := b.Blocking.On, b.Blocking.Total
 	count := fmt.Sprintf("%d/%d", on, total)
@@ -65,6 +65,8 @@ func (b StatusBar) fleetPill(th *theme.Theme, base lipgloss.Style) string {
 	switch {
 	case on == total:
 		return base.Background(th.Allow).Render("● ON " + count)
+	case b.Blocking.Enabled: // the rest are unreachable, not off
+		return base.Background(th.Warn).Render("● ON " + count + " ⚠")
 	case on == 0:
 		label := "⚠ OFF " + count
 		if b.Blocking.CountdownSecs > 0 {

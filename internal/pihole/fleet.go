@@ -253,13 +253,17 @@ func (g *Fleet) Queries(
 	return mergeQueries(in, names, length), nil
 }
 
-// Blocking merges GET /api/dns/blocking across members.
+// Blocking merges GET /api/dns/blocking across members. Blocking reports
+// whether every reachable member blocks; Total counts every instance, so
+// On < Total while Blocking means some are unreachable.
 func (g *Fleet) Blocking(ctx context.Context) (BlockingStatus, error) {
 	in, _, err := fanOut(g, ctx, flip((*Client).Blocking))
 	if err != nil {
 		return BlockingStatus{}, err
 	}
-	return mergeBlocking(in), nil
+	out := mergeBlocking(in)
+	out.Total = g.Len()
+	return out, nil
 }
 
 // SetBlocking posts the same state and timer to every member, including those

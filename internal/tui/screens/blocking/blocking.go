@@ -203,6 +203,11 @@ func (m *Model) stateLine(th *theme.Theme) string {
 	if st.Total > 0 {
 		count = fmt.Sprintf(" (%d/%d on)", st.On, st.Total)
 	}
+	if st.Blocking && st.On < st.Total { // the rest are unreachable
+		return th.WarnStyle().
+			Bold(true).
+			Render("● blocking is ON" + count + " ⚠")
+	}
 	if st.Blocking {
 		return th.AllowStyle().Bold(true).Render("● blocking is ON" + count)
 	}

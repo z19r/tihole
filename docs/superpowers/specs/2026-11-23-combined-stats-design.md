@@ -176,11 +176,13 @@ member, on every page.
 - `components.BlockState` gains `On, Total int`; `Total == 0` means single
   mode. The pill renders `ON 2/2` (calm), `OFF 0/2` (alarm, with countdown
   from `MinTimer`), or `PARTIAL 1/2` (warn colour) when members disagree. The
-  pill never renders a bare `ON` while any member is off.
+  pill never renders a bare `ON` while any member is off. Total counts every
+  instance, so with a member unreachable and the rest on it reads `ON 1/2 ⚠`
+  (warn colour); `d` then disables.
 - `toggleBlocking`, `setBlockingFor`, the palette blocking commands, the
   blocking poll, and the Blocking screen's fetch/apply all go through the
-  group in combined mode. The toggle's desired state is `!(On == Total)`:
-  partial → enable all. A member that fails a write shows "blocking not
+  group in combined mode. The toggle's desired state is "not every reachable
+  member blocks": partial → enable all. A member that fails a write shows "blocking not
   changed on secondary", and the refreshed state shows the real per-member
   count.
 - The Blocking screen's heading reads "all (N)" in combined mode.

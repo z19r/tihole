@@ -184,7 +184,7 @@ type BlockingStatus struct {
 	Status   string
 	Timer    *float64
 	Took     float64
-	// On and Total count members blocking and members asked, for combined
+	// On and Total count members blocking and all instances, for combined
 	// results; zero for a single instance.
 	On, Total int `json:"-"`
 }

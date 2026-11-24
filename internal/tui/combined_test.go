@@ -134,6 +134,9 @@ func TestToggleBlockingPartialEnablesAll(t *testing.T) {
 			Known: true, Enabled: true, On: 2, Total: 2,
 		}, false},
 		{"all off", components.BlockState{Known: true, Total: 2}, true},
+		{"on, one down", components.BlockState{
+			Known: true, Enabled: true, On: 1, Total: 2,
+		}, false},
 	}
 	for _, tc := range cases {
 		if got := desiredBlocking(tc.b); got != tc.want {

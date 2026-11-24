@@ -151,6 +151,9 @@ func TestStatusBarCombinedPill(t *testing.T) {
 			"OFF 0/2 0:30"},
 		{"partial", BlockState{Known: true, On: 1, Total: 2},
 			"PARTIAL 1/2"},
+		{"on, one down", BlockState{
+			Known: true, Enabled: true, On: 1, Total: 2,
+		}, "ON 1/2 ⚠"},
 		{"single", BlockState{Known: true, Enabled: true}, "BLOCKING ON"},
 	}
 	for _, tc := range cases {
@@ -169,6 +172,18 @@ func TestStatusBarPartialPillUsesWarn(t *testing.T) {
 	b := StatusBar{Blocking: BlockState{Known: true, On: 1, Total: 2}}
 	want := lipgloss.NewStyle().Bold(true).Padding(0, 1).
 		Foreground(th.Surface).Background(th.Warn).Render("◐ PARTIAL 1/2")
+	if got := b.blockingPill(th); got != want {
+		t.Fatalf("pill = %q, want %q", got, want)
+	}
+}
+
+func TestStatusBarDownMemberPillUsesWarn(t *testing.T) {
+	th := theme.DeepNight()
+	b := StatusBar{Blocking: BlockState{
+		Known: true, Enabled: true, On: 1, Total: 2,
+	}}
+	want := lipgloss.NewStyle().Bold(true).Padding(0, 1).
+		Foreground(th.Surface).Background(th.Warn).Render("● ON 1/2 ⚠")
 	if got := b.blockingPill(th); got != want {
 		t.Fatalf("pill = %q, want %q", got, want)
 	}

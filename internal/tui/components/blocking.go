@@ -6,11 +6,11 @@ package components
 type BlockState struct {
 	// Known is false until the first fetch resolves.
 	Known bool
-	// Enabled is true when blocking is active.
+	// Enabled is true when blocking is active (on every reachable member).
 	Enabled bool
 	// CountdownSecs, when > 0, shows a temporary-disable countdown.
 	CountdownSecs int
-	// On and Total count fleet members with blocking on; Total == 0 means a
-	// single instance.
+	// On and Total count fleet members with blocking on and all members
+	// (reachable or not); Total == 0 means a single instance.
 	On, Total int
 }
