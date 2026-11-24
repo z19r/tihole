@@ -713,19 +713,27 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
 			// active instance survived; the member list may have changed
-			fleet, dropped := buildFleet(
-				cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
-			m.ctx.Fleet = fleet
-			return tea.Batch(
-				fetchBlocking(m.ctx.Source()),
-				logoutCmd(dropped),
-			)
+			return m.rebuildFleet(prevCfg)
 		}
 	}
 	if len(cfg.Instances) == 0 {
 		return nil
 	}
-	return m.activate(cfg.Instances[0].Name, prevCfg)
+	name := cfg.Instances[0].Name
+	if cmd := m.activate(name, prevCfg); m.ctx.InstanceName == name {
+		return cmd
+	}
+	// The switch failed: still drop the deleted instance from the fleet.
+	return m.rebuildFleet(prevCfg)
+}
+
+// rebuildFleet rebuilds the fleet from m.cfg around the active client, then
+// refetches the pill and logs out the clients it dropped.
+func (m *AppModel) rebuildFleet(prevCfg *config.Config) tea.Cmd {
+	fleet, dropped := buildFleet(
+		m.cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
+	m.ctx.Fleet = fleet
+	return tea.Batch(fetchBlocking(m.ctx.Source()), logoutCmd(dropped))
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.

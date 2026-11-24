@@ -309,3 +309,31 @@ func TestInstancesChangeRefetchesPill(t *testing.T) {
 		t.Fatal("expected a blocking refetch cmd")
 	}
 }
+
+func TestInstancesChangeDropsDeletedEvenIfSwitchFails(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	cfg := &config.Config{
+		Active:   "office",
+		Combined: true,
+		Instances: []config.Instance{
+			{
+				Name: "office", URL: "http://10.0.0.2",
+				PasswordEnv: "TIHOLE_TEST_UNSET_PW",
+			},
+			{Name: "cabin", URL: "http://10.0.0.3", Password: "pw3"},
+		},
+	}
+
+	m.applyInstancesChange(cfg)
+
+	if m.err == "" {
+		t.Fatal("failed switch should surface a banner")
+	}
+	if m.ctx.Fleet.Client("home") != nil {
+		t.Fatal("deleted instance must leave the fleet")
+	}
+	if m.ctx.Fleet.Client("cabin") == nil || m.ctx.Fleet.Len() != 2 {
+		t.Fatalf("fleet = %v (+failed), want cabin and office",
+			m.ctx.Fleet.Names())
+	}
+}
