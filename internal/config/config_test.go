@@ -167,3 +167,32 @@ func TestLoadInvalidYAMLReturnsError(t *testing.T) {
 		t.Fatal("expected parse error, got nil")
 	}
 }
+
+func TestSaveFailureLeavesOriginalIntact(t *testing.T) {
+	// Arrange: a valid file, then make the temp path unwritable (a dir).
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := Save(path, validConfig()); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	before, _ := os.ReadFile(path)
+	if err := os.Mkdir(path+".tmp", 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	changed := validConfig()
+	changed.Theme = "other"
+
+	// Act
+	err := Save(path, changed)
+
+	// Assert
+	if err == nil {
+		t.Fatal("expected error when temp path is a directory")
+	}
+	after, _ := os.ReadFile(path)
+	if string(after) != string(before) {
+		t.Fatalf("original modified:\n%s\nwant:\n%s", after, before)
+	}
+	if _, err := Load(path); err != nil {
+		t.Fatalf("original no longer loads: %v", err)
+	}
+}
