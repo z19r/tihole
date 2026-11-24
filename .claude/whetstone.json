@@ -9,6 +9,7 @@
     "headroom": "0.31.0"
   },
   "settings": {
+    "api_model": "claude-opus-5-5",
     "headroom_env": {
       "HEADROOM_OUTPUT_SHAPER": "1",
       "HEADROOM_ROLLOUT_CHANNEL": "beta"
@@ -16,5 +17,5 @@
   },
   "migration_id": "20260722-192256",
   "created_at": "2026-07-22T19:22:44.992992093Z",
-  "updated_at": "2026-08-23T19:10:31.157924778Z"
+  "updated_at": "2026-11-24T01:43:21.676428989Z"
 }

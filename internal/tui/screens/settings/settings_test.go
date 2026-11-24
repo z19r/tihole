@@ -573,6 +573,43 @@ func TestInvalidEditSetsBannerAndDoesNotEmit(t *testing.T) {
 	}
 }
 
+func TestDuplicateInstanceAddsCopyWithSecret(t *testing.T) {
+	// Arrange
+	m := newTestModel(t)
+	_, _ = m.Update(keyPress("c"))
+	m.connTable.SetCursor(0) // duplicate "primary"
+
+	// Act: duplicate twice so the second copy needs a numbered name.
+	_, _ = m.Update(keyPress("D"))
+	if m.connForm == nil || m.connForm.title() != "Duplicate instance" {
+		t.Fatalf("'D' should open the duplicate form")
+	}
+	_, cmd := m.Update(keyPress("enter"))
+	m.connTable.SetCursor(0)
+	_, _ = m.Update(keyPress("D"))
+	_, _ = m.Update(keyPress("enter"))
+
+	// Assert
+	if cmd == nil {
+		t.Fatalf("duplicate submit should emit a command")
+	}
+	insts := m.ctx.Config.Instances
+	if len(insts) != 4 {
+		t.Fatalf("expected 4 instances, got %d", len(insts))
+	}
+	for i, want := range []string{"primary copy", "primary copy 2"} {
+		got := insts[2+i]
+		if got.Name != want || got.URL != "http://pi.hole" ||
+			got.Password != "secret-pw" {
+			t.Fatalf("copy %d = %+v, want name %q with primary's URL/secret",
+				i, got, want)
+		}
+	}
+	if m.ctx.Config.Active != "primary" {
+		t.Fatalf("duplicating should not change the active instance")
+	}
+}
+
 func TestDeleteInstanceConfirmEmits(t *testing.T) {
 	// Arrange
 	m := newTestModel(t)

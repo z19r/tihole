@@ -73,6 +73,16 @@ func newEditInstanceForm(inst config.Instance, index int) *instanceForm {
 	return f
 }
 
+// newDuplicateInstanceForm builds an add form pre-filled from inst under a new
+// name. The stored secret carries over (blank password keeps it) without being
+// surfaced.
+func newDuplicateInstanceForm(inst config.Instance, name string) *instanceForm {
+	f := newEditInstanceForm(inst, -1)
+	f.editing = false
+	f.name.SetValue(name)
+	return f
+}
+
 func newInput(placeholder string, limit int) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
@@ -89,6 +99,9 @@ func newPasswordInput() textinput.Model {
 func (f *instanceForm) title() string {
 	if f.editing {
 		return "Edit instance"
+	}
+	if f.original.Name != "" {
+		return "Duplicate instance"
 	}
 	return "Add instance"
 }
@@ -150,7 +163,7 @@ func (f *instanceForm) instance() config.Instance {
 	switch {
 	case pw != "":
 		inst.Password = pw
-	case f.editing:
+	default:
 		inst.Password = f.original.Password
 	}
 

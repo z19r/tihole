@@ -137,6 +137,17 @@ everything`.
 
 ### Dashboard
 
+- `fetchSummary`, `fetchHistory`, `fetchBreakdown` and `fetchTop` take a source
+  chosen at `fetchAll` time: the group when `ctx.Combined`, otherwise the
+  client. A small function-typed seam per fetch is enough; no interface.
+- `fetchSystem` (CPU/mem/temp/messages) and the hot-temp `PatchConfig` stay on
+  the active client. The System/health panel title shows the active instance
+  name in combined mode.
+- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning, "secondary unreachable", in the
+  existing error/banner area. The data still renders.
+- When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
+  tile's value is the max.
+
 - `fetchSummary`, `fetchHistory`, `fetchBreakdown` and `fetchTop` read
   through `ctx.Source()`: the fleet in combined mode, otherwise the active
   client.
