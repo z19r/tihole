@@ -531,7 +531,7 @@ func TestBlockingCommandClosuresReportErrors(t *testing.T) {
 		"toggle":        m.toggleBlocking(),
 		"disable-30s":   m.setBlockingFor(30),
 		"disable-indef": m.setBlockingFor(0),
-		"fetch":         fetchBlocking(m.ctx.API),
+		"fetch":         m.fetchBlocking(),
 	}
 	for name, cmd := range cases {
 		if cmd == nil {

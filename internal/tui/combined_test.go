@@ -337,3 +337,25 @@ func TestInstancesChangeDropsDeletedEvenIfSwitchFails(t *testing.T) {
 			m.ctx.Fleet.Names())
 	}
 }
+
+func TestStaleBlockingResultDropped(t *testing.T) {
+	for name, change := range map[string]func(*AppModel){
+		"combined": func(m *AppModel) { m.Update(keyPress("m", 'm')) },
+		"switch":   func(m *AppModel) { m.Update(keyPress("s", 's')) },
+		"edit": func(m *AppModel) {
+			cfg := *m.cfg
+			m.Update(core.InstancesChangedMsg{Config: &cfg})
+		},
+	} {
+		m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+		m.ctx.API, _ = newHole(t, false)
+		late := m.toggleBlocking()() // in flight across the change
+
+		change(m)
+		m.Update(late)
+
+		if m.block.Known {
+			t.Errorf("%s: stale result painted the pill: %+v", name, m.block)
+		}
+	}
+}

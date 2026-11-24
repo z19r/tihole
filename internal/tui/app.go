@@ -67,10 +67,11 @@ type blockPollMsg struct{}
 type partyTickMsg struct{}
 
 // blockingResultMsg carries a fresh blocking status and, after a write, the
-// write's error (if any).
+// write's error (if any). gen is the blockGen it was requested under.
 type blockingResultMsg struct {
 	status pihole.BlockingStatus
 	err    error
+	gen    int
 }
 
 // toggleCombinedMsg asks the root to flip combined view (palette entry).
@@ -110,7 +111,10 @@ type AppModel struct {
 	focus         focusZone
 
 	block components.BlockState
-	err   string
+	// blockGen bumps whenever the pill's source changes, so a blocking
+	// result requested before the change is dropped.
+	blockGen int
+	err      string
 
 	// konami/party back the Konami-code easter egg: entering the sequence
 	// toggles a wall-clock-driven rainbow theme, restoring the prior theme on
@@ -182,7 +186,7 @@ func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
-		fetchBlocking(m.ctx.Source()),
+		m.fetchBlocking(),
 		blockPollCmd(),
 		m.splashCmd(),
 	)
@@ -271,6 +275,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.applyInstancesChange(msg.Config)
 
 	case blockingResultMsg:
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
+		if msg.gen != m.blockGen {
+			return m, nil // requested before a mode or instance change
+		}
 		st := msg.status
 		m.block = components.BlockState{
 			Known:   true,
@@ -280,9 +290,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if st.Timer != nil && *st.Timer > 0 {
 			m.block.CountdownSecs = int(*st.Timer)
-		}
-		if msg.err != nil {
-			m.err = msg.err.Error()
 		}
 		return m, nil
 
@@ -297,7 +304,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Re-fetch in the background and reschedule the next tick. The pill
 		// keeps
 		// showing the last-known state until the fetch resolves.
-		return m, tea.Batch(fetchBlocking(m.ctx.Source()), blockPollCmd())
+		return m, tea.Batch(m.fetchBlocking(), blockPollCmd())
 
 	case toggleCombinedMsg:
 		return m, m.toggleCombined()
@@ -469,9 +476,15 @@ func desiredBlocking(b components.BlockState) bool {
 	return !b.Known || !b.Enabled
 }
 
+// resetBlock blanks the pill and invalidates in-flight blocking results.
+func (m *AppModel) resetBlock() {
+	m.block = components.BlockState{}
+	m.blockGen++
+}
+
 // toggleBlocking flips global blocking and refreshes status.
 func (m *AppModel) toggleBlocking() tea.Cmd {
-	return writeBlocking(m.ctx.Source(), desiredBlocking(m.block), nil)
+	return m.writeBlocking(desiredBlocking(m.block), nil)
 }
 
 // setBlockingFor disables blocking for the given number of seconds, then
@@ -481,13 +494,14 @@ func (m *AppModel) setBlockingFor(secs float64) tea.Cmd {
 	if secs > 0 {
 		timer = &secs
 	}
-	return writeBlocking(m.ctx.Source(), false, timer)
+	return m.writeBlocking(false, timer)
 }
 
 // writeBlocking sets blocking, then refreshes status even when the write
 // partly failed, so the pill shows the real per-member state alongside the
 // write error.
-func writeBlocking(api core.Source, on bool, timer *float64) tea.Cmd {
+func (m *AppModel) writeBlocking(on bool, timer *float64) tea.Cmd {
+	api, gen := m.ctx.Source(), m.blockGen
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
@@ -496,7 +510,7 @@ func writeBlocking(api core.Source, on bool, timer *float64) tea.Cmd {
 		if err != nil {
 			return blockingErrMsg{errors.Join(werr, err)}
 		}
-		return blockingResultMsg{status: st, err: werr}
+		return blockingResultMsg{status: st, err: werr, gen: gen}
 	}
 }
 
@@ -669,10 +683,10 @@ func (m *AppModel) activate(name string, prevCfg *config.Config) tea.Cmd {
 	m.ctx.InstanceName = name
 	fleet, dropped := buildFleet(m.cfg, name, client, m.ctx.Fleet, prevCfg)
 	m.ctx.Fleet = fleet
-	m.block = components.BlockState{}
+	m.resetBlock()
 	return tea.Batch(
 		m.screens[m.active].Focus(),
-		fetchBlocking(m.ctx.Source()),
+		m.fetchBlocking(),
 		logoutCmd(dropped),
 	)
 }
@@ -687,13 +701,13 @@ func (m *AppModel) toggleCombined() tea.Cmd {
 	}
 	m.ctx.Combined = !m.ctx.Combined
 	m.cfg.Combined = m.ctx.Combined
-	m.block = components.BlockState{}
+	m.resetBlock()
 	if err := config.Save(m.cfgPath, m.cfg); err != nil {
 		m.err = err.Error() // keep the flipped state for this session
 	}
 	return tea.Batch(
 		m.screens[m.active].Focus(),
-		fetchBlocking(m.ctx.Source()),
+		m.fetchBlocking(),
 	)
 }
 
@@ -708,7 +722,7 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	m.cfg = cfg
 	m.ctx.Config = cfg
 	m.ctx.Combined = cfg.Combined
-	m.block = components.BlockState{}
+	m.resetBlock()
 
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
@@ -733,7 +747,7 @@ func (m *AppModel) rebuildFleet(prevCfg *config.Config) tea.Cmd {
 	fleet, dropped := buildFleet(
 		m.cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
 	m.ctx.Fleet = fleet
-	return tea.Batch(fetchBlocking(m.ctx.Source()), logoutCmd(dropped))
+	return tea.Batch(m.fetchBlocking(), logoutCmd(dropped))
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.
@@ -894,7 +908,8 @@ func logoutCmd(dropped []*pihole.Client) tea.Cmd {
 }
 
 // fetchBlocking loads the current blocking status.
-func fetchBlocking(api core.Source) tea.Cmd {
+func (m *AppModel) fetchBlocking() tea.Cmd {
+	api, gen := m.ctx.Source(), m.blockGen
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
@@ -902,7 +917,7 @@ func fetchBlocking(api core.Source) tea.Cmd {
 		if err != nil {
 			return blockingErrMsg{err}
 		}
-		return blockingResultMsg{status: st}
+		return blockingResultMsg{status: st, gen: gen}
 	}
 }
 
