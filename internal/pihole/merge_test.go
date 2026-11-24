@@ -191,4 +191,13 @@ func TestMergeBlocking(t *testing.T) {
 	if !got.Blocking || got.Timer != nil || got.On != 2 {
 		t.Fatalf("got %+v", got)
 	}
+	// A blocking member's stale timer must not win the minimum.
+	t5 := 5.0
+	got = mergeBlocking([]BlockingStatus{
+		{Blocking: true, Timer: &t5},
+		{Timer: &t30},
+	})
+	if got.Timer == nil || *got.Timer != 30 {
+		t.Fatalf("got %+v", got)
+	}
 }

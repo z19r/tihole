@@ -187,14 +187,15 @@ func mergeQueries(in []QueriesPage, names []string, length int) QueriesPage {
 }
 
 // mergeBlocking reports blocking only when every member blocks; Timer is the
-// soonest one among members that have one.
+// soonest one among the members that are off.
 func mergeBlocking(in []BlockingStatus) BlockingStatus {
 	out := BlockingStatus{Total: len(in)}
 	for _, b := range in {
 		if b.Blocking {
 			out.On++
 		}
-		if b.Timer != nil && (out.Timer == nil || *b.Timer < *out.Timer) {
+		if !b.Blocking && b.Timer != nil &&
+			(out.Timer == nil || *b.Timer < *out.Timer) {
 			t := *b.Timer
 			out.Timer = &t
 		}
