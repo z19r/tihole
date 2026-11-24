@@ -17,7 +17,8 @@ internal/
     ├── components/    reusable widgets: sidebar, statusbar, palette, help,
     │                  section tabs, splash, gradient, confirm, table
     └── screens/       one package per screen (dashboard, querylog, domains, …)
-scripts/               release helpers (changelog-sync, backfill-changelog.sh)
+scripts/               release helpers (changelog-sync/, backfill-changelog.sh);
+                       not part of the shipped binary
 ```
 
 The three domain packages — `pihole`, `config`, `theme` — **never import
@@ -38,6 +39,8 @@ type AppContext struct {
     InstanceName string         // currently active instance
     Config       *config.Config // pointer, shared with the Settings screen
     ConfigPath   string         // where Config persists (0600)
+    Fleet        *pihole.Fleet  // every configured instance, for combined view
+    Combined     bool           // combined view on (persisted as config.Combined)
 }
 ```
 
@@ -64,8 +67,9 @@ type Screen interface {
 
 Two optional capabilities refine behavior:
 
-- **`InputCapturer`** — a screen returns `true` while a text field is focused, so
-  the root delivers raw keys to it instead of firing single-key globals.
+- **`InputCapturer`** — a screen returns `true` while a text field or a
+  confirm dialog is focused, so the root delivers raw keys to it instead of
+  firing single-key globals.
 - **`PanelInteractor`** — a screen returns `false` when it has no actionable
   content (e.g. the read-only Dashboard), so the rail refuses to descend into it.
 
@@ -89,7 +93,10 @@ never reach into the root or each other directly.
 
 [`internal/pihole`](../internal/pihole) is the sole HTTP boundary. It manages a
 Pi-hole v6 session via the `X-FTL-SID` header, re-authenticating transparently
-when a session expires and logging out on exit so it doesn't leak a session seat.
+when a session expires (single-flight, so concurrent 401s — gravity's stream
+included — cause one login) and logging out on exit so it doesn't leak a
+session seat. `Client.Close` logs out and retires a client; it is safe to call
+concurrently, and later requests fail with `ErrClosed`.
 The combined-view fleet keeps one client per instance: rebuilding it reuses
 clients whose instance definition is unchanged, logs out the ones it drops, and
 every member is logged out on exit.
@@ -104,6 +111,18 @@ members that fail; `merge.go` holds the merge rules. Screens reach it through
 the `core.Source` seam (`AppContext.Source()`), which covers the nine
 combined-capable calls (stats, query log, blocking state and actions).
 Everything else still goes to `AppContext.API`, the active instance.
+
+The dashboard ticks every 250ms but keeps at most one fetch round in flight,
+and refreshes the heavy panels (history, breakdowns, top lists, the
+per-instance probe) every 5s. In combined mode each member gets one summary
+call per round (`Fleet.SummaryByMember`), so nothing is fetched twice.
+
+## Config
+
+[`internal/config`](../internal/config) loads, validates and saves
+`config.yaml`. Saves write a `0600` temp file in the same directory and rename
+it over the original (through symlinks), and keep top-level comments and
+unknown keys by editing the existing YAML node tree.
 
 ## Themes
 

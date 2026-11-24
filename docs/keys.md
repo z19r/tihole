@@ -81,6 +81,16 @@ own bindings on top. The conventional set:
 | `x` | Delete the highlighted record |
 | `r` | Refresh the list |
 
+Settings → Connections also has `D` to duplicate the highlighted instance
+(password included) as `<name> copy`. Adding or duplicating your **second**
+instance asks whether to make the combined view the default (`y`/`n`).
+While a confirm dialog is open it takes every key, so globals like `m` and
+`d` can't act behind it.
+
+In Settings' config tree, list values are edited as comma-separated items.
+Objects, lists of objects, and lists whose items contain commas (such as a
+non-empty `dns.cnameRecords`) are read-only there; edit those in Local DNS.
+
 The Query Log adds one-key allow/block on the highlighted query. The exact set
 for the screen you're on is always shown in the help bar and the `?` overlay,
 which is the source of truth — this table documents the convention, not an
