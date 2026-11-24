@@ -52,7 +52,9 @@ Pi-holes as one network.
 2. **An interface both `Client` and `Group` satisfy.** This was rejected:
    `Client` has about 70 methods, most of them writes with no combined
    meaning, so the interface is large for little gain and hides from screens
-   whether a write is going to one or many.
+   whether a write is going to one or many. (The 9-method `core.Source` below
+   is not this approach: it covers only the combined-capable calls, so every
+   other write still goes through `ctx.API` explicitly.)
 3. **Merge inside each screen.** This was rejected because the fan-out and the
    partial-failure handling get duplicated, and the merge rules end up mixed
    into the rendering code.
@@ -71,12 +73,15 @@ type Group struct{ members []Member }
 
 func NewGroup(members []Member) *Group
 
-// Partial reports instances that failed on a fan-out call; the merged result
-// covers the rest. A call errors only when every member fails.
-type Partial struct{ Failed map[string]error }
+// Unreachable names members that failed their most recent call (or are in
+// cooldown), sorted. Screens read it at render time for the warning line.
+func (g *Group) Unreachable() []string
 ```
 
-Each merged method returns `(T, Partial, error)`. Fan-out uses one goroutine
+Merged read methods keep `*Client`'s exact signatures (`(T, error)`), so the
+`Group` and the `Client` both satisfy one small read interface, `core.Source`
+(the 9 methods below). A call returns an error only when **every** member
+fails; partial failures show up in `Unreachable()`. Fan-out uses one goroutine
 per member under the caller's context. The merge functions are unexported pure
 funcs (`mergeSummary(...)` and so on) and are tested directly.
 
@@ -124,7 +129,8 @@ everything`.
   saved with the existing `config.Save`, so a redundant setup opens combined
   every time.
 - **Status bar (decided by the designer):** the root picks the label per
-  page. On Dashboard and Query Log in combined mode it reads `all (N)`. On
+  page. On Dashboard, Query Log and Blocking in combined mode it reads
+  `all (N)`. On
   every other page it shows the active instance name as today. The root keeps
   a small set of combined-capable `core.PageID`s; screens are not changed.
   The blocking indicator and `d`: see *Blocking in combined mode*.
@@ -137,15 +143,17 @@ everything`.
 - `fetchSystem` (CPU/mem/temp/messages) and the hot-temp `PatchConfig` stay on
   the active client. The System/health panel title shows the active instance
   name in combined mode.
-- A partial result shows a one-line warning, "secondary unreachable", in the
+- A partial result (`Group.Unreachable()` non-empty) shows a one-line warning, "secondary unreachable", in the
   existing error/banner area. The data still renders.
 - When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
   tile's value is the max.
 
 ### Query log
 
-- `fetch` uses `Group.Queries` when combined. The table gains an **Instance**
-  column only in combined mode.
+- `fetch` uses `Group.Queries` when combined. In combined mode the
+  table's last column shows **Pi-hole** (the answering instance) instead of
+  Upstream, so narrow terminals keep the same column budget. The row detail
+  view still shows the upstream and adds the instance.
 - Block/allow on a row (`AddDomain`) goes to the active instance, as today.
   The footer hint says `→ <active>` in combined mode.
 - Pagination: the screen only loads the newest page today (cursor nil), so
@@ -157,12 +165,14 @@ With redundant Pi-holes, disabling blocking on one doesn't disable it on the
 network. So in combined mode blocking state and blocking actions span every
 member, on every page.
 
-- `Group.Blocking(ctx) (GroupBlocking, Partial, error)`.
-  `GroupBlocking{On, Total int; MinTimer *float64}` gives the members
-  reporting enabled, the members that answered, and the shortest remaining
-  disable timer.
-- `Group.SetBlocking(ctx, blocking, timer) (Partial, error)` fans the POST out
-  to every member with the same timer.
+- `pihole.BlockingStatus` gains `On, Total int` (`json:"-"`; `Total == 0`
+  means a single instance). `Group.Blocking(ctx) (BlockingStatus, error)`
+  sets them, `Blocking = On == Total`, and `Timer` is the shortest remaining
+  disable timer among the members that are off.
+- `Group.SetBlocking(ctx, blocking, timer) error` fans the POST out to every
+  member with the same timer. It returns an error naming each member that
+  failed, for example `blocking not changed on secondary: <err>`, even when
+  the others succeeded.
 - `components.BlockState` gains `On, Total int`; `Total == 0` means single
   mode. The pill renders `ON 2/2` (calm), `OFF 0/2` (alarm, with countdown
   from `MinTimer`), or `PARTIAL 1/2` (warn colour) when members disagree. The
@@ -181,7 +191,7 @@ member, on every page.
 
 Each member call in a fan-out gets its own deadline of 2s, inside the screen's
 existing 8s `fetchTimeout`. A member that fails is skipped for 30s. It is
-still reported in `Partial`, labeled "unreachable", and retried after the
+still listed by `Unreachable()`, and retried after the
 cooldown. One blackholed Pi-hole therefore costs at most a 2s lag every 30s,
 instead of an 8s lag on every poll. The cooldown state lives in `Group`
 behind a mutex and is tested with an injectable clock.
@@ -199,9 +209,9 @@ no further throttling beyond the failure cooldown above.
   ratio recompute, the max/min fields, gravity mismatch, history alignment,
   upstream weighting, top-N tie order, and query merge order and tagging.
 - A fan-out test with an `httptest` server per member, including one failing
-  member → Partial populated, data from the rest; all failing → error.
+  member → listed by `Unreachable()`, data from the rest; all failing → error.
 - Dashboard and query log model tests: combined toggle → the group is used,
-  the Instance column appears, the write target stays active, and a partial
+  the Pi-hole column replaces Upstream, the write target stays active, and a partial
   warning renders.
 - Blocking: merge counts and timers, partial write failure, toggle desired
   state from PARTIAL, pill rendering for ON/OFF/PARTIAL with counts.
@@ -211,7 +221,7 @@ no further throttling beyond the failure cooldown above.
 ## Left to the builder
 
 - Exact banner wording and column widths, following existing style.
-- Whether `Partial` warnings dedupe across the dashboard's five fetches. They
+- The warning line reads `Unreachable()` once per render, so it never repeats. It
   should render one line listing the failed names.
 - Doc updates: `docs/keys.md` (the `m` key), README feature list, and
   `docs/architecture.md` (Group).
