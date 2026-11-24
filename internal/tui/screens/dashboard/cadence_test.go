@@ -1,0 +1,120 @@
+package dashboard
+
+import (
+	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+)
+
+// Round sizes for a single-instance dashboard: summary + system are fast;
+// history, breakdown and top lists are slow.
+const (
+	fastCmds = 2
+	allCmds  = 5
+)
+
+func TestFocusStartsFullRound(t *testing.T) {
+	m := newTestModel()
+
+	m.Focus()
+
+	if m.inFlight != allCmds {
+		t.Fatalf("inFlight = %d, want %d", m.inFlight, allCmds)
+	}
+}
+
+func TestTickWhileRoundInFlightIssuesNoFetch(t *testing.T) {
+	m := newTestModel()
+	m.Focus()
+	m.Update(summaryMsg{epoch: m.epoch}) // one reply in, the rest pending
+	pending := m.inFlight
+
+	_, cmd := m.Update(tickMsg{epoch: m.epoch})
+
+	if m.inFlight != pending {
+		t.Fatalf("inFlight = %d, want %d (no new round)", m.inFlight, pending)
+	}
+	if cmd == nil {
+		t.Fatal("a busy tick must still reschedule")
+	}
+}
+
+func TestRepliesSettleRound(t *testing.T) {
+	m := newTestModel()
+	m.Focus()
+	e := m.epoch
+
+	for _, msg := range []tea.Msg{
+		summaryMsg{epoch: e}, systemMsg{epoch: e}, historyMsg{epoch: e},
+		breakdownMsg{epoch: e}, topMsg{epoch: e},
+		summaryMsg{epoch: e - 1}, // stale: must not count
+	} {
+		m.Update(msg)
+	}
+
+	if m.inFlight != 0 {
+		t.Fatalf("inFlight = %d, want 0 after every reply", m.inFlight)
+	}
+}
+
+func TestSlowPanelsRefreshEveryFiveSeconds(t *testing.T) {
+	m := newTestModel()
+	m.Focus()
+
+	m.inFlight = 0 // the full Focus round has finished
+	m.Update(tickMsg{epoch: m.epoch})
+	if m.inFlight != fastCmds {
+		t.Fatalf("fast tick inFlight = %d, want %d", m.inFlight, fastCmds)
+	}
+
+	m.inFlight = 0
+	m.lastSlow = time.Now().Add(-slowEvery)
+	m.Update(tickMsg{epoch: m.epoch})
+	if m.inFlight != allCmds {
+		t.Fatalf("slow tick inFlight = %d, want %d", m.inFlight, allCmds)
+	}
+}
+
+func TestRefreshKeyForcesSlowPanels(t *testing.T) {
+	m := newTestModel()
+	m.Focus()
+	m.inFlight = 0
+
+	m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+
+	if m.inFlight != allCmds {
+		t.Fatalf("inFlight = %d, want %d", m.inFlight, allCmds)
+	}
+}
+
+func TestRefreshKeyWhileBusyDefersToNextTick(t *testing.T) {
+	m := newTestModel()
+	m.Focus()
+	m.inFlight = 1
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	if cmd != nil || m.inFlight != 1 {
+		t.Fatalf("busy 'r' started a round (inFlight %d)", m.inFlight)
+	}
+
+	m.inFlight = 0
+	m.Update(tickMsg{epoch: m.epoch})
+	if m.inFlight != allCmds {
+		t.Fatalf("next tick inFlight = %d, want %d", m.inFlight, allCmds)
+	}
+}
+
+func TestCombinedProbesMembersOnSlowCadenceOnly(t *testing.T) {
+	m := combinedModel()
+	m.Focus()
+	full := m.inFlight
+
+	m.inFlight = 0
+	m.Update(tickMsg{epoch: m.epoch})
+
+	if full != allCmds+1 || m.inFlight != fastCmds {
+		t.Fatalf("combined rounds = %d full / %d fast, want %d / %d",
+			full, m.inFlight, allCmds+1, fastCmds)
+	}
+}

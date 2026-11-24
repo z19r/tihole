@@ -129,6 +129,7 @@ func TestUpdate_RefreshKeyReturnsFetchCommand(t *testing.T) {
 	// Arrange
 	m := newTestModel()
 	m.Focus()
+	m.inFlight = 0 // the Focus round has finished
 
 	// Act
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
@@ -324,7 +325,7 @@ func TestFetchAll_NilWhenNoClient(t *testing.T) {
 	m := New(&core.AppContext{Theme: theme.DeepNight()}) // API nil
 
 	// Act / Assert
-	if m.fetchAll() != nil {
+	if m.fetchAll(true) != nil {
 		t.Fatal("fetchAll should be nil without an API client")
 	}
 }
@@ -334,7 +335,7 @@ func TestFetchAll_NilWhenNoBaseContext(t *testing.T) {
 	m := newTestModel()
 
 	// Act / Assert
-	if m.fetchAll() != nil {
+	if m.fetchAll(true) != nil {
 		t.Fatal("fetchAll should be nil before Focus establishes a context")
 	}
 }

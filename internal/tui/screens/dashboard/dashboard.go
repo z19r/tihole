@@ -1,8 +1,9 @@
 // Package dashboard implements the PiHole v6 overview Screen: summary stat
 // tiles, a queries-over-time sparkline, query-type/upstream breakdowns and top
-// domain/client/blocked lists. It polls the FTL API roughly four times a second
-// while focused and renders every panel defensively so a single failing request
-// never blanks the screen.
+// domain/client/blocked lists. While focused it polls the summary and host
+// health roughly four times a second (the heavier panels every five seconds,
+// never more than one round in flight) and renders every panel defensively so
+// a single failing request never blanks the screen.
 package dashboard
 
 import (
@@ -26,6 +27,9 @@ import (
 
 const (
 	pollInterval = 250 * time.Millisecond
+	// slowEvery paces the heavy panels (history, breakdowns, top lists,
+	// per-instance probes); summary and system stay on every tick.
+	slowEvery    = 5 * time.Second
 	fetchTimeout = 8 * time.Second
 	topCount     = 8
 	sparkHeight  = 1
@@ -118,6 +122,11 @@ type Model struct {
 	focused bool
 	epoch   int
 	loaded  bool
+
+	// inFlight counts the current round's outstanding replies; a tick while
+	// it is non-zero skips fetching so slow Pi-holes never pile up rounds.
+	inFlight int
+	lastSlow time.Time // when the slow panels were last requested
 
 	spinner  spinner.Model
 	blockBar progress.Model
@@ -364,7 +373,8 @@ func (m *Model) Focus() tea.Cmd {
 		m.cancel()
 	}
 	m.baseCtx, m.cancel = context.WithCancel(context.Background())
-	return tea.Batch(m.fetchAll(), m.tick(), m.spinner.Tick)
+	m.inFlight = 0 // the old round's replies carry a stale epoch
+	return tea.Batch(m.fetchAll(true), m.tick(), m.spinner.Tick)
 }
 
 // Blur leaves the screen: stop scheduling and cancel any in-flight requests.
@@ -397,14 +407,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !shouldHandleTick(m.focused, msg.epoch, m.epoch) {
 			return m, nil
 		}
-		return m, tea.Batch(m.fetchAll(), m.tick())
+		return m, tea.Batch(m.fetchAll(false), m.tick())
 
 	case tea.KeyPressMsg:
 		if m.hotTempPrompt.Active {
 			return m.handleHotTempKey(msg)
 		}
 		if m.focused && msg.String() == "r" {
-			return m, m.fetchAll()
+			return m, m.fetchAll(true)
 		}
 
 	case hotLimitPatchMsg:
@@ -415,10 +425,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.errSystem = msg.err.Error()
 			return m, nil
 		}
-		return m, m.fetchAll()
+		return m, m.fetchAll(false)
 
 	case summaryMsg:
-		if msg.epoch != m.epoch {
+		if !m.settle(msg.epoch) {
 			return m, nil
 		}
 		m.loaded = true
@@ -431,7 +441,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.blockBar.SetPercent(m.summary.Queries.PercentBlocked / 100)
 
 	case historyMsg:
-		if msg.epoch != m.epoch {
+		if !m.settle(msg.epoch) {
 			return m, nil
 		}
 		m.loaded = true
@@ -443,7 +453,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case breakdownMsg:
-		if msg.epoch != m.epoch {
+		if !m.settle(msg.epoch) {
 			return m, nil
 		}
 		m.loaded = true
@@ -460,7 +470,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case topMsg:
-		if msg.epoch != m.epoch {
+		if !m.settle(msg.epoch) {
 			return m, nil
 		}
 		m.loaded = true
@@ -482,14 +492,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case systemMsg:
-		if msg.epoch != m.epoch {
+		if !m.settle(msg.epoch) {
 			return m, nil
 		}
 		m.loaded = true
 		return m, m.applySystem(msg)
 
 	case instancesMsg:
-		if msg.epoch == m.epoch {
+		if m.settle(msg.epoch) {
 			m.instances = msg.rows
 		}
 		return m, nil
@@ -516,10 +526,27 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// fetchAll returns a batch of independent fetch commands, each capturing the
-// current epoch and cancelable context.
-func (m *Model) fetchAll() tea.Cmd {
-	if m.ctx == nil || m.ctx.API == nil || m.baseCtx == nil {
+// settle counts one reply against the current round and reports whether it
+// belongs to the current epoch (stale replies are neither counted nor used).
+func (m *Model) settle(epoch int) bool {
+	if epoch != m.epoch {
+		return false
+	}
+	if m.inFlight > 0 {
+		m.inFlight--
+	}
+	return true
+}
+
+// fetchAll starts a fetch round, or returns nil while the previous round is
+// still in flight. The slow panels join the round every slowEvery; force
+// makes the next round include them.
+func (m *Model) fetchAll(force bool) tea.Cmd {
+	if force {
+		m.lastSlow = time.Time{}
+	}
+	if m.ctx == nil || m.ctx.API == nil || m.baseCtx == nil ||
+		m.inFlight > 0 {
 		return nil
 	}
 	api := m.ctx.API
@@ -529,16 +556,23 @@ func (m *Model) fetchAll() tea.Cmd {
 
 	cmds := []tea.Cmd{
 		fetchSummary(base, src, epoch),
-		fetchHistory(base, src, epoch),
-		fetchBreakdown(base, src, epoch),
-		fetchTop(base, src, epoch),
-		// Still fetched in combined mode: the hot-temp prompt reads it.
+		// Active instance only, even when combined: the hot-temp prompt
+		// reads it.
 		fetchSystem(base, api, epoch),
 	}
-	if m.ctx.CombinedActive() {
-		cmds = append(cmds, fetchInstances(base, m.ctx.Fleet,
-			m.instanceOrder(), m.ctx.InstanceName, epoch))
+	if time.Since(m.lastSlow) >= slowEvery {
+		m.lastSlow = time.Now()
+		cmds = append(cmds,
+			fetchHistory(base, src, epoch),
+			fetchBreakdown(base, src, epoch),
+			fetchTop(base, src, epoch),
+		)
+		if m.ctx.CombinedActive() {
+			cmds = append(cmds, fetchInstances(base, m.ctx.Fleet,
+				m.instanceOrder(), m.ctx.InstanceName, epoch))
+		}
 	}
+	m.inFlight = len(cmds)
 	return tea.Batch(cmds...)
 }
 

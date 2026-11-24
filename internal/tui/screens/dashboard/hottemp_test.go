@@ -182,6 +182,7 @@ func TestUpdate_HotLimitPatchMsgSuccessRefetches(t *testing.T) {
 	m := newTestModel()
 	m.Focus()
 	m.epoch = 1
+	m.inFlight = 0 // the Focus round has finished
 
 	// Act
 	_, cmd := m.Update(hotLimitPatchMsg{epoch: 1, err: nil})
