@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -125,5 +127,43 @@ func TestValidateNilConfig(t *testing.T) {
 	// Assert
 	if err == nil {
 		t.Fatal("expected error for nil config")
+	}
+}
+
+func TestValidateAcceptsActiveWithStraySpaces(t *testing.T) {
+	// Arrange
+	c := &Config{
+		Active:    " home ",
+		Instances: []Instance{{Name: "home ", URL: "http://pi.hole"}},
+	}
+
+	// Act / Assert
+	if err := Validate(c); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadTrimsActiveAndNames(t *testing.T) {
+	// Arrange
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	yml := "active: ' home '\ninstances:\n" +
+		"  - name: ' home'\n    url: http://pi.hole\n    password: x\n"
+	if err := os.WriteFile(path, []byte(yml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Act
+	c, err := Load(path)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Active != "home" || c.Instances[0].Name != "home" {
+		t.Fatalf(
+			"not trimmed: active=%q name=%q",
+			c.Active,
+			c.Instances[0].Name,
+		)
 	}
 }

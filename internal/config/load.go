@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,6 +24,11 @@ func Load(path string) (*Config, error) {
 	var c Config
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
+	}
+
+	c.Active = strings.TrimSpace(c.Active)
+	for i := range c.Instances {
+		c.Instances[i].Name = strings.TrimSpace(c.Instances[i].Name)
 	}
 
 	if err := Validate(&c); err != nil {
