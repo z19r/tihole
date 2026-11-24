@@ -518,44 +518,45 @@ func (m *Model) fetchAll() tea.Cmd {
 	api := m.ctx.API
 	epoch := m.epoch
 	base := m.baseCtx
+	src := m.ctx.Source()
 
 	return tea.Batch(
-		fetchSummary(base, api, epoch),
-		fetchHistory(base, api, epoch),
-		fetchBreakdown(base, api, epoch),
-		fetchTop(base, api, epoch),
+		fetchSummary(base, src, epoch),
+		fetchHistory(base, src, epoch),
+		fetchBreakdown(base, src, epoch),
+		fetchTop(base, src, epoch),
 		fetchSystem(base, api, epoch),
 	)
 }
 
-func fetchSummary(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
+func fetchSummary(base context.Context, src core.Source, epoch int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		data, err := api.Summary(ctx)
+		data, err := src.Summary(ctx)
 		return summaryMsg{epoch: epoch, data: data, err: err}
 	}
 }
 
-func fetchHistory(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
+func fetchHistory(base context.Context, src core.Source, epoch int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		data, err := api.History(ctx)
+		data, err := src.History(ctx)
 		return historyMsg{epoch: epoch, data: data, err: err}
 	}
 }
 
 func fetchBreakdown(
 	base context.Context,
-	api *pihole.Client,
+	src core.Source,
 	epoch int,
 ) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		types, tErr := api.QueryTypes(ctx)
-		up, uErr := api.Upstreams(ctx)
+		types, tErr := src.QueryTypes(ctx)
+		up, uErr := src.Upstreams(ctx)
 		return breakdownMsg{
 			epoch:     epoch,
 			types:     types,
@@ -585,13 +586,13 @@ func fetchSystem(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
 	}
 }
 
-func fetchTop(base context.Context, api *pihole.Client, epoch int) tea.Cmd {
+func fetchTop(base context.Context, src core.Source, epoch int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		domains, dErr := api.TopDomains(ctx, false, topCount)
-		blocked, bErr := api.TopDomains(ctx, true, topCount)
-		clients, cErr := api.TopClients(ctx, false, topCount)
+		domains, dErr := src.TopDomains(ctx, false, topCount)
+		blocked, bErr := src.TopDomains(ctx, true, topCount)
+		clients, cErr := src.TopClients(ctx, false, topCount)
 		return topMsg{
 			epoch:      epoch,
 			domains:    domains,
@@ -646,12 +647,13 @@ func (m *Model) View() tea.View {
 		return tea.NewView(surface.Render(m.hotTempPrompt.Render(th, m.w, m.h)))
 	}
 
-	sections := []string{
-		m.renderTiles(),
-		m.renderHealth(),
-		m.renderSparkline(),
-		m.renderLower(),
+	sections := []string{m.renderTiles()}
+	if w := m.unreachableWarning(); w != "" {
+		sections = append(sections, w)
 	}
+	sections = append(
+		sections, m.renderHealth(), m.renderSparkline(), m.renderLower(),
+	)
 	// strings.Join (not JoinVertical) so the surface wrapper repaints each
 	// line's right padding with the surface background: JoinVertical would
 	// pre-pad narrower sections with bare spaces that bleed the terminal

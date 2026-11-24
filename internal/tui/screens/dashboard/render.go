@@ -75,11 +75,7 @@ func (m *Model) renderTiles() string {
 		m.tile("Total Queries", formatCount(m.summary.Queries.Total), inner),
 		m.blockedTile(inner),
 		m.tile("Active Clients", formatCount(m.summary.Clients.Active), inner),
-		m.tile(
-			"Gravity Domains",
-			formatCount(m.summary.Gravity.DomainsBeingBlocked),
-			inner,
-		),
+		m.tile("Gravity Domains", m.gravityValue(), inner),
 	}
 
 	if m.errSummary != "" {
@@ -384,4 +380,30 @@ func clientItems(tc pihole.TopClients) []labeledCount {
 		out = append(out, labeledCount{label: name, count: c.Count})
 	}
 	return out
+}
+
+// gravityValue is the gravity-domains figure, prefixed with ≠ when combined
+// instances disagree on their gravity counts.
+func (m *Model) gravityValue() string {
+	v := formatCount(m.summary.Gravity.DomainsBeingBlocked)
+	if m.summary.GravityMismatch {
+		return "≠ " + v
+	}
+	return v
+}
+
+// unreachableWarning names fleet members that failed, or "" when none (or
+// when combined mode is off).
+func (m *Model) unreachableWarning() string {
+	if !m.ctx.CombinedActive() {
+		return ""
+	}
+	down := m.ctx.Fleet.Unreachable()
+	if len(down) == 0 {
+		return ""
+	}
+	th := m.ctx.Theme
+	return th.WarnStyle().Render(
+		truncate(strings.Join(down, ", ")+" unreachable", m.w),
+	)
 }

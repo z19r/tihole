@@ -100,7 +100,11 @@ func (m *Model) loadCell(inner int) string {
 // when there are none, or a warn count plus the newest message when there are.
 func (m *Model) diagnosticsCell(inner int) string {
 	th := m.ctx.Theme
-	lbl := th.SubtleStyle().Render("Health")
+	title := "Health"
+	if m.ctx.CombinedActive() {
+		title += " · " + m.ctx.InstanceName
+	}
+	lbl := th.SubtleStyle().Render(truncate(title, inner))
 
 	switch {
 	case m.errMessages != "":
