@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- gravity update log no longer garbles the screen: progress overwrites, colour codes and tabs from Pi-hole's output are cleaned before display
+
 ## [1.4.0] - 2026-11-24
 
 ### Added

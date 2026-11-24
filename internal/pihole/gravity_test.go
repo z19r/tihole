@@ -92,3 +92,41 @@ func TestUpdateGravityHonorsContextCancel(t *testing.T) {
 		t.Fatal("expected context cancellation error, got nil")
 	}
 }
+
+func TestUpdateGravityCleansTerminalControl(t *testing.T) {
+	// Arrange: gravity.sh overwrites progress lines with "\r\e[K" and
+	// colours its ticks; a terminal shows only the final text.
+	raw := "  [i] Preparing new gravity database...\r\x1b[K" +
+		"  [\x1b[1;32m✓\x1b[0m] Preparing new gravity database\n" +
+		"  [i] Target: https://small.oisd.nl\r\n" +
+		"\tSample\n"
+	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(raw))
+	})
+	client.setSID("S")
+
+	// Act
+	var got []string
+	err := client.UpdateGravity(context.Background(), func(line string) {
+		got = append(got, line)
+	})
+
+	// Assert
+	want := []string{
+		"  [✓] Preparing new gravity database",
+		"  [i] Target: https://small.oisd.nl",
+		"    Sample",
+	}
+	if err != nil {
+		t.Fatalf("UpdateGravity error: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("line %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
