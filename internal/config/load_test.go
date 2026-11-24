@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 )
 
@@ -79,5 +80,24 @@ func TestResolvePasswordPrefersInlineOverEnv(t *testing.T) {
 	// Assert
 	if got != "inline" {
 		t.Fatalf("got %q, want inline (inline should win)", got)
+	}
+}
+
+func TestCombinedRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	in := &Config{
+		Active:    "a",
+		Combined:  true,
+		Instances: []Instance{{Name: "a", URL: "http://a"}},
+	}
+	if err := Save(path, in); err != nil {
+		t.Fatal(err)
+	}
+	out, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.Combined {
+		t.Fatal("Combined not preserved")
 	}
 }

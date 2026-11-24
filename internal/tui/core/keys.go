@@ -5,20 +5,21 @@ import "charm.land/bubbles/v2/key"
 // KeyMap holds the global key bindings available on every screen. Screen-local
 // bindings are returned from Screen.Help() and merged into the help bar.
 type KeyMap struct {
-	Up          key.Binding
-	Down        key.Binding
-	Left        key.Binding
-	Right       key.Binding
-	Enter       key.Binding
-	Back        key.Binding
-	Palette     key.Binding
-	SwitchInst  key.Binding
-	ToggleBlock key.Binding
-	CycleTheme  key.Binding
-	Refresh     key.Binding
-	Splash      key.Binding
-	Help        key.Binding
-	Quit        key.Binding
+	Up             key.Binding
+	Down           key.Binding
+	Left           key.Binding
+	Right          key.Binding
+	Enter          key.Binding
+	Back           key.Binding
+	Palette        key.Binding
+	SwitchInst     key.Binding
+	ToggleBlock    key.Binding
+	ToggleCombined key.Binding
+	CycleTheme     key.Binding
+	Refresh        key.Binding
+	Splash         key.Binding
+	Help           key.Binding
+	Quit           key.Binding
 }
 
 // DefaultKeyMap returns the global bindings.
@@ -60,6 +61,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("d"),
 			key.WithHelp("d", "toggle blocking"),
 		),
+		ToggleCombined: key.NewBinding(
+			key.WithKeys("m"),
+			key.WithHelp("m", "combined"),
+		),
 		CycleTheme: key.NewBinding(
 			key.WithKeys("ctrl+t"),
 			key.WithHelp("ctrl+t", "theme"),
@@ -89,6 +94,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 		k.Palette,
 		k.SwitchInst,
 		k.ToggleBlock,
+		k.ToggleCombined,
 		k.CycleTheme,
 		k.Help,
 		k.Quit,
@@ -103,6 +109,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 			k.Palette,
 			k.SwitchInst,
 			k.ToggleBlock,
+			k.ToggleCombined,
 			k.CycleTheme,
 			k.Refresh,
 			k.Splash,
