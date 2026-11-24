@@ -6,8 +6,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestLoginSuccess(t *testing.T) {
@@ -194,5 +196,28 @@ func TestCloseDuringLoginDiscardsNewSession(t *testing.T) {
 	}
 	if c.sessionID() != "" || !c.isClosed() {
 		t.Fatal("client should stay closed with no session")
+	}
+}
+
+func TestConcurrentCloseDeletesSessionOnce(t *testing.T) {
+	// Arrange: the DELETE is slow, so a second Close overlaps the first.
+	var deletes atomic.Int32
+	c, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
+		deletes.Add(1)
+		time.Sleep(20 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	c.setSID("S")
+
+	// Act
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() { _ = c.Close(context.Background()) })
+	}
+	wg.Wait()
+
+	// Assert
+	if n := deletes.Load(); n != 1 {
+		t.Fatalf("DELETE /api/auth = %d, want 1", n)
 	}
 }

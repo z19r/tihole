@@ -116,8 +116,7 @@ type AppModel struct {
 	focus         focusZone
 
 	block components.BlockState
-	// logouts tracks dropped clients until they are logged out, so exit can
-	// finish the ones still pending.
+	// logouts remembers dropped clients so exit can close any still open.
 	logouts *logouts
 
 	// blockGen bumps whenever the pill's source changes, so a blocking
@@ -162,10 +161,7 @@ func New(
 		palette: components.NewPalette(),
 		booting: true,
 		splash:  sp,
-		logouts: &logouts{
-			pending: map[*pihole.Client]bool{},
-			claimed: map[*pihole.Client]bool{},
-		},
+		logouts: &logouts{},
 	}
 	m.screens = buildScreens(ctx)
 	return m

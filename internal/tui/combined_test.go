@@ -460,7 +460,10 @@ func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 
 func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
-	orphan, _ := newHole(t, false)
+	orphan, h := newHole(t, false)
+	if err := loginErr(orphan); err != nil {
+		t.Fatal(err)
+	}
 	m.ctx.API = orphan
 	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", orphan, nil, nil)
 	cfg := &config.Config{
@@ -476,9 +479,10 @@ func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
 	m.applyInstancesChange(cfg) // home deleted, switch to office fails
 
 	m.switchInstance("cabin")
+	m.logouts.flush() // exit before the drop cmd ran
 
-	if !m.logouts.pending[orphan] {
-		t.Fatal("replaced client outside the fleet should be logged out")
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("orphan DELETE /api/auth = %d, want 1", n)
 	}
 }
 

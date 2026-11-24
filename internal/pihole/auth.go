@@ -66,8 +66,11 @@ var ErrClosed = errors.New("pihole: client closed")
 
 // Close logs out and retires the client: later requests fail with ErrClosed
 // instead of transparently logging in again, so a request still in flight
-// on a dropped client can't open an orphan session.
+// on a dropped client can't open an orphan session. It is idempotent: a
+// concurrent or later Close waits for the first one and sends no DELETE.
 func (c *Client) Close(ctx context.Context) error {
+	c.closeMu.Lock()
+	defer c.closeMu.Unlock()
 	c.mu.Lock()
 	c.closed = true
 	sid := c.sid

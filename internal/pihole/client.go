@@ -27,7 +27,8 @@ type Client struct {
 	sid    string
 	closed bool // set by Close; requests then fail with ErrClosed
 
-	authMu sync.Mutex // single-flights re-authentication (see reauth)
+	authMu  sync.Mutex // single-flights re-authentication (see reauth)
+	closeMu sync.Mutex // serializes Close so its session DELETE runs once
 }
 
 // Option configures a Client at construction time.
