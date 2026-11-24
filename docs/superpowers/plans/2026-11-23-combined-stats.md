@@ -424,3 +424,51 @@ only on combined-capable calls.
   and `m` again restores single mode.
 - [ ] **Step 4: Commit** `docs: combined view`. Then push and open the PR,
   with no AI attribution.
+
+---
+
+### Task 9: Per-instance health rows on the combined dashboard
+
+**Spec:** "Per-instance rows for metrics that cannot be combined" under
+Dashboard.
+
+**Files:**
+- Modify: `internal/pihole/fleet.go` (+ `fleet_test.go`)
+- Modify: `internal/tui/screens/dashboard/dashboard.go`, `health.go`
+- Create: `internal/tui/screens/dashboard/instances.go`,
+  `instances_test.go`
+
+**Interfaces:**
+- Produces in `pihole`:
+  `func EachMember[T any](ctx context.Context, f *Fleet, call func(context.Context, *Client) (T, error)) map[string]MemberResult[T]`
+  with `type MemberResult[T any] struct { Value T; Err error }`. It honors
+  cooldown (members in cooldown get `Err` set to `ErrUnreachable`, a new
+  exported sentinel, and are not called), uses the 2s per-member deadline,
+  updates cooldown like `fanOut`, and ignores caller cancellation for the
+  cooldown bookkeeping. Failed-at-build members appear with their build
+  error.
+- Dashboard: `type instanceHealth struct { name string; active bool; system
+  pihole.SystemInfo; sensors pihole.SensorsInfo; messages int; gravity int;
+  err error }` and `instancesMsg{epoch int; rows []instanceHealth}`. Rows are
+  in config order with the active instance moved first.
+- `func (m *Model) renderInstances() string` is used instead of
+  `renderHealth()` when `ctx.CombinedActive()`.
+
+- [ ] **Step 1: Failing tests.**
+  - `TestEachMemberSkipsCooldownAndReportsFailed` (pihole).
+  - `TestInstancesRowsLabelled`: 2 members over httptest → the view
+    contains the header `Pi-holes`, both names, `CPU`, the active marked
+    `●` first.
+  - `TestInstancesUnreachableRow`: a failed-at-build member → its row
+    contains `unreachable` and `—`.
+  - `TestInstancesOverflow`: 6 instances → exactly 4 instance rows plus
+    `and 2 more…`.
+  - `TestInstancesGravityOddOneOut`: gravity 100,100,90 → the 90 row is
+    rendered with the warn style (compare against
+    `th.WarnStyle().Render(...)`).
+  - `TestSingleModeKeepsHealthStrip`: not combined → `renderHealth` output
+    unchanged (gauges present, no `Pi-holes` header).
+- [ ] **Step 2:** RED run. **Step 3:** implement. Columns are truncated to
+  width; at narrow widths drop Gravity, then Load·Up, before truncating
+  names. **Step 4:** `just fmt && just lint && go test -race ./...`.
+- [ ] **Step 5: Commit** `feat(dashboard): per-instance health rows in combined view`.
