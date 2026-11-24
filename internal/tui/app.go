@@ -665,6 +665,7 @@ func (m *AppModel) switchInstance(name string) tea.Cmd {
 // toggleCombined flips combined view, persists it, and refetches the current
 // screen and the blocking pill from the new source.
 func (m *AppModel) toggleCombined() tea.Cmd {
+	m.cfg = m.ctx.Config // Settings may have swapped in a newer copy
 	if len(m.cfg.Instances) < 2 {
 		m.err = "combined view needs two or more instances"
 		return nil

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/z19r/tihole/internal/config"
+	"github.com/z19r/tihole/internal/theme"
 	"github.com/z19r/tihole/internal/tui/components"
 	"github.com/z19r/tihole/internal/tui/core"
 )
@@ -132,5 +133,29 @@ func TestToggleBlockingPartialEnablesAll(t *testing.T) {
 		if got := desiredBlocking(tc.b); got != tc.want {
 			t.Errorf("%s: desired = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestToggleCombinedSavesLiveConfig(t *testing.T) {
+	// Arrange: Settings' theme picker swaps in a fresh config copy.
+	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+	next := *m.ctx.Config
+	next.Theme = theme.NameGloss
+	m.ctx.Config = &next
+
+	// Act
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	// Assert: the new theme survives and the live copy holds the toggle.
+	raw, err := os.ReadFile(m.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "theme: gloss") {
+		t.Fatalf("theme reverted on save:\n%s", raw)
+	}
+	if !m.ctx.Config.Combined {
+		t.Fatal("ctx.Config.Combined should be true")
 	}
 }
