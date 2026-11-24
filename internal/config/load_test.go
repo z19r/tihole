@@ -84,12 +84,15 @@ func TestResolvePasswordPrefersInlineOverEnv(t *testing.T) {
 }
 
 func TestCombinedRoundTrip(t *testing.T) {
+	// Arrange
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	in := &Config{
 		Active:    "a",
 		Combined:  true,
 		Instances: []Instance{{Name: "a", URL: "http://a"}},
 	}
+
+	// Act
 	if err := Save(path, in); err != nil {
 		t.Fatal(err)
 	}
@@ -97,6 +100,8 @@ func TestCombinedRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Assert
 	if !out.Combined {
 		t.Fatal("Combined not preserved")
 	}

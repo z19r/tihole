@@ -268,7 +268,7 @@ func TestFleetSetBlockingPartialError(t *testing.T) {
 		t.Fatalf("failed-at-build c not named: %v", err)
 	}
 	if !slices.Equal(methods, []string{"POST", "POST"}) {
-		t.Fatalf("requests = %v", methods)
+		t.Fatalf("methods = %v, want two POSTs", methods)
 	}
 }
 

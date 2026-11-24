@@ -761,10 +761,10 @@ func TestSelectThemeSaveFailureShowsBanner(t *testing.T) {
 	}
 }
 
-var _ core.Screen = (*Model)(nil)
-
 func TestCloneConfigKeepsCombined(t *testing.T) {
 	if !cloneConfig(&config.Config{Combined: true}).Combined {
 		t.Fatal("cloneConfig dropped Combined")
 	}
 }
+
+var _ core.Screen = (*Model)(nil)

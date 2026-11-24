@@ -24,6 +24,12 @@ func TestSourcePicksFleet(t *testing.T) {
 	if c.Source() != Source(fleet) {
 		t.Fatal("Combined with a 2-member fleet should use the fleet")
 	}
+	c.Fleet = pihole.NewFleet([]pihole.Member{
+		{Name: "a", Client: pihole.New("http://a", "")},
+	}, nil)
+	if c.Source() != Source(api) {
+		t.Fatal("a 1-member fleet should fall back to the API")
+	}
 	c.Fleet = nil
 	if c.Source() != Source(api) {
 		t.Fatal("nil Fleet should fall back to the API")
