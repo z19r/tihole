@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -50,12 +52,68 @@ func Save(path string, c *Config) error {
 		return fmt.Errorf("create config dir %q: %w", dir, err)
 	}
 
-	data, err := yaml.Marshal(c)
+	data, err := mergeExisting(path, c)
+	if err != nil {
+		data, err = yaml.Marshal(c)
+	}
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
 	return writeAtomic(path, data)
+}
+
+// savedKeys are the top-level keys Config owns; any other key in an existing
+// file is left untouched by Save.
+var savedKeys = []string{"active", "theme", "instances", "combined"}
+
+// mergeExisting re-encodes the config file at path with c's values written
+// into its yaml.Node tree, so hand-written comments and unknown keys survive.
+// It errors when there is no existing mapping document to merge into.
+func mergeExisting(path string, c *Config) ([]byte, error) {
+	old, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(old, &doc); err != nil {
+		return nil, err
+	}
+	if doc.Kind != yaml.DocumentNode ||
+		doc.Content[0].Kind != yaml.MappingNode {
+		return nil, errors.New("not a yaml mapping")
+	}
+	var fresh yaml.Node
+	if err := fresh.Encode(c); err != nil {
+		return nil, err
+	}
+	root := doc.Content[0]
+	for _, key := range savedKeys {
+		i, j := keyIndex(root, key), keyIndex(&fresh, key)
+		switch {
+		case j < 0 && i >= 0:
+			root.Content = slices.Delete(root.Content, i, i+2)
+		case j >= 0 && i >= 0:
+			v := fresh.Content[j+1]
+			prev := root.Content[i+1]
+			v.HeadComment, v.LineComment = prev.HeadComment, prev.LineComment
+			v.FootComment = prev.FootComment
+			root.Content[i+1] = v
+		case j >= 0:
+			root.Content = append(root.Content, fresh.Content[j:j+2]...)
+		}
+	}
+	return yaml.Marshal(&doc)
+}
+
+// keyIndex returns the index of key's key node in mapping m, or -1.
+func keyIndex(m *yaml.Node, key string) int {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return i
+		}
+	}
+	return -1
 }
 
 // writeAtomic writes data to a 0600 temp file beside path, syncs it, and

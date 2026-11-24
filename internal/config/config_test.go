@@ -189,3 +189,43 @@ func TestSaveFailureLeavesOriginalIntact(t *testing.T) {
 		t.Fatalf("original no longer loads: %v", err)
 	}
 }
+
+func TestSavePreservesCommentsAndUnknownKeys(t *testing.T) {
+	// Arrange
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	yml := "# my pi-holes\nactive: home # main one\nextra: keep-me\n" +
+		"theme: old\ninstances:\n  - name: home\n    url: http://pi.hole\n" +
+		"    password: x\n"
+	if err := os.WriteFile(path, []byte(yml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c.Theme = ""
+	c.Combined = true
+
+	// Act
+	if err := Save(path, c); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Assert
+	data, _ := os.ReadFile(path)
+	out := string(data)
+	for _, want := range []string{
+		"# my pi-holes", "# main one", "extra: keep-me", "combined: true",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("saved file missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "theme") {
+		t.Fatalf("cleared theme should be removed:\n%s", out)
+	}
+	got, err := Load(path)
+	if err != nil || !got.Combined || got.Instances[0].URL != "http://pi.hole" {
+		t.Fatalf("reload mismatch: %+v err=%v", got, err)
+	}
+}
