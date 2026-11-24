@@ -10,4 +10,7 @@ type BlockState struct {
 	Enabled bool
 	// CountdownSecs, when > 0, shows a temporary-disable countdown.
 	CountdownSecs int
+	// On and Total count fleet members with blocking on; Total == 0 means a
+	// single instance.
+	On, Total int
 }

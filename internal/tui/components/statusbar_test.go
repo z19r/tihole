@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/z19r/tihole/internal/theme"
 )
 
@@ -133,5 +136,40 @@ func TestOrDash(t *testing.T) {
 	}
 	if got := orDash("pi"); got != "pi" {
 		t.Errorf("orDash(\"pi\") = %q, want pi", got)
+	}
+}
+
+func TestStatusBarCombinedPill(t *testing.T) {
+	cases := []struct {
+		name  string
+		state BlockState
+		want  string
+	}{
+		{"all on", BlockState{Known: true, Enabled: true, On: 2, Total: 2},
+			"ON 2/2"},
+		{"all off", BlockState{Known: true, Total: 2, CountdownSecs: 30},
+			"OFF 0/2 0:30"},
+		{"partial", BlockState{Known: true, On: 1, Total: 2},
+			"PARTIAL 1/2"},
+		{"single", BlockState{Known: true, Enabled: true}, "BLOCKING ON"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b := StatusBar{Width: 120, Blocking: tc.state}
+			out := ansi.Strip(b.blockingPill(theme.DeepNight()))
+			if !strings.Contains(out, tc.want) {
+				t.Fatalf("pill = %q, want %q", out, tc.want)
+			}
+		})
+	}
+}
+
+func TestStatusBarPartialPillUsesWarn(t *testing.T) {
+	th := theme.DeepNight()
+	b := StatusBar{Blocking: BlockState{Known: true, On: 1, Total: 2}}
+	want := lipgloss.NewStyle().Bold(true).Padding(0, 1).
+		Foreground(th.Surface).Background(th.Warn).Render("◐ PARTIAL 1/2")
+	if got := b.blockingPill(th); got != want {
+		t.Fatalf("pill = %q, want %q", got, want)
 	}
 }

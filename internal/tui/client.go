@@ -29,6 +29,30 @@ func clientFor(cfg *config.Config, name string) (*pihole.Client, error) {
 	return pihole.New(inst.URL, password, opts...), nil
 }
 
+// buildFleet groups every configured instance, reusing activeClient for the
+// active one so its session is shared. Instances whose client can't be built
+// are recorded as failed.
+func buildFleet(
+	cfg *config.Config,
+	active string,
+	activeClient *pihole.Client,
+) *pihole.Fleet {
+	var members []pihole.Member
+	failed := map[string]error{}
+	for _, inst := range cfg.Instances {
+		c := activeClient
+		if inst.Name != active {
+			var err error
+			if c, err = clientFor(cfg, inst.Name); err != nil {
+				failed[inst.Name] = err
+				continue
+			}
+		}
+		members = append(members, pihole.Member{Name: inst.Name, Client: c})
+	}
+	return pihole.NewFleet(members, failed)
+}
+
 // fallbackClient builds a best-effort, unauthenticated client so the TUI can
 // still start (in the config editor) when clientFor fails. It never returns
 // nil.

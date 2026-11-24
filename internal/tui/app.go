@@ -4,6 +4,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -64,6 +65,9 @@ type partyTickMsg struct{}
 // blockingResultMsg carries a fresh blocking status.
 type blockingResultMsg struct{ status pihole.BlockingStatus }
 
+// toggleCombinedMsg asks the root to flip combined view (palette entry).
+type toggleCombinedMsg struct{}
+
 // blockingErrMsg reports a failed blocking fetch/toggle.
 type blockingErrMsg struct{ err error }
 
@@ -123,6 +127,8 @@ func New(
 		InstanceName: cfg.Active,
 		Config:       cfg,
 		ConfigPath:   cfgPath,
+		Combined:     cfg.Combined,
+		Fleet:        buildFleet(cfg, cfg.Active, api),
 	}
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
@@ -168,7 +174,7 @@ func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
-		fetchBlocking(m.ctx.API),
+		fetchBlocking(m.ctx.Source()),
 		blockPollCmd(),
 		m.splashCmd(),
 	)
@@ -258,7 +264,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case blockingResultMsg:
 		st := msg.status
-		m.block = components.BlockState{Known: true, Enabled: st.Blocking}
+		m.block = components.BlockState{
+			Known:   true,
+			Enabled: st.Blocking,
+			On:      st.On,
+			Total:   st.Total,
+		}
 		if st.Timer != nil && *st.Timer > 0 {
 			m.block.CountdownSecs = int(*st.Timer)
 		}
@@ -275,7 +286,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Re-fetch in the background and reschedule the next tick. The pill
 		// keeps
 		// showing the last-known state until the fetch resolves.
-		return m, tea.Batch(fetchBlocking(m.ctx.API), blockPollCmd())
+		return m, tea.Batch(fetchBlocking(m.ctx.Source()), blockPollCmd())
+
+	case toggleCombinedMsg:
+		return m, m.toggleCombined()
 
 	case blockingErrMsg:
 		m.err = msg.err.Error()
@@ -336,6 +350,8 @@ func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return cmd, true
 	case key.Matches(msg, k.ToggleBlock):
 		return m.toggleBlocking(), true
+	case key.Matches(msg, k.ToggleCombined):
+		return m.toggleCombined(), true
 	case key.Matches(msg, k.CycleTheme):
 		return m.cycleTheme(), true
 	case key.Matches(msg, k.SwitchInst):
@@ -435,10 +451,19 @@ func (m *AppModel) relPage(delta int) core.PageID {
 	return order[next].ID
 }
 
+// desiredBlocking is the state the "d" toggle requests: enable unless
+// blocking is known to be on everywhere, so a partial fleet enables all.
+func desiredBlocking(b components.BlockState) bool {
+	if b.Total > 0 {
+		return !b.Known || b.On < b.Total
+	}
+	return !(b.Known && b.Enabled)
+}
+
 // toggleBlocking flips global blocking and refreshes status.
 func (m *AppModel) toggleBlocking() tea.Cmd {
-	desired := !(m.block.Known && m.block.Enabled)
-	api := m.ctx.API
+	desired := desiredBlocking(m.block)
+	api := m.ctx.Source()
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
@@ -456,7 +481,7 @@ func (m *AppModel) toggleBlocking() tea.Cmd {
 // setBlockingFor disables blocking for the given number of seconds, then
 // refreshes status. A zero duration disables until manually re-enabled.
 func (m *AppModel) setBlockingFor(secs float64) tea.Cmd {
-	api := m.ctx.API
+	api := m.ctx.Source()
 	var timer *float64
 	if secs > 0 {
 		timer = &secs
@@ -495,6 +520,11 @@ func (m *AppModel) paletteCommands() []components.Command {
 			Title: "Toggle blocking",
 			Desc:  "enable / disable",
 			Run:   m.toggleBlocking(),
+		},
+		components.Command{
+			Title: "Toggle combined view",
+			Desc:  "all instances",
+			Run:   func() tea.Msg { return toggleCombinedMsg{} },
 		},
 		components.Command{
 			Title: "Disable blocking 30s",
@@ -624,8 +654,31 @@ func (m *AppModel) switchInstance(name string) tea.Cmd {
 	}
 	m.ctx.API = client
 	m.ctx.InstanceName = name
+	m.ctx.Fleet = buildFleet(m.cfg, name, client)
 	m.block = components.BlockState{}
-	return tea.Batch(m.screens[m.active].Focus(), fetchBlocking(client))
+	return tea.Batch(
+		m.screens[m.active].Focus(),
+		fetchBlocking(m.ctx.Source()),
+	)
+}
+
+// toggleCombined flips combined view, persists it, and refetches the current
+// screen and the blocking pill from the new source.
+func (m *AppModel) toggleCombined() tea.Cmd {
+	if len(m.cfg.Instances) < 2 {
+		m.err = "combined view needs two or more instances"
+		return nil
+	}
+	m.ctx.Combined = !m.ctx.Combined
+	m.cfg.Combined = m.ctx.Combined
+	m.block = components.BlockState{}
+	if err := config.Save(m.cfgPath, m.cfg); err != nil {
+		m.err = err.Error() // keep the flipped state for this session
+	}
+	return tea.Batch(
+		m.screens[m.active].Focus(),
+		fetchBlocking(m.ctx.Source()),
+	)
 }
 
 // applyInstancesChange swaps in an edited config after Settings → Connections
@@ -637,10 +690,13 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	}
 	m.cfg = cfg
 	m.ctx.Config = cfg
+	m.ctx.Combined = cfg.Combined
 
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
-			return nil // active instance survived
+			// active instance survived; the member list may have changed
+			m.ctx.Fleet = buildFleet(cfg, m.ctx.InstanceName, m.ctx.API)
+			return nil
 		}
 	}
 	if len(cfg.Instances) == 0 {
@@ -676,7 +732,7 @@ func (m *AppModel) View() tea.View {
 	cw, ch := m.contentSize()
 
 	status := components.StatusBar{
-		Instance:   m.ctx.InstanceName,
+		Instance:   m.statusLabel(),
 		ScreenName: m.screens[m.active].Title(),
 		Width:      m.width,
 		Blocking:   m.block,
@@ -724,6 +780,18 @@ func (m *AppModel) View() tea.View {
 	// terminal's own background (a solid colour or a background image) through.
 	v.BackgroundColor = th.Surface
 	return v
+}
+
+// statusLabel is the status-bar instance label: "all (N)" on the
+// combined-capable pages while combined view is active, else the active name.
+func (m *AppModel) statusLabel() string {
+	switch m.active {
+	case core.PageDashboard, core.PageQueryLog, core.PageBlocking:
+		if m.ctx.CombinedActive() {
+			return fmt.Sprintf("all (%d)", m.ctx.Fleet.Len())
+		}
+	}
+	return m.ctx.InstanceName
 }
 
 // helpSections builds the "?" cheat-sheet from the global key map plus the
@@ -784,7 +852,7 @@ func blockPollCmd() tea.Cmd {
 }
 
 // fetchBlocking loads the current blocking status.
-func fetchBlocking(api *pihole.Client) tea.Cmd {
+func fetchBlocking(api core.Source) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
