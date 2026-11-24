@@ -265,13 +265,14 @@ func TestSingleModeKeepsHealthStrip(t *testing.T) {
 }
 
 func TestProbeInstanceRunsDetailsConcurrently(t *testing.T) {
-	// Three 800ms calls only fit the 2s member deadline side by side.
+	// Two 800ms calls only fit the 2s member deadline side by side (after
+	// System); gravity comes from the round's summary, not the probe.
 	c := slowHealthClient(t, 7, 800*time.Millisecond)
 	g := pihole.NewFleet([]pihole.Member{{Name: "a", Client: c}}, nil)
 
 	r := pihole.EachMember(context.Background(), g, probeInstance)["a"]
 
-	if r.Err != nil || r.Value.gravity != 7 || r.Value.messages != 0 ||
+	if r.Err != nil || r.Value.gravity != -1 || r.Value.messages != 0 ||
 		!r.Value.sensors.HasTemp {
 		t.Errorf("probe = %+v", r)
 	}

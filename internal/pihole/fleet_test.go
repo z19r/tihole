@@ -412,3 +412,36 @@ func TestEachMemberSkipsCooldownAndReportsFailed(t *testing.T) {
 		t.Fatalf("a err = %v", got["a"].Err)
 	}
 }
+
+func TestFleetSummaryByMemberKeepsEachAnswer(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(10))
+	b, _ := fakeMember(t, "b", failHandler)
+	g := NewFleet([]Member{a, b}, nil)
+
+	got, per, err := g.SummaryByMember(context.Background())
+
+	if err != nil || got.Queries.Total != 10 {
+		t.Fatalf("merged = %+v, err %v; want total 10", got, err)
+	}
+	if len(per) != 1 || per["a"].Queries.Total != 10 {
+		t.Fatalf("per-member = %+v, want only a", per)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"b"}) {
+		t.Fatalf("Unreachable = %v, want [b]", u)
+	}
+}
+
+func TestEachMemberErrSkipLeavesHealthAlone(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(1))
+	g := NewFleet([]Member{a}, nil)
+
+	res := EachMember(context.Background(), g,
+		func(context.Context, *Client) (int, error) { return 0, ErrSkip })
+
+	if !errors.Is(res["a"].Err, ErrSkip) {
+		t.Fatalf("err = %v, want ErrSkip", res["a"].Err)
+	}
+	if u := g.Unreachable(); len(u) != 0 {
+		t.Fatalf("a skipped call marked a down: %v", u)
+	}
+}

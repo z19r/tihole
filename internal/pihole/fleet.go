@@ -104,6 +104,10 @@ func (g *Fleet) recovered(name string, start time.Time) {
 // ErrUnreachable marks a member skipped because it is in cooldown.
 var ErrUnreachable = errors.New("unreachable")
 
+// ErrSkip, returned by an EachMember call, skips that member without
+// touching its health: it is neither marked down nor recovered.
+var ErrSkip = errors.New("skipped")
+
 // MemberResult is one member's answer from EachMember.
 type MemberResult[T any] struct {
 	Value T
@@ -145,6 +149,9 @@ func callLive[T any](
 	}
 	g.mu.Lock()
 	for i, m := range live {
+		if errors.Is(errs[i], ErrSkip) {
+			continue
+		}
 		if errs[i] != nil {
 			g.down[m.Name] = g.now()
 		} else {
@@ -218,11 +225,24 @@ func flip[T any](
 
 // Summary merges GET /api/stats/summary across members.
 func (g *Fleet) Summary(ctx context.Context) (Summary, error) {
-	in, _, err := fanOut(g, ctx, flip((*Client).Summary))
+	s, _, err := g.SummaryByMember(ctx)
+	return s, err
+}
+
+// SummaryByMember is Summary plus each answering member's own summary,
+// keyed by instance name, from the same single request per member.
+func (g *Fleet) SummaryByMember(
+	ctx context.Context,
+) (Summary, map[string]Summary, error) {
+	in, names, err := fanOut(g, ctx, flip((*Client).Summary))
 	if err != nil {
-		return Summary{}, err
+		return Summary{}, nil, err
 	}
-	return mergeSummary(in), nil
+	per := make(map[string]Summary, len(in))
+	for i, name := range names {
+		per[name] = in[i]
+	}
+	return mergeSummary(in), per, nil
 }
 
 // History merges GET /api/history across members.

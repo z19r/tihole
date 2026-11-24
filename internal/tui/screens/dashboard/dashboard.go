@@ -64,9 +64,10 @@ type tickMsg struct{ epoch int }
 // Result messages. Each carries the epoch of the fetch that produced it so the
 // Update loop can discard results that belong to a superseded focus session.
 type summaryMsg struct {
-	epoch int
-	data  pihole.Summary
-	err   error
+	epoch   int
+	data    pihole.Summary
+	gravity map[string]int // combined: each answering member's gravity
+	err     error
 }
 
 type historyMsg struct {
@@ -148,6 +149,7 @@ type Model struct {
 	sensors   pihole.Sensors
 	messages  []pihole.DiagnosisMessage
 	instances []instanceHealth // combined mode only
+	gravity   map[string]int   // combined: per-member gravity from summary
 
 	// hotTempPrompt offers to raise hotLimitDefault to hotLimitSuggested; once
 	// shown (accepted or declined) hotTempPrompted latches so it doesn't nag
@@ -432,6 +434,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.loaded = true
+		if msg.gravity != nil { // combined round
+			m.gravity = msg.gravity
+			m.overlayInstances()
+		}
 		if msg.err != nil {
 			m.errSummary = msg.err.Error()
 			return m, nil
@@ -496,11 +502,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.loaded = true
-		return m, m.applySystem(msg)
+		cmd := m.applySystem(msg)
+		m.overlayInstances()
+		return m, cmd
 
 	case instancesMsg:
 		if m.settle(msg.epoch) {
 			m.instances = msg.rows
+			m.overlayInstances()
 		}
 		return m, nil
 
@@ -554,8 +563,12 @@ func (m *Model) fetchAll(force bool) tea.Cmd {
 	base := m.baseCtx
 	src := m.ctx.Source()
 
+	var fleet *pihole.Fleet
+	if m.ctx.CombinedActive() {
+		fleet = m.ctx.Fleet
+	}
 	cmds := []tea.Cmd{
-		fetchSummary(base, src, epoch),
+		fetchSummary(base, src, fleet, epoch),
 		// Active instance only, even when combined: the hot-temp prompt
 		// reads it.
 		fetchSystem(base, api, epoch),
@@ -568,7 +581,7 @@ func (m *Model) fetchAll(force bool) tea.Cmd {
 			fetchTop(base, src, epoch),
 		)
 		if m.ctx.CombinedActive() {
-			cmds = append(cmds, fetchInstances(base, m.ctx.Fleet,
+			cmds = append(cmds, fetchInstances(base, m.ctx.Fleet, api,
 				m.instanceOrder(), m.ctx.InstanceName, epoch))
 		}
 	}
@@ -576,12 +589,27 @@ func (m *Model) fetchAll(force bool) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func fetchSummary(base context.Context, src core.Source, epoch int) tea.Cmd {
+// fetchSummary reads the (merged) summary. With a fleet it also keeps each
+// member's gravity, so the instance rows need no summary of their own.
+func fetchSummary(
+	base context.Context,
+	src core.Source,
+	fleet *pihole.Fleet,
+	epoch int,
+) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		data, err := src.Summary(ctx)
-		return summaryMsg{epoch: epoch, data: data, err: err}
+		if fleet == nil {
+			data, err := src.Summary(ctx)
+			return summaryMsg{epoch: epoch, data: data, err: err}
+		}
+		data, per, err := fleet.SummaryByMember(ctx)
+		gravity := make(map[string]int, len(per))
+		for name, s := range per {
+			gravity[name] = s.Gravity.DomainsBeingBlocked
+		}
+		return summaryMsg{epoch: epoch, data: data, gravity: gravity, err: err}
 	}
 }
 

@@ -350,7 +350,7 @@ func TestFetchClosures_ProduceTaggedMessages(t *testing.T) {
 	cancel()
 
 	// Act / Assert
-	if _, ok := fetchSummary(base, api, 7)().(summaryMsg); !ok {
+	if _, ok := fetchSummary(base, api, nil, 7)().(summaryMsg); !ok {
 		t.Fatal("fetchSummary should yield a summaryMsg")
 	}
 	if _, ok := fetchHistory(base, api, 7)().(historyMsg); !ok {

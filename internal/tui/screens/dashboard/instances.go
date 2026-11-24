@@ -3,6 +3,7 @@ package dashboard
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -37,6 +38,7 @@ type instanceHealth struct {
 	messages int // -1 when unknown
 	gravity  int // -1 when unknown
 	err      error
+	mirror   bool // active row skipped by the probe: mirrors fetchSystem
 }
 
 // instancesMsg carries every member's health, active instance first.
@@ -52,9 +54,12 @@ type instanceCol struct {
 	cell  func(instanceHealth) (string, lipgloss.Style)
 }
 
+// fetchInstances probes every member but activeAPI, whose row reuses the
+// round's fetchSystem result (see overlayInstances).
 func fetchInstances(
 	base context.Context,
 	f *pihole.Fleet,
+	activeAPI *pihole.Client,
 	order []string,
 	active string,
 	epoch int,
@@ -62,7 +67,15 @@ func fetchInstances(
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(base, fetchTimeout)
 		defer cancel()
-		res := pihole.EachMember(ctx, f, probeInstance)
+		res := pihole.EachMember(ctx, f, func(
+			ctx context.Context,
+			c *pihole.Client,
+		) (instanceHealth, error) {
+			if c == activeAPI {
+				return instanceHealth{messages: -1, gravity: -1}, pihole.ErrSkip
+			}
+			return probeInstance(ctx, c)
+		})
 		return instancesMsg{
 			epoch: epoch,
 			rows:  instanceRows(res, order, active),
@@ -71,7 +84,8 @@ func fetchInstances(
 }
 
 // probeInstance reads one member's health. Only a System failure fails the
-// member; the other calls degrade to unknown cells.
+// member; the other calls degrade to unknown cells. Gravity comes from the
+// round's summary (see overlayInstances).
 func probeInstance(
 	ctx context.Context,
 	c *pihole.Client,
@@ -88,13 +102,36 @@ func probeInstance(
 			h.messages = len(msgs)
 		}
 	})
-	wg.Go(func() {
-		if s, err := c.Summary(ctx); err == nil {
-			h.gravity = s.Gravity.DomainsBeingBlocked
-		}
-	})
 	wg.Wait()
 	return h, nil
+}
+
+// overlayInstances fills the rows from data the dashboard already has: each
+// member's gravity from the merged summary fetch, and the active row's
+// health from fetchSystem.
+func (m *Model) overlayInstances() {
+	for i := range m.instances {
+		h := &m.instances[i]
+		if m.gravity != nil {
+			g, ok := m.gravity[h.name]
+			if !ok {
+				g = -1
+			}
+			h.gravity = g
+		}
+		h.mirror = h.mirror || errors.Is(h.err, pihole.ErrSkip)
+		if !h.mirror {
+			continue
+		}
+		h.system, h.sensors, h.err = m.system, m.sensors, nil
+		if m.errSystem != "" {
+			h.err = errors.New(m.errSystem)
+		}
+		h.messages = len(m.messages)
+		if m.errMessages != "" {
+			h.messages = -1
+		}
+	}
 }
 
 // instanceOrder returns instance names in config order, or the fleet's
