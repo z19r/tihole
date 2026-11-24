@@ -148,6 +148,50 @@ everything`.
 - When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
   tile's value is the max.
 
+- `fetchSummary`, `fetchHistory`, `fetchBreakdown` and `fetchTop` read
+  through `ctx.Source()`: the fleet in combined mode, otherwise the active
+  client.
+- The hot-temp `PatchConfig` stays on the active client.
+- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning,
+  "secondary unreachable", in the existing error/banner area. The data still
+  renders.
+- When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
+  tile's value is the max.
+
+#### Per-instance rows for metrics that cannot be combined (approved 2026-11-23)
+
+CPU, memory, temperature, load/uptime and diagnostics messages are
+per-machine, and gravity can differ between members. In combined mode the
+Health strip is replaced by one labelled row per configured instance:
+
+```
+ Pi-holes        CPU    Mem    Temp   Load · Up      Gravity    Health
+ ▸ primary       12%    41%    48°C   3% · 4d 2h     1,204,331  ✓ clear
+ ● secondary      9%    37%    n/a    2% · 11d       1,204,331  ⚠ 2 issues
+ ○ basement       —      —      —     unreachable
+   and 2 more…
+```
+
+- **Rows:** config order, with the active instance first and marked `▸`
+  (other reachable rows `●`, unreachable `○`), so the mark survives without
+  colour. Plain text, no animated gauges.
+- **Unreachable or failed-at-build instances** (`Fleet.Unreachable()`) get a
+  dimmed `unreachable` row with `—` cells.
+- **Cap:** at most **4** instance rows. If more exist, the last line reads
+  `and N more…`, where N is the hidden count.
+- **Gravity:** a member whose gravity differs from the most common value is
+  shown in the warning colour, which ties in with the tile's `≠`.
+- **Fetch:** in combined mode `fetchSystem` fans out per member (System,
+  SensorsInfo, Messages, Summary for gravity) concurrently with the same 2s
+  per-member deadline. Members in cooldown are not called; they render as
+  unreachable. Results arrive as one message keyed by instance name, guarded
+  by the screen epoch.
+- **Narrow widths:** while the name column would be under 12 columns,
+  drop Gravity, then Load · Up, Temp, Mem and CPU, in that order. Health is
+  never dropped. After that, names truncate (to `…` at worst) and lines are
+  clipped to the panel instead of wrapping.
+- **Single mode:** the strip is unchanged, with its animated gauges.
+
 ### Query log
 
 - `fetch` uses `Fleet.Queries` when combined. In combined mode the

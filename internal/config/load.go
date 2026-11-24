@@ -1,9 +1,12 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,6 +28,11 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 
+	c.Active = strings.TrimSpace(c.Active)
+	for i := range c.Instances {
+		c.Instances[i].Name = strings.TrimSpace(c.Instances[i].Name)
+	}
+
 	if err := Validate(&c); err != nil {
 		return nil, fmt.Errorf("invalid config %q: %w", path, err)
 	}
@@ -32,8 +40,8 @@ func Load(path string) (*Config, error) {
 	return &c, nil
 }
 
-// Save marshals c to YAML and writes it to path with mode 0600, creating the
-// parent directory (mode 0700) if needed.
+// Save marshals c to YAML and atomically writes it to path with mode 0600,
+// creating the parent directory (mode 0700) if needed.
 func Save(path string, c *Config) error {
 	if c == nil {
 		return fmt.Errorf("cannot save nil config")
@@ -44,21 +52,106 @@ func Save(path string, c *Config) error {
 		return fmt.Errorf("create config dir %q: %w", dir, err)
 	}
 
-	data, err := yaml.Marshal(c)
+	data, err := mergeExisting(path, c)
+	if err != nil {
+		data, err = yaml.Marshal(c)
+	}
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, configFileMode); err != nil {
+	return writeAtomic(path, data)
+}
+
+// savedKeys are the top-level keys Config owns; any other key in an existing
+// file is left untouched by Save.
+var savedKeys = []string{"active", "theme", "instances", "combined"}
+
+// mergeExisting re-encodes the config file at path with c's values written
+// into its yaml.Node tree, so hand-written comments and unknown keys survive.
+// It errors when there is no existing mapping document to merge into.
+func mergeExisting(path string, c *Config) ([]byte, error) {
+	old, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(old, &doc); err != nil {
+		return nil, err
+	}
+	if doc.Kind != yaml.DocumentNode ||
+		doc.Content[0].Kind != yaml.MappingNode {
+		return nil, errors.New("not a yaml mapping")
+	}
+	var fresh yaml.Node
+	if err := fresh.Encode(c); err != nil {
+		return nil, err
+	}
+	root := doc.Content[0]
+	for _, key := range savedKeys {
+		i, j := keyIndex(root, key), keyIndex(&fresh, key)
+		switch {
+		case j < 0 && i >= 0:
+			root.Content = slices.Delete(root.Content, i, i+2)
+		case j >= 0 && i >= 0:
+			v := fresh.Content[j+1]
+			prev := root.Content[i+1]
+			v.HeadComment, v.LineComment = prev.HeadComment, prev.LineComment
+			v.FootComment = prev.FootComment
+			root.Content[i+1] = v
+		case j >= 0:
+			root.Content = append(root.Content, fresh.Content[j:j+2]...)
+		}
+	}
+	return yaml.Marshal(&doc)
+}
+
+// keyIndex returns the index of key's key node in mapping m, or -1.
+func keyIndex(m *yaml.Node, key string) int {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return i
+		}
+	}
+	return -1
+}
+
+// writeAtomic writes data to a 0600 temp file beside path, syncs it, and
+// renames it over path, so a failed write never truncates the original.
+func writeAtomic(path string, data []byte) error {
+	// Write the link's target so a symlinked config (e.g. dotfiles) survives.
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	} else if dest, lerr := os.Readlink(path); lerr == nil {
+		// A dangling link: create its target rather than replace the link.
+		if !filepath.IsAbs(dest) {
+			dest = filepath.Join(filepath.Dir(path), dest)
+		}
+		path = dest
+	}
+	// A unique name, so concurrent saves never share a temp file.
+	f, err := os.CreateTemp(filepath.Dir(path), "config-*.yaml.tmp")
+	if err != nil {
 		return fmt.Errorf("write config %q: %w", path, err)
 	}
-
-	// WriteFile only applies the mode on creation; enforce it explicitly so an
-	// existing file with looser permissions is tightened to 0600.
-	if err := os.Chmod(path, configFileMode); err != nil {
-		return fmt.Errorf("chmod config %q: %w", path, err)
+	tmp := f.Name()
+	err = f.Chmod(configFileMode)
+	if err == nil {
+		_, err = f.Write(data)
 	}
-
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("write config %q: %w", path, err)
+	}
 	return nil
 }
 

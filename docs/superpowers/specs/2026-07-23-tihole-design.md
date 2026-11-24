@@ -127,7 +127,7 @@ Pure Go, `context`-aware, one `Client` per instance. Verified against the FTL Op
 
 ### 5.2 Auth (`/api/auth`) — `X-FTL-SID` header flow
 
-- Login: `POST /api/auth` `{ "password": "<app-or-web-password>", "totp": <int?> }` →
+- Login: `POST /api/auth` `{ "password": "<app-or-web-password>" }` →
   `session{ valid, sid, csrf, validity, message, totp }`.
 - Subsequent requests send **`X-FTL-SID: <sid>`** (header auth needs **no** CSRF token;
   `X-FTL-CSRF` is only for cookie mode). SID is **bound to client IP**.
@@ -135,8 +135,8 @@ Pure Go, `context`-aware, one `Client` per instance. Verified against the FTL Op
   `webserver.api.max_sessions`, ~16, else `429 api_seats_exceeded`).
 - On any `401`, transparently re-auth and retry once; renew before `validity` (default
   1800s) elapses.
-- **App passwords preferred** for a headless client (bypass TOTP/2FA). Web password also
-  supported (with `totp` when 2FA is on). No secrets logged.
+- **App passwords preferred** for a headless client. Web password also supported, but
+  an app password is required when 2FA is on (TOTP is not supported). No secrets logged.
 
 ### 5.3 Endpoint groups → client methods → screens
 
@@ -193,9 +193,6 @@ each is independently shippable.
 ```yaml
 active: home
 theme: omarchy            # deep-night | light-luxury | pihole-classic | omarchy
-refresh:                  # optional per-screen overrides (seconds)
-  dashboard: 5
-  querylog: 2
 instances:
   - name: home
     url: https://192.168.1.2

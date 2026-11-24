@@ -40,20 +40,6 @@ func (c *Client) Config(
 	return out.Config, nil
 }
 
-// ConfigElement fetches GET /api/config/{element} — a single subtree addressed
-// by a dotted path such as "dns.upstreams". Each path segment is escaped.
-func (c *Client) ConfigElement(
-	ctx context.Context,
-	element string,
-) (map[string]any, error) {
-	path := "/config/" + escapeElement(element)
-	var out configEnvelope
-	if err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
-		return nil, err
-	}
-	return out.Config, nil
-}
-
 // configPatchRequest is the body of PATCH /api/config.
 type configPatchRequest struct {
 	Config map[string]any `json:"config"`

@@ -7,7 +7,7 @@ knows nothing about the UI; the UI depends on the domain and never the reverse.*
 ## Package layout
 
 ```
-cmd/tihole/            entrypoint, CLI subcommands (config, changelog-sync, help)
+cmd/tihole/            entrypoint, CLI subcommands (config, version, help)
 internal/
 ├── pihole/            Pi-hole v6 API client — the only package that speaks HTTP
 ├── config/            config.yaml load/save/validate (~/.config/tihole)
@@ -17,6 +17,7 @@ internal/
     ├── components/    reusable widgets: sidebar, statusbar, palette, help,
     │                  section tabs, splash, gradient, confirm, table
     └── screens/       one package per screen (dashboard, querylog, domains, …)
+scripts/               release helpers (changelog-sync, backfill-changelog.sh)
 ```
 
 The three domain packages — `pihole`, `config`, `theme` — **never import

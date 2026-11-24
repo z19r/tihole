@@ -371,6 +371,10 @@ func (m *Model) handleTreeKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.filterInput.Focus()
 	case "enter":
 		if l, ok := m.selectedLeaf(); ok {
+			if !editable(l.value) {
+				m.err = fmt.Errorf("%s: not editable here", l.path)
+				return m, nil
+			}
 			m.edit = newLeafEdit(l)
 			m.edit.setWidth(m.w)
 			return m, nil

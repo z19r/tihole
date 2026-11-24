@@ -55,32 +55,6 @@ func TestConfigDetailedFalse(t *testing.T) {
 	}
 }
 
-func TestConfigElementEscapesDottedPath(t *testing.T) {
-	// Arrange
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/config/dns/upstreams" {
-			t.Errorf("path = %q, want /api/config/dns/upstreams", r.URL.Path)
-		}
-		writeJSON(
-			w,
-			http.StatusOK,
-			`{"config":{"dns":{"upstreams":["1.1.1.1"]}},"took":0.0}`,
-		)
-	})
-	client.setSID("S")
-
-	// Act
-	got, err := client.ConfigElement(context.Background(), "dns.upstreams")
-
-	// Assert
-	if err != nil {
-		t.Fatalf("ConfigElement error: %v", err)
-	}
-	if got["dns"] == nil {
-		t.Errorf("expected dns subtree, got %#v", got)
-	}
-}
-
 func TestPatchConfigBodyAndRestartParam(t *testing.T) {
 	// Arrange
 	var body configPatchRequest

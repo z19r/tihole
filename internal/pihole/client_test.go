@@ -241,3 +241,20 @@ func TestWithInsecureTLSWiresSkipVerify(t *testing.T) {
 		t.Errorf("insecure client failed against TLS server: %v", err)
 	}
 }
+
+func TestWithInsecureTLSKeepsDefaultTransportSettings(t *testing.T) {
+	// Arrange / Act
+	c := New("https://pi.hole", "pw", WithInsecureTLS(true))
+
+	// Assert
+	tr, ok := c.httpClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", c.httpClient.Transport)
+	}
+	if tr.Proxy == nil {
+		t.Fatal("Proxy func dropped; proxy env vars would be ignored")
+	}
+	if !tr.TLSClientConfig.InsecureSkipVerify {
+		t.Fatal("InsecureSkipVerify not set")
+	}
+}

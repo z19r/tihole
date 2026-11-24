@@ -38,13 +38,6 @@ type Domain struct {
 	DateModified int64  `json:"date_modified"`
 }
 
-// DomainRef identifies a domain for batch deletion.
-type DomainRef struct {
-	Item string     `json:"item"`
-	Type DomainType `json:"type"`
-	Kind DomainKind `json:"kind"`
-}
-
 // domainsEnvelope wraps the list/mutation response for domains.
 type domainsEnvelope struct {
 	Domains []Domain `json:"domains"`
@@ -137,13 +130,4 @@ func (c *Client) DeleteDomain(
 	domain string,
 ) error {
 	return c.do(ctx, http.MethodDelete, domainPath(dt, dk, domain), nil, nil)
-}
-
-// BatchDeleteDomains removes multiple domains via POST
-// /api/domains:batchDelete.
-func (c *Client) BatchDeleteDomains(
-	ctx context.Context,
-	items []DomainRef,
-) error {
-	return c.do(ctx, http.MethodPost, "/domains:batchDelete", items, nil)
 }

@@ -10,11 +10,10 @@ import (
 
 // Config is the top-level configuration, matching config.yaml.
 type Config struct {
-	Active    string         `yaml:"active"`
-	Theme     string         `yaml:"theme,omitempty"`
-	Refresh   map[string]int `yaml:"refresh,omitempty"`
-	Instances []Instance     `yaml:"instances"`
-	Combined  bool           `yaml:"combined,omitempty"`
+	Active    string     `yaml:"active"`
+	Theme     string     `yaml:"theme,omitempty"`
+	Instances []Instance `yaml:"instances"`
+	Combined  bool       `yaml:"combined,omitempty"`
 }
 
 // Instance describes a single Pi-hole instance.

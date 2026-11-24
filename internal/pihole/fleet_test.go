@@ -371,3 +371,77 @@ func TestFleetBlockingCountsUnreachable(t *testing.T) {
 		t.Fatalf("got %+v, want Blocking, On 1, Total 3", got)
 	}
 }
+
+func TestEachMemberSkipsCooldownAndReportsFailed(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(10))
+	b, bHits := fakeMember(t, "b", failHandler)
+	buildErr := errors.New("no url")
+	g := NewFleet([]Member{a, b}, map[string]error{"c": buildErr})
+	now := time.Unix(1000, 0)
+	g.now = func() time.Time { return now }
+	ctx := context.Background()
+	call := flip((*Client).Summary)
+
+	got := EachMember(ctx, g, call)
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	if got["a"].Err != nil || got["a"].Value.Queries.Total != 10 {
+		t.Fatalf("a = %+v", got["a"])
+	}
+	if got["b"].Err == nil {
+		t.Fatal("b: want error")
+	}
+	if !errors.Is(got["c"].Err, buildErr) {
+		t.Fatalf("c err = %v, want build error", got["c"].Err)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"b", "c"}) {
+		t.Fatalf("Unreachable = %v, want [b c]", u)
+	}
+
+	hits := bHits.Load()
+	now = now.Add(10 * time.Second)
+	got = EachMember(ctx, g, call)
+	if bHits.Load() != hits {
+		t.Fatal("b was called during cooldown")
+	}
+	if !errors.Is(got["b"].Err, ErrUnreachable) {
+		t.Fatalf("b err = %v, want ErrUnreachable", got["b"].Err)
+	}
+	if got["a"].Err != nil {
+		t.Fatalf("a err = %v", got["a"].Err)
+	}
+}
+
+func TestFleetSummaryByMemberKeepsEachAnswer(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(10))
+	b, _ := fakeMember(t, "b", failHandler)
+	g := NewFleet([]Member{a, b}, nil)
+
+	got, per, err := g.SummaryByMember(context.Background())
+
+	if err != nil || got.Queries.Total != 10 {
+		t.Fatalf("merged = %+v, err %v; want total 10", got, err)
+	}
+	if len(per) != 1 || per["a"].Queries.Total != 10 {
+		t.Fatalf("per-member = %+v, want only a", per)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"b"}) {
+		t.Fatalf("Unreachable = %v, want [b]", u)
+	}
+}
+
+func TestEachMemberErrSkipLeavesHealthAlone(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(1))
+	g := NewFleet([]Member{a}, nil)
+
+	res := EachMember(context.Background(), g,
+		func(context.Context, *Client) (int, error) { return 0, ErrSkip })
+
+	if !errors.Is(res["a"].Err, ErrSkip) {
+		t.Fatalf("err = %v, want ErrSkip", res["a"].Err)
+	}
+	if u := g.Unreachable(); len(u) != 0 {
+		t.Fatalf("a skipped call marked a down: %v", u)
+	}
+}

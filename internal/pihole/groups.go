@@ -16,11 +16,6 @@ type Group struct {
 	DateModified int64  `json:"date_modified"`
 }
 
-// GroupRef identifies a group for batch deletion.
-type GroupRef struct {
-	Item string `json:"item"`
-}
-
 // groupsEnvelope wraps the list/mutation response for groups.
 type groupsEnvelope struct {
 	Groups []Group `json:"groups"`
@@ -92,12 +87,4 @@ func (c *Client) DeleteGroup(ctx context.Context, name string) error {
 		nil,
 		nil,
 	)
-}
-
-// BatchDeleteGroups removes multiple groups via POST /api/groups:batchDelete.
-func (c *Client) BatchDeleteGroups(
-	ctx context.Context,
-	items []GroupRef,
-) error {
-	return c.do(ctx, http.MethodPost, "/groups:batchDelete", items, nil)
 }

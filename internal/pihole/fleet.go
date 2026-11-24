@@ -101,14 +101,27 @@ func (g *Fleet) recovered(name string, start time.Time) {
 	}
 }
 
-// fanOut calls every member not in cooldown concurrently, each with its own
-// deadline. It returns the successful results and their member names in
-// config order, and errors only when no member answered.
-func fanOut[T any](
+// ErrUnreachable marks a member skipped because it is in cooldown.
+var ErrUnreachable = errors.New("unreachable")
+
+// ErrSkip, returned by an EachMember call, skips that member without
+// touching its health: it is neither marked down nor recovered.
+var ErrSkip = errors.New("skipped")
+
+// MemberResult is one member's answer from EachMember.
+type MemberResult[T any] struct {
+	Value T
+	Err   error
+}
+
+// callLive calls every member not in cooldown concurrently, each with its
+// own deadline, and updates cooldown unless the caller gave up. It returns
+// the members called with their results and errors, in config order.
+func callLive[T any](
 	g *Fleet,
 	ctx context.Context,
 	call func(context.Context, *Client) (T, error),
-) ([]T, []string, error) {
+) ([]Member, []T, []error) {
 	g.mu.Lock()
 	start := g.now()
 	var live []Member
@@ -131,24 +144,69 @@ func fanOut[T any](
 	}
 	wg.Wait()
 	// The caller gave up; that says nothing about member health.
+	if ctx.Err() != nil {
+		return live, res, errs
+	}
+	g.mu.Lock()
+	for i, m := range live {
+		if errors.Is(errs[i], ErrSkip) {
+			continue
+		}
+		if errs[i] != nil {
+			g.down[m.Name] = g.now()
+		} else {
+			g.recovered(m.Name, start)
+		}
+	}
+	g.mu.Unlock()
+	return live, res, errs
+}
+
+// EachMember calls every member like fanOut but keeps each answer apart,
+// keyed by instance name. Members in cooldown get ErrUnreachable without
+// being called; instances that failed to build get their build error.
+func EachMember[T any](
+	ctx context.Context,
+	g *Fleet,
+	call func(context.Context, *Client) (T, error),
+) map[string]MemberResult[T] {
+	live, res, errs := callLive(g, ctx, call)
+	out := make(map[string]MemberResult[T], g.Len())
+	for _, m := range g.members {
+		out[m.Name] = MemberResult[T]{Err: ErrUnreachable}
+	}
+	for i, m := range live {
+		out[m.Name] = MemberResult[T]{Value: res[i], Err: errs[i]}
+	}
+	for name, err := range g.failed {
+		out[name] = MemberResult[T]{Err: err}
+	}
+	return out
+}
+
+// fanOut calls every member not in cooldown concurrently, each with its own
+// deadline. It returns the successful results and their member names in
+// config order, and errors only when no member answered.
+func fanOut[T any](
+	g *Fleet,
+	ctx context.Context,
+	call func(context.Context, *Client) (T, error),
+) ([]T, []string, error) {
+	live, res, errs := callLive(g, ctx, call)
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
 
 	var out []T
 	var names []string
-	g.mu.Lock()
 	for i, m := range live {
 		if errs[i] != nil {
-			g.down[m.Name] = g.now()
 			errs[i] = fmt.Errorf("%s: %w", m.Name, errs[i])
 			continue
 		}
-		g.recovered(m.Name, start)
 		out = append(out, res[i])
 		names = append(names, m.Name)
 	}
-	g.mu.Unlock()
 	if len(out) == 0 {
 		if err := errors.Join(errs...); err != nil {
 			return nil, nil, fmt.Errorf("all instances unreachable: %w", err)
@@ -167,11 +225,24 @@ func flip[T any](
 
 // Summary merges GET /api/stats/summary across members.
 func (g *Fleet) Summary(ctx context.Context) (Summary, error) {
-	in, _, err := fanOut(g, ctx, flip((*Client).Summary))
+	s, _, err := g.SummaryByMember(ctx)
+	return s, err
+}
+
+// SummaryByMember is Summary plus each answering member's own summary,
+// keyed by instance name, from the same single request per member.
+func (g *Fleet) SummaryByMember(
+	ctx context.Context,
+) (Summary, map[string]Summary, error) {
+	in, names, err := fanOut(g, ctx, flip((*Client).Summary))
 	if err != nil {
-		return Summary{}, err
+		return Summary{}, nil, err
 	}
-	return mergeSummary(in), nil
+	per := make(map[string]Summary, len(in))
+	for i, name := range names {
+		per[name] = in[i]
+	}
+	return mergeSummary(in), per, nil
 }
 
 // History merges GET /api/history across members.

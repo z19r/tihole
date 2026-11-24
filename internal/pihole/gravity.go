@@ -21,6 +21,9 @@ func (c *Client) streamGravity(
 	onLine func(string),
 	allowRetry bool,
 ) error {
+	if c.isClosed() {
+		return ErrClosed
+	}
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
@@ -31,8 +34,9 @@ func (c *Client) streamGravity(
 		return &NetworkError{Op: "POST /action/gravity", Err: err}
 	}
 	req.Header.Set("Accept", "text/plain")
-	if sid := c.sessionID(); sid != "" {
-		req.Header.Set("X-FTL-SID", sid)
+	sentSID := c.sessionID()
+	if sentSID != "" {
+		req.Header.Set("X-FTL-SID", sentSID)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -44,7 +48,7 @@ func (c *Client) streamGravity(
 	if resp.StatusCode == http.StatusUnauthorized && allowRetry {
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
-		if err := c.login(ctx); err != nil {
+		if err := c.reauth(ctx, sentSID); err != nil {
 			return err
 		}
 		return c.streamGravity(ctx, onLine, false)

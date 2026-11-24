@@ -28,11 +28,6 @@ type ClientSuggestion struct {
 	Addresses string `json:"addresses"`
 }
 
-// ClientRef identifies a client for batch deletion.
-type ClientRef struct {
-	Item string `json:"item"`
-}
-
 // clientsEnvelope wraps the list/mutation response for clients.
 type clientsEnvelope struct {
 	Clients []ClientEntry `json:"clients"`
@@ -127,13 +122,4 @@ func (c *Client) ClientSuggestions(
 		return nil, err
 	}
 	return out.Clients, nil
-}
-
-// BatchDeleteClients removes multiple clients via POST
-// /api/clients:batchDelete.
-func (c *Client) BatchDeleteClients(
-	ctx context.Context,
-	items []ClientRef,
-) error {
-	return c.do(ctx, http.MethodPost, "/clients:batchDelete", items, nil)
 }

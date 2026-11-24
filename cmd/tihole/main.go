@@ -13,7 +13,6 @@ const usage = `tihole — a terminal UI for PiHole v6
 Usage:
   tihole                 Launch the dashboard (default)
   tihole config          Launch the config editor to add or fix an instance
-  tihole changelog-sync  Regenerate site/src/changelog.js from CHANGELOG.md
   tihole version         Print the tihole version
   tihole help            Show this help
 
@@ -41,8 +40,6 @@ func dispatch(args []string) error {
 	switch cmd {
 	case "config", "-c", "--config":
 		return tui.RunConfig()
-	case "changelog-sync":
-		return runChangelogSync()
 	case "help", "-h", "--help":
 		fmt.Println(usage)
 		return nil

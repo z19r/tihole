@@ -203,6 +203,8 @@ func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
 			case r.URL.Path == "/api/auth":
 				_, _ = w.Write([]byte(`{"session":{"valid":true,` +
 					`"sid":"s","csrf":"c","validity":1800}}`))
+			case r.Header.Get("X-FTL-SID") == "":
+				w.WriteHeader(http.StatusUnauthorized)
 			case r.Method == http.MethodPost && failPost:
 				w.WriteHeader(http.StatusInternalServerError)
 			default:
@@ -290,7 +292,7 @@ func TestLogoutAllEndsEachSessionOnce(t *testing.T) {
 	a, ha := newHole(t, false)
 	b, hb := newHole(t, false)
 	for _, c := range []*pihole.Client{a, b} {
-		if err := c.Login(context.Background()); err != nil {
+		if err := loginErr(c); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -421,7 +423,7 @@ func TestInstancesChangeRebuildsEditedActiveClient(t *testing.T) {
 func TestPendingLogoutsFlushedAtExit(t *testing.T) {
 	m := newTestModel(t)
 	c, h := newHole(t, false)
-	if err := c.Login(context.Background()); err != nil {
+	if err := loginErr(c); err != nil {
 		t.Fatal(err)
 	}
 	cmd := m.logouts.cmd([]*pihole.Client{c}) // quit before it runs
@@ -437,7 +439,7 @@ func TestPendingLogoutsFlushedAtExit(t *testing.T) {
 func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 	m := newTestModel(t)
 	c, h := newHole(t, false)
-	if err := c.Login(context.Background()); err != nil {
+	if err := loginErr(c); err != nil {
 		t.Fatal(err)
 	}
 	h.hold.Store(true)
@@ -458,7 +460,10 @@ func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 
 func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
 	m := sized(t, newTestModel(t), 120, 36)
-	orphan, _ := newHole(t, false)
+	orphan, h := newHole(t, false)
+	if err := loginErr(orphan); err != nil {
+		t.Fatal(err)
+	}
 	m.ctx.API = orphan
 	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", orphan, nil, nil)
 	cfg := &config.Config{
@@ -474,9 +479,10 @@ func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
 	m.applyInstancesChange(cfg) // home deleted, switch to office fails
 
 	m.switchInstance("cabin")
+	m.logouts.flush() // exit before the drop cmd ran
 
-	if !m.logouts.pending[orphan] {
-		t.Fatal("replaced client outside the fleet should be logged out")
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("orphan DELETE /api/auth = %d, want 1", n)
 	}
 }
 
@@ -491,4 +497,11 @@ func TestStaleBlockingErrorsDropped(t *testing.T) {
 	if m.err != "" {
 		t.Fatalf("stale error reached the banner: %q", m.err)
 	}
+}
+
+// loginErr opens a session on c: newHole 401s requests without one, so any
+// call logs in transparently.
+func loginErr(c *pihole.Client) error {
+	_, err := c.Blocking(context.Background())
+	return err
 }

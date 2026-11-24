@@ -32,12 +32,6 @@ type List struct {
 	DateUpdated    int64  `json:"date_updated"`
 }
 
-// ListRef identifies a list for batch deletion.
-type ListRef struct {
-	Item string   `json:"item"`
-	Type ListType `json:"type"`
-}
-
 // listsEnvelope wraps the list/mutation response for adlists.
 type listsEnvelope struct {
 	Lists []List  `json:"lists"`
@@ -138,9 +132,4 @@ func (c *Client) DeleteList(
 		string(listType),
 	)
 	return c.do(ctx, http.MethodDelete, path, nil, nil)
-}
-
-// BatchDeleteLists removes multiple lists via POST /api/lists:batchDelete.
-func (c *Client) BatchDeleteLists(ctx context.Context, items []ListRef) error {
-	return c.do(ctx, http.MethodPost, "/lists:batchDelete", items, nil)
 }

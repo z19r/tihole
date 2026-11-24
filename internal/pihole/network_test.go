@@ -47,52 +47,6 @@ func TestNetworkDevicesDecode(t *testing.T) {
 	}
 }
 
-func TestGatewayDecode(t *testing.T) {
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/network/gateway" {
-			t.Errorf("path = %q", r.URL.Path)
-		}
-		writeJSON(w, http.StatusOK, `{"gateway":["192.168.1.1"],"took":0.0}`)
-	})
-	client.setSID("S")
-
-	got, err := client.Gateway(context.Background())
-	if err != nil {
-		t.Fatalf("Gateway error: %v", err)
-	}
-	if got["gateway"] == nil {
-		t.Errorf("gateway missing: %#v", got)
-	}
-}
-
-func TestInterfacesDecode(t *testing.T) {
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/network/interfaces" {
-			t.Errorf("path = %q", r.URL.Path)
-		}
-		writeJSON(w, http.StatusOK, `{"interfaces":[],"took":0.0}`)
-	})
-	client.setSID("S")
-
-	if _, err := client.Interfaces(context.Background()); err != nil {
-		t.Fatalf("Interfaces error: %v", err)
-	}
-}
-
-func TestRoutesDecode(t *testing.T) {
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/network/routes" {
-			t.Errorf("path = %q", r.URL.Path)
-		}
-		writeJSON(w, http.StatusOK, `{"routes":[],"took":0.0}`)
-	})
-	client.setSID("S")
-
-	if _, err := client.Routes(context.Background()); err != nil {
-		t.Fatalf("Routes error: %v", err)
-	}
-}
-
 func TestDeleteNetworkDevicePath(t *testing.T) {
 	var gotPath, gotMethod string
 	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {

@@ -100,27 +100,3 @@ func TestDeleteGroupReturns204(t *testing.T) {
 		t.Fatalf("DeleteGroup error: %v", err)
 	}
 }
-
-func TestBatchDeleteGroupsSendsItemBody(t *testing.T) {
-	var raw []map[string]any
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/groups:batchDelete" {
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-		data, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(data, &raw)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	client.setSID("S")
-
-	err := client.BatchDeleteGroups(
-		context.Background(),
-		[]GroupRef{{Item: "kids"}},
-	)
-	if err != nil {
-		t.Fatalf("BatchDeleteGroups error: %v", err)
-	}
-	if len(raw) != 1 || raw[0]["item"] != "kids" {
-		t.Errorf("body = %+v, want [{item:kids}]", raw)
-	}
-}

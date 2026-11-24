@@ -91,6 +91,9 @@ func (l *logouts) cmd(cs []*pihole.Client) tea.Cmd {
 		return nil
 	}
 	l.mu.Lock()
+	if l.pending == nil {
+		l.pending = map[*pihole.Client]bool{}
+	}
 	for _, c := range cs {
 		l.pending[c] = true
 	}
@@ -113,6 +116,9 @@ func (l *logouts) cmd(cs []*pihole.Client) tea.Cmd {
 func (l *logouts) claim(cs []*pihole.Client) []*pihole.Client {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.claimed == nil {
+		l.claimed = map[*pihole.Client]bool{}
+	}
 	var out []*pihole.Client
 	for _, c := range cs {
 		if l.pending[c] {

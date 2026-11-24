@@ -636,17 +636,12 @@ func TestCloneConfigIsIndependent(t *testing.T) {
 	orig := &config.Config{
 		Active:    "primary",
 		Theme:     theme.NameDeepNight,
-		Refresh:   map[string]int{"queries": 5},
 		Instances: []config.Instance{{Name: "primary", URL: "http://p"}},
 	}
 	clone := cloneConfig(orig)
 	clone.Instances[0].Name = "changed"
-	clone.Refresh["queries"] = 99
 	if orig.Instances[0].Name != "primary" {
 		t.Fatalf("clone should not mutate original instances")
-	}
-	if orig.Refresh["queries"] != 5 {
-		t.Fatalf("clone should not mutate original refresh map")
 	}
 }
 

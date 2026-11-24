@@ -144,7 +144,7 @@ prune-branches MODE="":
 
 # Regenerate site/src/changelog.js from repo-root CHANGELOG.md
 changelog-sync:
-    go run {{ pkg }} changelog-sync
+    go run ./scripts/changelog-sync
 
 # Release verification gate (same checks CI enforces)
 release-check: lint
@@ -275,7 +275,7 @@ release LEVEL: release-check
     fi
     # Regenerate site/src/changelog.js from the now-promoted CHANGELOG.md
     # so the marketing site's Releases section always matches what shipped.
-    go run {{ pkg }} changelog-sync
+    go run ./scripts/changelog-sync
     # Regenerate site/src/metadata.js — all dynamic site values that JSX
     # components read at runtime (release date, SHA, tagline, screens).
     SHA=$(git rev-parse --short HEAD)
@@ -382,7 +382,7 @@ prerelease:
             >> CHANGELOG.md
     fi
     # Regenerate the site changelog from the promoted CHANGELOG.md.
-    go run {{ pkg }} changelog-sync
+    go run ./scripts/changelog-sync
     git add CHANGELOG.md site/src/changelog.js
     git commit -m "release: v${PRE}"
     git tag "v${PRE}"

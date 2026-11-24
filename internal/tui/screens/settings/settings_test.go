@@ -778,3 +778,106 @@ func TestHelpDiffersByMode(t *testing.T) {
 
 var _ core.Screen = (*Model)(nil)
 var _ tea.Model = (*Model)(nil)
+
+func TestParseLeafValueListsStayLists(t *testing.T) {
+	cases := []struct {
+		name  string
+		orig  []any
+		input string
+		want  []any
+	}{
+		{
+			"strings",
+			[]any{"a"},
+			"[ 8.8.8.8, 1.1.1.1 ,]",
+			[]any{"8.8.8.8", "1.1.1.1"},
+		},
+		{
+			"numbers",
+			[]any{float64(1)},
+			"53, 5353",
+			[]any{int64(53), int64(5353)},
+		},
+		{"bools", []any{true}, "false,true", []any{false, true}},
+		{"empty orig", []any{}, "x", []any{"x"}},
+		{"empty input", []any{"a"}, " [ ] ", []any{}},
+	}
+	for _, tc := range cases {
+		got, err := parseLeafValue(tc.orig, tc.input)
+		if err != nil {
+			t.Fatalf("%s: err %v", tc.name, err)
+		}
+		list, ok := got.([]any)
+		if !ok || len(list) != len(tc.want) {
+			t.Fatalf("%s: got %#v, want %#v", tc.name, got, tc.want)
+		}
+		for i := range list {
+			if list[i] != tc.want[i] {
+				t.Fatalf("%s: got %#v, want %#v", tc.name, got, tc.want)
+			}
+		}
+	}
+	if _, err := parseLeafValue([]any{1.0}, "1, x"); err == nil {
+		t.Fatal("non-numeric item in a number list should error")
+	}
+}
+
+func TestEnterOnObjectLeafShowsNoteWithoutEditor(t *testing.T) {
+	// Arrange: a detailed leaf whose value is an object.
+	m := newTestModel(t)
+	tree := map[string]any{"misc": map[string]any{"obj": map[string]any{
+		"value": map[string]any{"k": 1.0}, "type": "object",
+	}}}
+	_, _ = m.Update(configMsg{epoch: m.epoch, tree: tree})
+	m.tree.SetCursor(0)
+
+	// Act
+	_, cmd := m.Update(keyPress("enter"))
+
+	// Assert
+	if m.edit != nil || cmd != nil {
+		t.Fatalf("object leaf must not open an editor")
+	}
+	if m.err == nil || !strings.Contains(m.err.Error(), "not editable here") {
+		t.Fatalf("err = %v, want a not-editable note", m.err)
+	}
+}
+
+func TestEnterOnListWithCommaItemsShowsNote(t *testing.T) {
+	// Arrange: cname entries hold commas, so a comma-split edit would corrupt
+	// them.
+	m := newTestModel(t)
+	tree := map[string]any{"dns": map[string]any{
+		"cnameRecords": []any{"a.lan,b.lan"},
+	}}
+	_, _ = m.Update(configMsg{epoch: m.epoch, tree: tree})
+	m.tree.SetCursor(0)
+
+	// Act
+	_, _ = m.Update(keyPress("enter"))
+
+	// Assert
+	if m.edit != nil || m.err == nil {
+		t.Fatalf("comma-item list must not open an editor (err %v)", m.err)
+	}
+}
+
+func TestEditableRefusesNonScalarListItems(t *testing.T) {
+	for name, v := range map[string]any{
+		"objects": []any{map[string]any{"k": 1.0}},
+		"lists":   []any{[]any{"a"}},
+		"nulls":   []any{nil},
+	} {
+		if editable(v) {
+			t.Errorf("%s: list of non-scalars must not be editable", name)
+		}
+	}
+	for name, v := range map[string]any{
+		"strings": []any{"a"}, "numbers": []any{1.0}, "bools": []any{true},
+		"empty": []any{},
+	} {
+		if !editable(v) {
+			t.Errorf("%s: scalar list should be editable", name)
+		}
+	}
+}

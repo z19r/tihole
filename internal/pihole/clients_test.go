@@ -130,27 +130,3 @@ func TestClientSuggestionsDecodes(t *testing.T) {
 		t.Errorf("got = %+v, want one suggestion aa:bb/Acme", got)
 	}
 }
-
-func TestBatchDeleteClientsSendsItemBody(t *testing.T) {
-	var raw []map[string]any
-	client, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/clients:batchDelete" {
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-		data, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(data, &raw)
-		w.WriteHeader(http.StatusNoContent)
-	})
-	client.setSID("S")
-
-	err := client.BatchDeleteClients(
-		context.Background(),
-		[]ClientRef{{Item: "192.168.1.5"}},
-	)
-	if err != nil {
-		t.Fatalf("BatchDeleteClients error: %v", err)
-	}
-	if len(raw) != 1 || raw[0]["item"] != "192.168.1.5" {
-		t.Errorf("body = %+v, want [{item:192.168.1.5}]", raw)
-	}
-}

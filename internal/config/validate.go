@@ -47,10 +47,14 @@ func Validate(c *Config) error {
 		}
 	}
 
-	if strings.TrimSpace(c.Active) == "" {
+	active := strings.TrimSpace(c.Active)
+	if active == "" {
 		errs = append(errs, errors.New("active instance is required"))
-	} else if len(c.Instances) > 0 && !seen[c.Active] {
-		errs = append(errs, fmt.Errorf("active %q does not match any instance", c.Active))
+	} else if len(c.Instances) > 0 && !seen[active] {
+		errs = append(
+			errs,
+			fmt.Errorf("active %q does not match any instance", active),
+		)
 	}
 
 	return errors.Join(errs...)

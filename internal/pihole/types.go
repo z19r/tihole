@@ -113,23 +113,6 @@ type History struct {
 	Took    float64        `json:"took"`
 }
 
-// HistoryClientPoint is a single bucket in an /api/history/clients response,
-// where per-client counts are keyed by client identifier.
-type HistoryClientPoint struct {
-	Timestamp int            `json:"timestamp"`
-	Data      map[string]int `json:"data"`
-}
-
-// HistoryClients is the response of GET /api/history/clients.
-type HistoryClients struct {
-	Clients map[string]struct {
-		Name  string `json:"name"`
-		Total int    `json:"total"`
-	} `json:"clients"`
-	History []HistoryClientPoint `json:"history"`
-	Took    float64              `json:"took"`
-}
-
 // Query is a single row in an /api/queries response.
 type Query struct {
 	ID       int64           `json:"id"`

@@ -45,7 +45,7 @@ func TestFetchAllUsesSource(t *testing.T) {
 	m.epoch = 1
 	m.baseCtx = context.Background()
 
-	batch, ok := m.fetchAll()().(tea.BatchMsg)
+	batch, ok := m.fetchAll(true)().(tea.BatchMsg)
 	if !ok {
 		t.Fatal("fetchAll should return a batch")
 	}

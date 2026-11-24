@@ -137,5 +137,5 @@ for draft in "${DRAFTS[@]}"; do
     echo "backfilled [$ver] in CHANGELOG.md"
 done
 
-go run ./cmd/tihole changelog-sync
+go run ./scripts/changelog-sync
 echo "Review the changes (git diff), then commit."

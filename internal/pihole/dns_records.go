@@ -142,7 +142,7 @@ func (c *Client) DeleteCNAMERecord(
 }
 
 // stringArrayElement fetches a config element whose value is a JSON array of
-// strings, following the same dotted-element addressing as ConfigElement. The
+// strings addressed by a dotted path such as "dns.hosts". The
 // element's value lives at config[<last segment>] in the response subtree.
 func (c *Client) stringArrayElement(
 	ctx context.Context,

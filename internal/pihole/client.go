@@ -22,13 +22,13 @@ type Client struct {
 	httpClient *http.Client
 
 	password string
-	totp     *int
 
 	mu     sync.Mutex // guards sid and closed
 	sid    string
 	closed bool // set by Close; requests then fail with ErrClosed
 
-	authMu sync.Mutex // single-flights re-authentication (see reauth)
+	authMu  sync.Mutex // single-flights re-authentication (see reauth)
+	closeMu sync.Mutex // serializes Close so its session DELETE runs once
 }
 
 // Option configures a Client at construction time.
@@ -42,21 +42,16 @@ func WithInsecureTLS(insecure bool) Option {
 		if !insecure {
 			return
 		}
-		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			}, //nolint:gosec // opt-in per instance
+		// Clone keeps proxy env support and the default dial/TLS timeouts.
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // opt-in per instance
 		}
 		c.httpClient = &http.Client{
 			Transport: transport,
 			Timeout:   c.httpClient.Timeout,
 		}
 	}
-}
-
-// WithTOTP sets a TOTP code to send during login (for web passwords with 2FA).
-func WithTOTP(code int) Option {
-	return func(c *Client) { c.totp = &code }
 }
 
 // WithHTTPClient overrides the underlying *http.Client (e.g. for tests or
