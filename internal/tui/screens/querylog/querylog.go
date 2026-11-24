@@ -97,7 +97,7 @@ func New(ctx *core.AppContext) *Model {
 	widths := computeColumnWidths(80)
 
 	t := table.New(
-		table.WithColumns(tableColumns(widths)),
+		table.WithColumns(tableColumns(widths, ctx.CombinedActive())),
 		table.WithFocused(true),
 	)
 
@@ -131,6 +131,7 @@ func (m *Model) CapturesInput() bool { return m.searching || m.confirm.Active }
 // Focus activates the screen: start the poller and fetch a fresh page.
 func (m *Model) Focus() tea.Cmd {
 	m.focused = true
+	m.syncColumns()
 	m.epoch++
 	m.loading = true
 	m.err = nil
@@ -164,7 +165,7 @@ func (m *Model) SetSize(w, h int) {
 	m.w, m.h = w, h
 
 	widths := computeColumnWidths(w)
-	m.table.SetColumns(tableColumns(widths))
+	m.table.SetColumns(tableColumns(widths, m.ctx.CombinedActive()))
 	m.table.SetWidth(w)
 
 	tableH := h - headerHeight - footerHeight
@@ -197,7 +198,7 @@ func (m *Model) fetch() tea.Cmd {
 	m.cancel = cancel
 
 	e := m.epoch
-	api := m.ctx.API
+	api := m.ctx.Source()
 	filter := buildFilter(m.filterDomain, defaultPage, nil)
 
 	return func() tea.Msg {
@@ -407,8 +408,18 @@ func (m *Model) syncRows() {
 	widths := columnWidthsFrom(m.table.Columns())
 	idx := m.table.Cursor()
 	m.table.SetStyles(components.TableStyles(m.ctx.Theme))
-	m.table.SetRows(styledRows(m.ctx.Theme, m.queries, widths))
+	m.table.SetRows(styledRows(
+		m.ctx.Theme, m.queries, widths, m.ctx.CombinedActive(),
+	))
 	m.table.SetCursor(idx)
+}
+
+// syncColumns retitles the last column when the combined flag has flipped,
+// keeping the current widths.
+func (m *Model) syncColumns() {
+	m.table.SetColumns(tableColumns(
+		columnWidthsFrom(m.table.Columns()), m.ctx.CombinedActive(),
+	))
 }
 
 // columnWidthsFrom extracts the content widths from the table's columns.
@@ -424,6 +435,8 @@ func columnWidthsFrom(cols []table.Column) []int {
 // per-row status colours take effect immediately.
 func (m *Model) View() tea.View {
 	th := m.ctx.Theme
+
+	m.syncColumns()
 
 	// Re-apply row styling with the current theme every frame.
 	if len(m.queries) > 0 {
@@ -540,6 +553,9 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 		{"DNSSEC", orDash(q.DNSSEC)},
 		{"Time", formatQueryTime(q.Time)},
 	}
+	if m.ctx.CombinedActive() {
+		rows = append(rows, [2]string{"Pi-hole", orDash(q.Instance)})
+	}
 
 	keyStyle := th.SubtleStyle().Width(10)
 	valStyle := styleForToken(th, statusToken(q.Status))
@@ -575,6 +591,9 @@ func (m *Model) renderDetail(th *theme.Theme, bodyH int) string {
 
 func (m *Model) renderFooter(th *theme.Theme) string {
 	hint := "↑↓ navigate · / search · enter detail · a allow · b block · esc close"
+	if m.ctx.CombinedActive() {
+		hint += " · → " + m.ctx.InstanceName
+	}
 	return th.SubtleStyle().Render(truncate(hint, maxInt(m.w, 8)))
 }
 

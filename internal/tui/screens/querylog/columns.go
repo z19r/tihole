@@ -81,9 +81,12 @@ func clampMin(v, min int) int {
 }
 
 // tableColumns builds table.Column values from computed widths.
-func tableColumns(widths []int) []table.Column {
+func tableColumns(widths []int, combined bool) []table.Column {
 	cols := make([]table.Column, len(columnTitles))
 	for i, title := range columnTitles {
+		if combined && i == numCols-1 {
+			title = "Pi-hole"
+		}
 		w := colTimeWidth
 		if i < len(widths) {
 			w = widths[i]
@@ -126,13 +129,20 @@ func clientLabel(c pihole.QueryClient) string {
 
 // queryToRow maps a single query into the ordered cell strings for the table,
 // truncating the free-text columns to their computed widths. Pure: no styling.
-func queryToRow(q pihole.Query, widths []int) []string {
+func queryToRow(
+	q pihole.Query,
+	widths []int,
+	combined bool,
+) []string {
 	domainW, clientW, upstreamW := minFlexCol, minFlexCol, minFlexCol
 	if len(widths) == numCols {
 		domainW, clientW, upstreamW = widths[1], widths[2], widths[5]
 	}
 
 	upstream := q.Upstream
+	if combined {
+		upstream = q.Instance
+	}
 	if strings.TrimSpace(upstream) == "" {
 		upstream = "-"
 	}
@@ -190,10 +200,11 @@ func styledRows(
 	th *theme.Theme,
 	queries []pihole.Query,
 	widths []int,
+	combined bool,
 ) []table.Row {
 	rows := make([]table.Row, len(queries))
 	for i, q := range queries {
-		cells := queryToRow(q, widths)
+		cells := queryToRow(q, widths, combined)
 		st := styleForToken(th, statusToken(q.Status))
 		cells[1] = st.Render(cells[1])
 		cells[4] = st.Render(cells[4])

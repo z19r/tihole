@@ -84,7 +84,7 @@ func TestQueryToRowMapsFieldsInOrder(t *testing.T) {
 	}
 
 	// Act
-	row := queryToRow(q, widths)
+	row := queryToRow(q, widths, false)
 
 	// Assert
 	if len(row) != numCols {
@@ -113,7 +113,7 @@ func TestQueryToRowFallsBackToClientIP(t *testing.T) {
 	q := pihole.Query{Client: pihole.QueryClient{IP: "10.0.0.9", Name: ""}}
 
 	// Act
-	row := queryToRow(q, widths)
+	row := queryToRow(q, widths, false)
 
 	// Assert
 	if row[2] != "10.0.0.9" {

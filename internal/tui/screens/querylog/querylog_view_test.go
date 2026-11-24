@@ -559,7 +559,7 @@ func TestStyledRowsColorsAndPreservesShape(t *testing.T) {
 	queries := sampleQueries()
 
 	// Act
-	rows := styledRows(th, queries, widths)
+	rows := styledRows(th, queries, widths, false)
 
 	// Assert
 	if len(rows) != len(queries) {
@@ -575,7 +575,7 @@ func TestStyledRowsColorsAndPreservesShape(t *testing.T) {
 func TestColumnWidthsFromRoundTrips(t *testing.T) {
 	// Arrange
 	widths := computeColumnWidths(120)
-	cols := tableColumns(widths)
+	cols := tableColumns(widths, false)
 
 	// Act
 	got := columnWidthsFrom(cols)
