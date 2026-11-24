@@ -41,7 +41,7 @@ Pi-holes as one network.
 
 ## Approaches considered
 
-1. **`pihole.Group` with merge functions (picked).** A new type in
+1. **`pihole.Fleet` with merge functions (picked).** A new type in
    `internal/pihole` holds one `*Client` per instance and exposes merged
    versions of only the read calls the views use: `Summary`, `History`,
    `QueryTypes`, `Upstreams`, `TopDomains`, `TopClients`, `Queries`, plus
@@ -49,7 +49,7 @@ Pi-holes as one network.
    out concurrently and returns the existing response types, so screens change
    only where they pick a source. The merge rules are pure functions, unit
    tested in one place.
-2. **An interface both `Client` and `Group` satisfy.** This was rejected:
+2. **An interface both `Client` and `Fleet` satisfy.** This was rejected:
    `Client` has about 70 methods, most of them writes with no combined
    meaning, so the interface is large for little gain and hides from screens
    whether a write is going to one or many. (The 9-method `core.Source` below
@@ -61,7 +61,7 @@ Pi-holes as one network.
 
 ## Design
 
-### Package `internal/pihole`: `group.go`
+### Package `internal/pihole`: `fleet.go`
 
 ```go
 type Member struct {
@@ -69,17 +69,17 @@ type Member struct {
     Client *Client
 }
 
-type Group struct{ members []Member }
+type Fleet struct{ members []Member }
 
-func NewGroup(members []Member) *Group
+func NewFleet(members []Member) *Fleet
 
 // Unreachable names members that failed their most recent call (or are in
 // cooldown), sorted. Screens read it at render time for the warning line.
-func (g *Group) Unreachable() []string
+func (g *Fleet) Unreachable() []string
 ```
 
 Merged read methods keep `*Client`'s exact signatures (`(T, error)`), so the
-`Group` and the `Client` both satisfy one small read interface, `core.Source`
+`Fleet` and the `Client` both satisfy one small read interface, `core.Source`
 (the 9 methods below). A call returns an error only when **every** member
 fails; partial failures show up in `Unreachable()`. Fan-out uses one goroutine
 per member under the caller's context. The merge functions are unexported pure
@@ -115,9 +115,9 @@ everything`.
 
 ### App wiring (`internal/tui`)
 
-- `core.AppContext` gains `Group *pihole.Group` and `Combined bool`.
-- The root builds `Group` from `cfg.Instances` with the existing `clientFor`.
-  It rebuilds `Group` in `applyInstancesChange`. The active instance's
+- `core.AppContext` gains `Fleet *pihole.Fleet` and `Combined bool`.
+- The root builds `Fleet` from `cfg.Instances` with the existing `clientFor`.
+  It rebuilds `Fleet` in `applyInstancesChange`. The active instance's
   `*Client` is reused in the group so its session is shared, not duplicated.
 - An instance whose client can't be built (for example, a missing password
   env var) is left out of the group and reported as failed.
@@ -143,14 +143,14 @@ everything`.
 - `fetchSystem` (CPU/mem/temp/messages) and the hot-temp `PatchConfig` stay on
   the active client. The System/health panel title shows the active instance
   name in combined mode.
-- A partial result (`Group.Unreachable()` non-empty) shows a one-line warning, "secondary unreachable", in the
+- A partial result (`Fleet.Unreachable()` non-empty) shows a one-line warning, "secondary unreachable", in the
   existing error/banner area. The data still renders.
 - When `GravityMismatch` is set, the Gravity tile shows a `≠` marker. The
   tile's value is the max.
 
 ### Query log
 
-- `fetch` uses `Group.Queries` when combined. In combined mode the
+- `fetch` uses `Fleet.Queries` when combined. In combined mode the
   table's last column shows **Pi-hole** (the answering instance) instead of
   Upstream, so narrow terminals keep the same column budget. The row detail
   view still shows the upstream and adds the instance.
@@ -166,10 +166,10 @@ network. So in combined mode blocking state and blocking actions span every
 member, on every page.
 
 - `pihole.BlockingStatus` gains `On, Total int` (`json:"-"`; `Total == 0`
-  means a single instance). `Group.Blocking(ctx) (BlockingStatus, error)`
+  means a single instance). `Fleet.Blocking(ctx) (BlockingStatus, error)`
   sets them, `Blocking = On == Total`, and `Timer` is the shortest remaining
   disable timer among the members that are off.
-- `Group.SetBlocking(ctx, blocking, timer) error` fans the POST out to every
+- `Fleet.SetBlocking(ctx, blocking, timer) error` fans the POST out to every
   member with the same timer. It returns an error naming each member that
   failed, for example `blocking not changed on secondary: <err>`, even when
   the others succeeded.
@@ -193,7 +193,7 @@ Each member call in a fan-out gets its own deadline of 2s, inside the screen's
 existing 8s `fetchTimeout`. A member that fails is skipped for 30s. It is
 still listed by `Unreachable()`, and retried after the
 cooldown. One blackholed Pi-hole therefore costs at most a 2s lag every 30s,
-instead of an 8s lag on every poll. The cooldown state lives in `Group`
+instead of an 8s lag on every poll. The cooldown state lives in `Fleet`
 behind a mutex and is tested with an injectable clock.
 
 ## Polling cost
@@ -205,7 +205,7 @@ no further throttling beyond the failure cooldown above.
 
 ## Testing
 
-- Table tests for every merge function in `pihole/group_test.go`: sums, the
+- Table tests for every merge function in `pihole/fleet_test.go`: sums, the
   ratio recompute, the max/min fields, gravity mismatch, history alignment,
   upstream weighting, top-N tie order, and query merge order and tagging.
 - A fan-out test with an `httptest` server per member, including one failing
@@ -224,4 +224,4 @@ no further throttling beyond the failure cooldown above.
 - The warning line reads `Unreachable()` once per render, so it never repeats. It
   should render one line listing the failed names.
 - Doc updates: `docs/keys.md` (the `m` key), README feature list, and
-  `docs/architecture.md` (Group).
+  `docs/architecture.md` (Fleet).

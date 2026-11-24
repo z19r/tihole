@@ -5,10 +5,10 @@
 **Goal:** A global `m` toggle shows dashboard stats, the query log and
 blocking state/actions merged across every configured Pi-hole.
 
-**Architecture:** `pihole.Group` fans read calls out to one `*Client` per
+**Architecture:** `pihole.Fleet` fans read calls out to one `*Client` per
 instance and merges them into the existing response types with pure merge
 functions. `core.Source` is the 9-method interface both `*Client` and
-`*Group` satisfy. `AppContext.Source()` returns the group when combined,
+`*Fleet` satisfy. `AppContext.Source()` returns the group when combined,
 otherwise the active client. Screens swap `m.ctx.API` for `m.ctx.Source()`
 only on combined-capable calls.
 
@@ -34,12 +34,12 @@ only on combined-capable calls.
 
 1. **A member's password env var is unset at startup.** Expect: that member is
    skipped, listed as unreachable, and the rest still merge (Task 4 test
-   `TestBuildGroupSkipsUnbuildableMember`).
+   `TestBuildFleetSkipsUnbuildableMember`).
 2. **Instances edited in Settings while combined is on.** Expect: the group is
    rebuilt, the `Combined` flag survives the save (`cloneConfig` must copy
    it), and dropping to one instance turns combined off in the UI (Task 3 test
    `TestCloneConfigKeepsCombined`, Task 4 test
-   `TestInstancesChangeRebuildsGroup`).
+   `TestInstancesChangeRebuildsFleet`).
 3. **History buckets that don't line up across members** (one Pi-hole
    restarted mid-bucket or has a shorter history). Expect: buckets are summed
    by exact timestamp and unmatched buckets are kept, not dropped (Task 1
@@ -48,7 +48,7 @@ only on combined-capable calls.
    other.** Expect: the merged top-clients row keeps the non-empty name (Task
    1 `TestMergeTopClientsKeepsName`).
 5. **Every member down.** Expect: an error, never an all-zero "success" that
-   paints the dashboard as 0 queries (Task 2 `TestGroupAllFailErrors`).
+   paints the dashboard as 0 queries (Task 2 `TestFleetAllFailErrors`).
 
 ---
 
@@ -59,13 +59,13 @@ only on combined-capable calls.
 | `internal/pihole/types.go` | add `Query.Instance`, `Summary.GravityMismatch`, `BlockingStatus.On/Total` |
 | `internal/pihole/merge.go` (new) | pure merge funcs |
 | `internal/pihole/merge_test.go` (new) | merge table tests |
-| `internal/pihole/group.go` (new) | `Group`, fan-out, deadline, cooldown, `Unreachable` |
-| `internal/pihole/group_test.go` (new) | fan-out tests with `httptest` |
+| `internal/pihole/fleet.go` (new) | `Fleet`, fan-out, deadline, cooldown, `Unreachable` |
+| `internal/pihole/fleet_test.go` (new) | fan-out tests with `httptest` |
 | `internal/config/config.go` | `Combined bool` |
-| `internal/tui/core/context.go` | `Source` interface, `Group`, `Combined`, `Source()` |
+| `internal/tui/core/context.go` | `Source` interface, `Fleet`, `Combined`, `Source()` |
 | `internal/tui/core/keys.go` | `ToggleCombined` binding |
 | `internal/tui/screens/settings/connections.go` | `cloneConfig` copies `Combined` |
-| `internal/tui/client.go` | `buildGroup` |
+| `internal/tui/client.go` | `buildFleet` |
 | `internal/tui/app.go` | toggle, group lifecycle, label, blocking via `Source()` |
 | `internal/tui/components/blocking.go`, `statusbar.go` | counts in the pill |
 | `internal/tui/screens/dashboard/*.go` | read via `Source()`, warning, gravity `≠`, system title |
@@ -137,29 +137,29 @@ only on combined-capable calls.
 
 ---
 
-### Task 2: `pihole.Group` fan-out
+### Task 2: `pihole.Fleet` fan-out
 
 **Files:**
-- Create: `internal/pihole/group.go`, `internal/pihole/group_test.go`
+- Create: `internal/pihole/fleet.go`, `internal/pihole/fleet_test.go`
 
 **Interfaces:**
 - Consumes: Task 1 merge funcs.
 - Produces:
   ```go
   type Member struct { Name string; Client *Client }
-  func NewGroup(members []Member, failed map[string]error) *Group
-  func (g *Group) Names() []string           // config order
-  func (g *Group) Len() int                  // members + failed
-  func (g *Group) Unreachable() []string     // sorted
-  func (g *Group) Summary(ctx) (Summary, error)
-  func (g *Group) History(ctx) (History, error)
-  func (g *Group) QueryTypes(ctx) (QueryTypes, error)
-  func (g *Group) Upstreams(ctx) (Upstreams, error)
-  func (g *Group) TopDomains(ctx, blocked bool, count int) (TopDomains, error)
-  func (g *Group) TopClients(ctx, blocked bool, count int) (TopClients, error)
-  func (g *Group) Queries(ctx, f QueryFilter) (QueriesPage, error)
-  func (g *Group) Blocking(ctx) (BlockingStatus, error)
-  func (g *Group) SetBlocking(ctx, blocking bool, timer *float64) error
+  func NewFleet(members []Member, failed map[string]error) *Fleet
+  func (g *Fleet) Names() []string           // config order
+  func (g *Fleet) Len() int                  // members + failed
+  func (g *Fleet) Unreachable() []string     // sorted
+  func (g *Fleet) Summary(ctx) (Summary, error)
+  func (g *Fleet) History(ctx) (History, error)
+  func (g *Fleet) QueryTypes(ctx) (QueryTypes, error)
+  func (g *Fleet) Upstreams(ctx) (Upstreams, error)
+  func (g *Fleet) TopDomains(ctx, blocked bool, count int) (TopDomains, error)
+  func (g *Fleet) TopClients(ctx, blocked bool, count int) (TopClients, error)
+  func (g *Fleet) Queries(ctx, f QueryFilter) (QueriesPage, error)
+  func (g *Fleet) Blocking(ctx) (BlockingStatus, error)
+  func (g *Fleet) SetBlocking(ctx, blocking bool, timer *float64) error
   ```
   `failed` holds instances whose client couldn't be built. They are always in
   `Unreachable()` and count in `Len()`.
@@ -167,33 +167,33 @@ only on combined-capable calls.
 - [ ] **Step 1: Write failing tests** using an `httptest.Server` per member
   that serves `/api/auth`, `/api/stats/summary` and `/api/dns/blocking`. Copy
   the server setup from existing `internal/pihole/*_test.go` client tests.
-  - `TestGroupSummaryMerges`: two members → summed Total.
-  - `TestGroupPartialFailure`: one server returns 500 → result from the other,
+  - `TestFleetSummaryMerges`: two members → summed Total.
+  - `TestFleetPartialFailure`: one server returns 500 → result from the other,
     no error, `Unreachable()` == ["b"].
-  - `TestGroupAllFailErrors`: both 500 → non-nil error.
-  - `TestGroupSlowMemberDeadline`: member b sleeps 3s → the call returns in
+  - `TestFleetAllFailErrors`: both 500 → non-nil error.
+  - `TestFleetSlowMemberDeadline`: member b sleeps 3s → the call returns in
     under 2.5s with a's data, and b is unreachable.
-  - `TestGroupCooldownSkipsThenRetries`: inject `g.now` as a fake clock;
+  - `TestFleetCooldownSkipsThenRetries`: inject `g.now` as a fake clock;
     after b fails, a second call within 30s makes no request to b (count hits
     on b's server). After advancing the clock 31s, b is called again, and on
     success it leaves `Unreachable()`.
-  - `TestGroupTopDomainsOverfetch`: the server sees `count=30` when called
+  - `TestFleetTopDomainsOverfetch`: the server sees `count=30` when called
     with count 10.
-  - `TestGroupQueriesTagsInstance`.
-  - `TestGroupSetBlockingPartialError`: b fails the POST → error message
+  - `TestFleetQueriesTagsInstance`.
+  - `TestFleetSetBlockingPartialError`: b fails the POST → error message
     contains `blocking not changed on b`; a received the POST with the same
     timer.
-  - `TestGroupFailedMemberListed`: `NewGroup(nil-ish members, {"c": err})`
+  - `TestFleetFailedMemberListed`: `NewFleet(nil-ish members, {"c": err})`
     → `Unreachable()` contains "c" and `Len()` counts it.
 
-- [ ] **Step 2: Run** `go test ./internal/pihole -run Group` → FAIL.
+- [ ] **Step 2: Run** `go test ./internal/pihole -run Fleet` → FAIL.
 
-- [ ] **Step 3: Implement `group.go`.** Fields: `members []Member`,
+- [ ] **Step 3: Implement `fleet.go`.** Fields: `members []Member`,
   `failed map[string]error`, `mu sync.Mutex`, `down map[string]time.Time`
   (failure time), `now func() time.Time` (default `time.Now`). Constants
   `memberTimeout = 2 * time.Second`, `memberCooldown = 30 * time.Second`.
   - One generic helper does the fan-out for every read:
-    `func fanOut[T any](g *Group, ctx context.Context, call func(context.Context, *Client) (T, error)) ([]T, []string, error)`.
+    `func fanOut[T any](g *Fleet, ctx context.Context, call func(context.Context, *Client) (T, error)) ([]T, []string, error)`.
     It returns the successful results and their member names in config order.
   - It skips members in cooldown, runs a goroutine per member with
     `context.WithTimeout(ctx, memberTimeout)`, and records failure/success in
@@ -219,7 +219,7 @@ only on combined-capable calls.
 **Interfaces:**
 - Produces:
   ```go
-  // core.Source: the combined-capable calls; *pihole.Client and *pihole.Group satisfy it.
+  // core.Source: the combined-capable calls; *pihole.Client and *pihole.Fleet satisfy it.
   type Source interface {
       Summary(context.Context) (pihole.Summary, error)
       History(context.Context) (pihole.History, error)
@@ -231,9 +231,9 @@ only on combined-capable calls.
       Blocking(context.Context) (pihole.BlockingStatus, error)
       SetBlocking(context.Context, bool, *float64) error
   }
-  // AppContext gains: Group *pihole.Group; Combined bool
-  func (c *AppContext) Source() Source        // Group if Combined && Group != nil, else API
-  func (c *AppContext) CombinedActive() bool  // Combined && Group != nil && Group.Len() >= 2
+  // AppContext gains: Fleet *pihole.Fleet; Combined bool
+  func (c *AppContext) Source() Source        // Fleet if Combined && Fleet != nil, else API
+  func (c *AppContext) CombinedActive() bool  // Combined && Fleet != nil && Fleet.Len() >= 2
   // KeyMap gains ToggleCombined: keys "m", help "m" / "combined"; in ShortHelp after ToggleBlock and in FullHelp's second group
   ```
   `Source()` uses `CombinedActive()`.
@@ -241,8 +241,8 @@ only on combined-capable calls.
 - [ ] **Step 1: Write failing tests.**
   - `TestCombinedRoundTrip` (config): Save then Load keeps `Combined: true`.
   - `TestSourcePicksGroup` (core): `Combined` false → the API; true with a
-    2-member group → the group; true with nil Group → the API. Add
-    `var _ Source = (*pihole.Client)(nil)` and `(*pihole.Group)(nil)`
+    2-member group → the group; true with nil Fleet → the API. Add
+    `var _ Source = (*pihole.Client)(nil)` and `(*pihole.Fleet)(nil)`
     compile-time checks in `context.go`.
   - `TestCloneConfigKeepsCombined` (settings).
   - `TestToggleCombinedBinding` (core): `DefaultKeyMap().ToggleCombined`
@@ -270,24 +270,24 @@ only on combined-capable calls.
 **Interfaces:**
 - Consumes: Tasks 2–3.
 - Produces:
-  - `func buildGroup(cfg *config.Config, active string, activeClient *pihole.Client) *pihole.Group`
+  - `func buildFleet(cfg *config.Config, active string, activeClient *pihole.Client) *pihole.Fleet`
     (reuses `activeClient` for the active instance; `clientFor` errors go
     into `failed`).
   - `components.BlockState` gains `On, Total int`.
-  - `StatusBar.Instance` is set by the root to `all (N)` (N = `Group.Len()`)
+  - `StatusBar.Instance` is set by the root to `all (N)` (N = `Fleet.Len()`)
     when `CombinedActive()` and the active page is `PageDashboard`,
     `PageQueryLog` or `PageBlocking`; otherwise `ctx.InstanceName`.
 
 - [ ] **Step 1: Write failing tests.**
-  - `TestBuildGroupSkipsUnbuildableMember`: an instance with
+  - `TestBuildFleetSkipsUnbuildableMember`: an instance with
     `password_env` unset → in `Unreachable()`, and `Len()` is 2.
   - `TestToggleCombinedPersists`: 2 instances, press `m` →
     `ctx.Combined` true, the config file on disk has `combined: true`, and the
     returned cmd is non-nil (refocus + blocking fetch).
   - `TestToggleCombinedNeedsTwo`: 1 instance → `ctx.Combined` stays false,
     and `m.err` == `combined view needs two or more instances`.
-  - `TestInstancesChangeRebuildsGroup`: send `InstancesChangedMsg` with 3
-    instances → `ctx.Group.Len()` == 3.
+  - `TestInstancesChangeRebuildsFleet`: send `InstancesChangedMsg` with 3
+    instances → `ctx.Fleet.Len()` == 3.
   - `TestStatusLabelPerPage`: combined, dashboard → the label contains
     `all (2)`; on adlists → the active name.
   - `TestToggleBlockingPartialEnablesAll`: the block state is
@@ -300,7 +300,7 @@ only on combined-capable calls.
 - [ ] **Step 2: Run** `go test ./internal/tui/...` → FAIL.
 
 - [ ] **Step 3: Implement.**
-  - `New`: `ctx.Combined = cfg.Combined`; `ctx.Group = buildGroup(...)`.
+  - `New`: `ctx.Combined = cfg.Combined`; `ctx.Fleet = buildFleet(...)`.
   - `switchInstance` and `applyInstancesChange` rebuild the group.
   - `fetchBlocking`, `toggleBlocking`, `setBlockingFor` and the blocking poll
     take `core.Source` (`m.ctx.Source()`).
@@ -327,7 +327,7 @@ only on combined-capable calls.
 
 **Interfaces:**
 - Consumes: `core.Source`, `ctx.Source()`, `ctx.CombinedActive()`,
-  `ctx.Group.Unreachable()`, `Summary.GravityMismatch`.
+  `ctx.Fleet.Unreachable()`, `Summary.GravityMismatch`.
 - The four fetch funcs take `src core.Source` instead of `*pihole.Client`.
   `fetchSystem` and the hot-temp `PatchConfig` keep `ctx.API`.
 
@@ -395,7 +395,7 @@ only on combined-capable calls.
 - Test: `internal/tui/screens/blocking/*_test.go`
 
 - [ ] **Step 1: Write failing tests.**
-  - `TestBlockingCombinedHeading`: combined with Group.Len 2 → the view
+  - `TestBlockingCombinedHeading`: combined with Fleet.Len 2 → the view
     contains `all (2)`.
   - `TestBlockingCombinedPartialStatus`: status `On 1 Total 2` → the view
     contains `1/2`.
@@ -415,7 +415,7 @@ only on combined-capable calls.
 - [ ] **Step 1:** In `docs/keys.md`, add `m` (toggle combined view) to the
   global table. In the README feature list, add a line about the combined
   view for redundant Pi-holes. In `docs/architecture.md`, add a short
-  `pihole.Group` / `core.Source` paragraph.
+  `pihole.Fleet` / `core.Source` paragraph.
 - [ ] **Step 2: Run** `just fmt && just lint && go test -race ./...` → all
   pass, with no `gofmt`/`golines` diffs.
 - [ ] **Step 3:** Manual check with `go run .` against two configured
