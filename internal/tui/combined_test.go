@@ -455,3 +455,27 @@ func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
 		t.Fatalf("DELETE /api/auth = %d, want 1", n)
 	}
 }
+
+func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	orphan, _ := newHole(t, false)
+	m.ctx.API = orphan
+	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", orphan, nil, nil)
+	cfg := &config.Config{
+		Active: "office",
+		Instances: []config.Instance{
+			{
+				Name: "office", URL: "http://10.0.0.2",
+				PasswordEnv: "TIHOLE_TEST_UNSET_PW",
+			},
+			{Name: "cabin", URL: "http://10.0.0.3", Password: "pw3"},
+		},
+	}
+	m.applyInstancesChange(cfg) // home deleted, switch to office fails
+
+	m.switchInstance("cabin")
+
+	if !m.logouts.pending[orphan] {
+		t.Fatal("replaced client outside the fleet should be logged out")
+	}
+}

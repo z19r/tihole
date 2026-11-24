@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -687,10 +688,18 @@ func (m *AppModel) activate(name string, prevCfg *config.Config) tea.Cmd {
 			return nil
 		}
 	}
+	prevAPI := m.ctx.API
 	m.ctx.API = client
 	m.ctx.InstanceName = name
 	fleet, dropped := buildFleet(m.cfg, name, client, m.ctx.Fleet, prevCfg)
 	m.ctx.Fleet = fleet
+	// The old API may sit outside both fleets (its instance was deleted
+	// while a switch failed); it is unused now, so log it out too.
+	if !slices.ContainsFunc(fleet.Members(), func(mem pihole.Member) bool {
+		return mem.Client == prevAPI
+	}) && !slices.Contains(dropped, prevAPI) {
+		dropped = append(dropped, prevAPI)
+	}
 	m.resetBlock()
 	return tea.Batch(
 		m.screens[m.active].Focus(),
