@@ -13,10 +13,6 @@ func validConfig() *Config {
 	return &Config{
 		Active: "home",
 		Theme:  "omarchy",
-		Refresh: map[string]int{
-			"dashboard": 5,
-			"querylog":  2,
-		},
 		Instances: []Instance{
 			{
 				Name:      "home",
@@ -68,9 +64,6 @@ func TestSaveThenLoadRoundTripsConfig(t *testing.T) {
 			"verify_tls not preserved, got %v",
 			got.Instances[0].VerifyTLSValue(),
 		)
-	}
-	if got.Refresh["dashboard"] != 5 {
-		t.Fatalf("refresh not preserved: %+v", got.Refresh)
 	}
 }
 

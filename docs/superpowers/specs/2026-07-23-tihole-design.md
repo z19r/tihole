@@ -193,9 +193,6 @@ each is independently shippable.
 ```yaml
 active: home
 theme: omarchy            # deep-night | light-luxury | pihole-classic | omarchy
-refresh:                  # optional per-screen overrides (seconds)
-  dashboard: 5
-  querylog: 2
 instances:
   - name: home
     url: https://192.168.1.2

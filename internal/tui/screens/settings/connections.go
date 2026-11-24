@@ -99,24 +99,15 @@ func connRows(th *theme.Theme, c *config.Config, widths []int) []table.Row {
 	return rows
 }
 
-// cloneConfig returns a deep-enough copy of c: the instance slice and refresh
-// map are freshly allocated so edits never mutate the shared config in place.
+// cloneConfig returns a deep-enough copy of c: the instance slice is freshly
+// allocated so edits never mutate the shared config in place.
 func cloneConfig(c *config.Config) *config.Config {
 	insts := make([]config.Instance, len(c.Instances))
 	copy(insts, c.Instances)
 
-	var refresh map[string]int
-	if c.Refresh != nil {
-		refresh = make(map[string]int, len(c.Refresh))
-		for k, v := range c.Refresh {
-			refresh[k] = v
-		}
-	}
-
 	return &config.Config{
 		Active:    c.Active,
 		Theme:     c.Theme,
-		Refresh:   refresh,
 		Instances: insts,
 		Combined:  c.Combined,
 	}
