@@ -395,11 +395,23 @@ func (m *Model) submitConnForm() (tea.Model, tea.Cmd) {
 	m.err = nil
 	m.ctx.Config = next
 	m.rebuildConnRows()
+	if !f.editing && len(next.Instances) == 2 && !next.Combined {
+		m.askCombined = true
+		m.confirm = m.confirm.Show(
+			"Combine dashboards?",
+			"Show stats from both Pi-holes together by default?\n"+
+				"You can switch anytime with m.",
+			false,
+		)
+	}
 	return m, emitInstancesChanged(next)
 }
 
 // handleConfirmKey interprets y/n on the delete-instance confirmation.
 func (m *Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.askCombined {
+		return m.handleCombinedKey(msg)
+	}
 	switch msg.String() {
 	case "y", "enter":
 		idx := m.pendingDel
@@ -409,6 +421,28 @@ func (m *Model) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "n", "esc":
 		m.confirm = m.confirm.Hide()
 		m.pendingDel = -1
+	}
+	return m, nil
+}
+
+// handleCombinedKey answers the "combine dashboards?" prompt shown after the
+// second instance is added: yes persists combined view and announces it.
+func (m *Model) handleCombinedKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "enter":
+		m.confirm = m.confirm.Hide()
+		m.askCombined = false
+		next := cloneConfig(m.ctx.Config)
+		next.Combined = true
+		if err := config.Save(m.ctx.ConfigPath, next); err != nil {
+			m.err = err
+			return m, nil
+		}
+		m.ctx.Config = next
+		return m, emitInstancesChanged(next)
+	case "n", "esc":
+		m.confirm = m.confirm.Hide()
+		m.askCombined = false
 	}
 	return m, nil
 }
