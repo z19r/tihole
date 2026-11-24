@@ -94,6 +94,13 @@ flush logs/network) return a `403 APIError` unless the server has
 `webserver.api.allow_destructive` enabled; the UI surfaces that as a clear hint
 rather than a stack trace.
 
+For redundant setups, `pihole.Fleet` fans each read out to every configured
+instance concurrently, with a 2s per-member deadline and a 30s cooldown for
+members that fail; `merge.go` holds the merge rules. Screens reach it through
+the `core.Source` seam (`AppContext.Source()`), which covers the nine
+combined-capable calls (stats, query log, blocking state and actions).
+Everything else still goes to `AppContext.API`, the active instance.
+
 ## Themes
 
 [`internal/theme`](../internal/theme) defines themes as semantic tokens rather

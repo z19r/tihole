@@ -31,6 +31,8 @@ tools — without leaving your terminal.
   (restart DNS, flush logs/network).
 - **Multi-instance** — configure several Pi-holes and switch between them
   instantly (`s` or the command palette).
+- **Combined view** (`m`) — for redundant Pi-holes, merge dashboard stats and
+  the query log across every instance; blocking on/off applies to all of them.
 - **Command palette** (`ctrl+k`) — fuzzy-jump to any screen, toggle blocking,
   change themes, or switch instances.
 - **Help overlay** (`?`) — context-aware cheat-sheet of global and per-screen
