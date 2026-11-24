@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/z19r/tihole/internal/pihole"
 )
 
@@ -38,12 +40,18 @@ func TestFetchAllUsesSource(t *testing.T) {
 		{Name: "a", Client: summaryClient(t, "4000")},
 		{Name: "b", Client: summaryClient(t, "242")},
 	}, nil)
+	m.ctx.API = summaryClient(t, "0")
 	m.ctx.Combined = true
 	m.epoch = 1
 	m.baseCtx = context.Background()
 
-	msg := fetchSummary(m.baseCtx, m.ctx.Source(), m.epoch)()
-	_, _ = m.Update(msg)
+	batch, ok := m.fetchAll()().(tea.BatchMsg)
+	if !ok {
+		t.Fatal("fetchAll should return a batch")
+	}
+	for _, cmd := range batch {
+		_, _ = m.Update(cmd())
+	}
 
 	if got := m.summary.Queries.Total; got != 4242 {
 		t.Errorf("Total = %d, want 4242", got)
