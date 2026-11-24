@@ -479,3 +479,16 @@ func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
 		t.Fatal("replaced client outside the fleet should be logged out")
 	}
 }
+
+func TestStaleBlockingErrorsDropped(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	stale := m.blockGen
+	m.resetBlock() // an edit or delete since the request
+
+	m.Update(blockingResultMsg{err: pihole.ErrClosed, gen: stale})
+	m.Update(blockingErrMsg{err: pihole.ErrClosed, gen: stale})
+
+	if m.err != "" {
+		t.Fatalf("stale error reached the banner: %q", m.err)
+	}
+}

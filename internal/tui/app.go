@@ -78,8 +78,12 @@ type blockingResultMsg struct {
 // toggleCombinedMsg asks the root to flip combined view (palette entry).
 type toggleCombinedMsg struct{}
 
-// blockingErrMsg reports a failed blocking fetch/toggle.
-type blockingErrMsg struct{ err error }
+// blockingErrMsg reports a failed blocking fetch/toggle. gen is the blockGen
+// it was requested under.
+type blockingErrMsg struct {
+	err error
+	gen int
+}
 
 // focusZone is the input-owning region under the omarchy-style focus model.
 // The sidebar rail (focusNav) and the active screen (focusPanel) never both own
@@ -284,11 +288,11 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.applyInstancesChange(msg.Config)
 
 	case blockingResultMsg:
-		if msg.err != nil {
-			m.err = msg.err.Error()
-		}
 		if msg.gen != m.blockGen {
 			return m, nil // requested before a mode or instance change
+		}
+		if msg.err != nil {
+			m.err = msg.err.Error()
 		}
 		st := msg.status
 		m.block = components.BlockState{
@@ -319,7 +323,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.toggleCombined()
 
 	case blockingErrMsg:
-		m.err = msg.err.Error()
+		if msg.gen == m.blockGen {
+			m.err = msg.err.Error()
+		}
 		return m, nil
 
 	case core.ErrorMsg:
@@ -517,7 +523,7 @@ func (m *AppModel) writeBlocking(on bool, timer *float64) tea.Cmd {
 		werr := api.SetBlocking(ctx, on, timer)
 		st, err := api.Blocking(ctx)
 		if err != nil {
-			return blockingErrMsg{errors.Join(werr, err)}
+			return blockingErrMsg{errors.Join(werr, err), gen}
 		}
 		return blockingResultMsg{status: st, err: werr, gen: gen}
 	}
@@ -930,7 +936,7 @@ func (m *AppModel) fetchBlocking() tea.Cmd {
 		defer cancel()
 		st, err := api.Blocking(ctx)
 		if err != nil {
-			return blockingErrMsg{err}
+			return blockingErrMsg{err, gen}
 		}
 		return blockingResultMsg{status: st, gen: gen}
 	}
