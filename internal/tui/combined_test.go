@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,7 +35,7 @@ func TestBuildFleetSkipsUnbuildableMember(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	f := buildFleet(cfg, "home", api)
+	f, _ := buildFleet(cfg, "home", api, nil, nil)
 
 	if f.Len() != 2 {
 		t.Fatalf("Len = %d, want 2", f.Len())
@@ -141,30 +142,6 @@ func TestToggleBlockingPartialEnablesAll(t *testing.T) {
 	}
 }
 
-func TestToggleCombinedSavesLiveConfig(t *testing.T) {
-	// Arrange: Settings' theme picker swaps in a fresh config copy.
-	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
-	next := *m.ctx.Config
-	next.Theme = theme.NameGloss
-	m.ctx.Config = &next
-
-	// Act
-	updated, _ := m.Update(keyPress("m", 'm'))
-	m = updated.(*AppModel)
-
-	// Assert: the new theme survives and the live copy holds the toggle.
-	raw, err := os.ReadFile(m.cfgPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(raw), "theme: gloss") {
-		t.Fatalf("theme reverted on save:\n%s", raw)
-	}
-	if !m.ctx.Config.Combined {
-		t.Fatal("ctx.Config.Combined should be true")
-	}
-}
-
 // hole is a fake Pi-hole reporting blocking on. failPost makes POST
 // /api/dns/blocking fail; logouts counts DELETE /api/auth.
 type hole struct{ logouts atomic.Int32 }
@@ -190,6 +167,96 @@ func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
 		}))
 	t.Cleanup(srv.Close)
 	return pihole.New(srv.URL, "pw", pihole.WithHTTPClient(srv.Client())), h
+}
+
+func TestToggleCombinedSavesLiveConfig(t *testing.T) {
+	// Arrange: Settings' theme picker swaps in a fresh config copy.
+	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+	next := *m.ctx.Config
+	next.Theme = theme.NameGloss
+	m.ctx.Config = &next
+
+	// Act
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	// Assert: the new theme survives and the live copy holds the toggle.
+	raw, err := os.ReadFile(m.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "theme: gloss") {
+		t.Fatalf("theme reverted on save:\n%s", raw)
+	}
+	if !m.ctx.Config.Combined {
+		t.Fatal("ctx.Config.Combined should be true")
+	}
+}
+
+func TestBuildFleetReusesUnchangedClients(t *testing.T) {
+	cfg := testConfig()
+	cfg.Instances[1].Password = "pw2"
+	api, _ := clientFor(cfg, "home")
+	prev, _ := buildFleet(cfg, "home", api, nil, nil)
+
+	next, dropped := buildFleet(cfg, "home", api, prev, cfg)
+
+	if next.Client("envonly") != prev.Client("envonly") {
+		t.Fatal("unchanged instance should keep its client")
+	}
+	if len(dropped) != 0 {
+		t.Fatalf("dropped = %v, want none", dropped)
+	}
+}
+
+func TestBuildFleetReplacesChangedClients(t *testing.T) {
+	cfg := testConfig()
+	cfg.Instances[1].Password = "pw2"
+	api, _ := clientFor(cfg, "home")
+	prev, _ := buildFleet(cfg, "home", api, nil, nil)
+	old := prev.Client("envonly")
+	edited := testConfig()
+	edited.Instances[1].Password = "changed"
+
+	next, dropped := buildFleet(edited, "home", api, prev, cfg)
+
+	if c := next.Client("envonly"); c == nil || c == old {
+		t.Fatal("changed instance should get a new client")
+	}
+	if len(dropped) != 1 || dropped[0] != old {
+		t.Fatalf("dropped = %v, want the old client", dropped)
+	}
+}
+
+func TestSwitchInstanceReusesFleetClient(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	want := m.ctx.Fleet.Client("office")
+
+	m.switchInstance("office")
+
+	if m.ctx.API != want {
+		t.Fatal("switch should reuse the fleet's client")
+	}
+	if m.ctx.Fleet.Client("home") == nil {
+		t.Fatal("previous active client should stay a member")
+	}
+}
+
+func TestLogoutAllEndsEachSessionOnce(t *testing.T) {
+	a, ha := newHole(t, false)
+	b, hb := newHole(t, false)
+	for _, c := range []*pihole.Client{a, b} {
+		if err := c.Login(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	logoutAll(a, b, a)
+
+	if ha.logouts.Load() != 1 || hb.logouts.Load() != 1 {
+		t.Fatalf("logouts = %d, %d; want 1, 1",
+			ha.logouts.Load(), hb.logouts.Load())
+	}
 }
 
 // partialFleet is a combined model whose second member fails writes.

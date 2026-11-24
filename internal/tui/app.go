@@ -37,6 +37,9 @@ const (
 	chromeBottom = 1 // help bar
 	fetchTimeout = 8 * time.Second
 
+	// logoutTimeout bounds best-effort session logouts of dropped clients.
+	logoutTimeout = 2 * time.Second
+
 	// splashDuration is how long the ASCII boot screen lingers before the
 	// dashboard reveals. Any key dismisses it sooner.
 	splashDuration = 1600 * time.Millisecond
@@ -133,8 +136,8 @@ func New(
 		Config:       cfg,
 		ConfigPath:   cfgPath,
 		Combined:     cfg.Combined,
-		Fleet:        buildFleet(cfg, cfg.Active, api),
 	}
+	ctx.Fleet, _ = buildFleet(cfg, cfg.Active, api, nil, nil)
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	m := &AppModel{
@@ -641,23 +644,38 @@ func (m *AppModel) nextInstance() string {
 	return insts[(cur+1)%len(insts)].Name
 }
 
-// switchInstance rebuilds the client for the named instance and re-focuses.
+// switchInstance activates the named instance and re-focuses.
 func (m *AppModel) switchInstance(name string) tea.Cmd {
 	if name == m.ctx.InstanceName {
 		return nil
 	}
-	client, err := clientFor(m.cfg, name)
-	if err != nil {
-		m.err = err.Error()
-		return nil
+	return m.activate(name, m.cfg)
+}
+
+// activate makes name the active instance, reusing the fleet's client when
+// its definition in prevCfg (the config the fleet was built from) is
+// unchanged, and logs out clients the rebuilt fleet no longer uses.
+func (m *AppModel) activate(name string, prevCfg *config.Config) tea.Cmd {
+	var client *pihole.Client
+	if inst := findInstance(m.cfg, name); inst != nil {
+		client = reusable(m.ctx.Fleet, prevCfg, *inst)
+	}
+	if client == nil {
+		var err error
+		if client, err = clientFor(m.cfg, name); err != nil {
+			m.err = err.Error()
+			return nil
+		}
 	}
 	m.ctx.API = client
 	m.ctx.InstanceName = name
-	m.ctx.Fleet = buildFleet(m.cfg, name, client)
+	fleet, dropped := buildFleet(m.cfg, name, client, m.ctx.Fleet, prevCfg)
+	m.ctx.Fleet = fleet
 	m.block = components.BlockState{}
 	return tea.Batch(
 		m.screens[m.active].Focus(),
 		fetchBlocking(m.ctx.Source()),
+		logoutCmd(dropped),
 	)
 }
 
@@ -688,6 +706,7 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	if cfg == nil {
 		return nil
 	}
+	prevCfg := m.cfg
 	m.cfg = cfg
 	m.ctx.Config = cfg
 	m.ctx.Combined = cfg.Combined
@@ -696,14 +715,19 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
 			// active instance survived; the member list may have changed
-			m.ctx.Fleet = buildFleet(cfg, m.ctx.InstanceName, m.ctx.API)
-			return fetchBlocking(m.ctx.Source())
+			fleet, dropped := buildFleet(
+				cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
+			m.ctx.Fleet = fleet
+			return tea.Batch(
+				fetchBlocking(m.ctx.Source()),
+				logoutCmd(dropped),
+			)
 		}
 	}
 	if len(cfg.Instances) == 0 {
 		return nil
 	}
-	return m.switchInstance(cfg.Instances[0].Name)
+	return m.activate(cfg.Instances[0].Name, prevCfg)
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.
@@ -850,6 +874,17 @@ func blockPollCmd() tea.Cmd {
 		blockPollInterval,
 		func(time.Time) tea.Msg { return blockPollMsg{} },
 	)
+}
+
+// logoutCmd best-effort logs out dropped clients off the Update loop.
+func logoutCmd(dropped []*pihole.Client) tea.Cmd {
+	if len(dropped) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		logoutAll(dropped...)
+		return nil
+	}
 }
 
 // fetchBlocking loads the current blocking status.

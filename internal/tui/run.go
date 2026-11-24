@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -59,20 +60,34 @@ func run(start core.PageID) error {
 		api = fallbackClient(cfg, cfg.Active)
 		start = core.PageSettings
 	}
-	defer logout(api)
 
 	m := New(cfg, path, api, th)
 	m.active = start
 	p := tea.NewProgram(m)
 	_, err = p.Run()
+	clients := []*pihole.Client{api, m.ctx.API}
+	for _, mem := range m.ctx.Fleet.Members() {
+		clients = append(clients, mem.Client)
+	}
+	logoutAll(clients...)
 	return err
 }
 
-// logout best-effort ends the session on exit so we don't leak a seat.
-func logout(api *pihole.Client) {
-	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+// logoutAll best-effort ends each distinct client's session concurrently so we
+// don't leak seats. Errors are ignored.
+func logoutAll(clients ...*pihole.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), logoutTimeout)
 	defer cancel()
-	_ = api.Logout(ctx)
+	seen := map[*pihole.Client]bool{}
+	var wg sync.WaitGroup
+	for _, c := range clients {
+		if c == nil || seen[c] {
+			continue
+		}
+		seen[c] = true
+		wg.Go(func() { _ = c.Logout(ctx) })
+	}
+	wg.Wait()
 }
 
 // loadOrBootstrap loads the config file, or runs the first-run wizard if it

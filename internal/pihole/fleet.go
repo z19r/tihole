@@ -53,6 +53,19 @@ func (g *Fleet) Names() []string {
 	return out
 }
 
+// Members returns a copy of the members in config order.
+func (g *Fleet) Members() []Member { return slices.Clone(g.members) }
+
+// Client returns the named member's client, or nil.
+func (g *Fleet) Client(name string) *Client {
+	for _, m := range g.members {
+		if m.Name == name {
+			return m.Client
+		}
+	}
+	return nil
+}
+
 // Len counts the members plus the instances that failed to build.
 func (g *Fleet) Len() int { return len(g.members) + len(g.failed) }
 

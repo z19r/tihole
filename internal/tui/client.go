@@ -30,27 +30,63 @@ func clientFor(cfg *config.Config, name string) (*pihole.Client, error) {
 }
 
 // buildFleet groups every configured instance, reusing activeClient for the
-// active one so its session is shared. Instances whose client can't be built
-// are recorded as failed.
+// active one so its session is shared. A member of prev whose definition in
+// prevCfg is unchanged keeps its client (and session); the clients of prev
+// that are no longer used are returned for logout. Instances whose client
+// can't be built are recorded as failed.
 func buildFleet(
 	cfg *config.Config,
 	active string,
 	activeClient *pihole.Client,
-) *pihole.Fleet {
+	prev *pihole.Fleet,
+	prevCfg *config.Config,
+) (*pihole.Fleet, []*pihole.Client) {
 	var members []pihole.Member
 	failed := map[string]error{}
+	used := map[*pihole.Client]bool{activeClient: true}
 	for _, inst := range cfg.Instances {
 		c := activeClient
 		if inst.Name != active {
-			var err error
-			if c, err = clientFor(cfg, inst.Name); err != nil {
-				failed[inst.Name] = err
-				continue
+			c = reusable(prev, prevCfg, inst)
+			if c == nil {
+				var err error
+				if c, err = clientFor(cfg, inst.Name); err != nil {
+					failed[inst.Name] = err
+					continue
+				}
 			}
 		}
+		used[c] = true
 		members = append(members, pihole.Member{Name: inst.Name, Client: c})
 	}
-	return pihole.NewFleet(members, failed)
+	var dropped []*pihole.Client
+	if prev != nil {
+		for _, m := range prev.Members() {
+			if !used[m.Client] {
+				dropped = append(dropped, m.Client)
+			}
+		}
+	}
+	return pihole.NewFleet(members, failed), dropped
+}
+
+// reusable returns prev's client for inst when prevCfg defines inst the same
+// way, else nil.
+func reusable(
+	prev *pihole.Fleet,
+	prevCfg *config.Config,
+	inst config.Instance,
+) *pihole.Client {
+	if prev == nil || prevCfg == nil {
+		return nil
+	}
+	old := findInstance(prevCfg, inst.Name)
+	if old == nil || old.URL != inst.URL || old.Password != inst.Password ||
+		old.PasswordEnv != inst.PasswordEnv ||
+		old.VerifyTLSValue() != inst.VerifyTLSValue() {
+		return nil
+	}
+	return prev.Client(inst.Name)
 }
 
 // fallbackClient builds a best-effort, unauthenticated client so the TUI can

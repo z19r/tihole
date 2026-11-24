@@ -330,6 +330,7 @@ func TestSwitchInstanceStructuralErrorSetsBanner(t *testing.T) {
 	// leaving the active instance unchanged.
 	m.cfg.Instances[1].Password = ""
 	m.cfg.Instances[1].PasswordEnv = "TIHOLE_TEST_UNSET_PW"
+	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", m.ctx.API, nil, nil)
 
 	cmd := m.switchInstance("office")
 
