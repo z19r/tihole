@@ -2,8 +2,8 @@
 window.TIHOLE_META = {
   releaseDate: "2026-11-24",
   releaseDateHuman: "NOV 24 2026",
-  sha: "c5553be",
-  tagline: "ask to combine dashboards on the second instance (#36)",
+  sha: "0acbde9",
+  tagline: "clean the gravity update log (#40)",
   screens: 10,
   install: {
     goLine: "go install github.com/z19r/tihole/cmd/tihole@latest",

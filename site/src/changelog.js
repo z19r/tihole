@@ -2,6 +2,30 @@
 // Source of truth: repo-root CHANGELOG.md.
 window.TIHOLE_CHANGELOG = [
   {
+    "ver": "1.4.1",
+    "date": "2026-11-24",
+    "sections": [
+      {
+        "name": "fixed",
+        "bullets": [
+          "clean the gravity update log (#40)"
+        ]
+      },
+      {
+        "name": "changed",
+        "bullets": [
+          "record the combined view, audit fixes and combine prompt as shipped (#38)"
+        ]
+      },
+      {
+        "name": "fixed",
+        "bullets": [
+          "gravity update log no longer garbles the screen: progress overwrites, colour codes and tabs from Pi-hole's output are cleaned before display"
+        ]
+      }
+    ]
+  },
+  {
     "ver": "1.4.0",
     "date": "2026-11-24",
     "sections": [
