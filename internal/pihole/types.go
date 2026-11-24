@@ -42,6 +42,9 @@ type Summary struct {
 	} `json:"gravity"`
 	Took float64         `json:"took"`
 	Raw  json.RawMessage `json:"-"`
+	// GravityMismatch is set when combined members report different gravity
+	// sizes.
+	GravityMismatch bool `json:"-"`
 }
 
 // UpstreamServer is a single upstream entry in an /api/stats/upstreams
@@ -141,6 +144,8 @@ type Query struct {
 	ListID   *int64          `json:"list_id"`
 	Upstream string          `json:"upstream"`
 	Raw      json.RawMessage `json:"-"`
+	// Instance names the member a row came from; empty for single instance.
+	Instance string `json:"-"`
 }
 
 // QueryClient is the client sub-object of a query row.
@@ -179,6 +184,9 @@ type BlockingStatus struct {
 	Status   string
 	Timer    *float64
 	Took     float64
+	// On and Total count members blocking and members asked, for combined
+	// results; zero for a single instance.
+	On, Total int `json:"-"`
 }
 
 // blockingWire is the FTL v6 wire shape of GET /api/dns/blocking.
