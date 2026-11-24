@@ -404,3 +404,34 @@ func TestInstancesChangeRebuildsEditedActiveClient(t *testing.T) {
 		t.Fatal("fleet should share the new active client")
 	}
 }
+
+func TestPendingLogoutsFlushedAtExit(t *testing.T) {
+	m := newTestModel(t)
+	c, h := newHole(t, false)
+	if err := c.Login(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	cmd := m.logouts.cmd([]*pihole.Client{c}) // quit before it runs
+
+	m.logouts.flush()
+	cmd()
+
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("logouts = %d, want 1", n)
+	}
+}
+
+func TestRanLogoutNotRepeatedAtExit(t *testing.T) {
+	m := newTestModel(t)
+	c, h := newHole(t, false)
+	if err := c.Login(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	m.logouts.cmd([]*pihole.Client{c})()
+	m.logouts.flush()
+
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("logouts = %d, want 1", n)
+	}
+}

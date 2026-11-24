@@ -69,8 +69,71 @@ func run(start core.PageID) error {
 	for _, mem := range m.ctx.Fleet.Members() {
 		clients = append(clients, mem.Client)
 	}
-	logoutAll(clients...)
+	m.logouts.flush(clients...)
 	return err
+}
+
+// logouts tracks clients dropped from the fleet whose logout runs in a
+// background cmd, so exit can finish the ones that never ran.
+type logouts struct {
+	mu      sync.Mutex
+	pending map[*pihole.Client]bool
+	closed  bool           // set by flush; later cmds do nothing
+	wg      sync.WaitGroup // in-flight background logouts
+}
+
+// cmd marks cs pending and returns a cmd that logs out those still pending
+// when it runs, or nil when cs is empty.
+func (l *logouts) cmd(cs []*pihole.Client) tea.Cmd {
+	if len(cs) == 0 {
+		return nil
+	}
+	l.mu.Lock()
+	for _, c := range cs {
+		l.pending[c] = true
+	}
+	l.mu.Unlock()
+	return func() tea.Msg {
+		l.mu.Lock()
+		if l.closed { // flush already took them
+			l.mu.Unlock()
+			return nil
+		}
+		l.wg.Add(1) // under mu, so it happens before flush's Wait
+		l.mu.Unlock()
+		defer l.wg.Done()
+		logoutAll(l.claim(cs)...)
+		return nil
+	}
+}
+
+// claim removes and returns the clients of cs still pending.
+func (l *logouts) claim(cs []*pihole.Client) []*pihole.Client {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []*pihole.Client
+	for _, c := range cs {
+		if l.pending[c] {
+			delete(l.pending, c)
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// flush logs out live plus every still-pending client, then waits for
+// in-flight background logouts. Each logout is bounded by logoutTimeout and
+// the in-flight ones started earlier, so this takes about logoutTimeout.
+func (l *logouts) flush(live ...*pihole.Client) {
+	l.mu.Lock()
+	l.closed = true
+	for c := range l.pending {
+		live = append(live, c)
+	}
+	clear(l.pending)
+	l.mu.Unlock()
+	logoutAll(live...)
+	l.wg.Wait()
 }
 
 // logoutAll best-effort ends each distinct client's session concurrently so we

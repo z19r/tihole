@@ -111,6 +111,10 @@ type AppModel struct {
 	focus         focusZone
 
 	block components.BlockState
+	// logouts tracks dropped clients until they are logged out, so exit can
+	// finish the ones still pending.
+	logouts *logouts
+
 	// blockGen bumps whenever the pill's source changes, so a blocking
 	// result requested before the change is dropped.
 	blockGen int
@@ -153,6 +157,7 @@ func New(
 		palette: components.NewPalette(),
 		booting: true,
 		splash:  sp,
+		logouts: &logouts{pending: map[*pihole.Client]bool{}},
 	}
 	m.screens = buildScreens(ctx)
 	return m
@@ -687,7 +692,7 @@ func (m *AppModel) activate(name string, prevCfg *config.Config) tea.Cmd {
 	return tea.Batch(
 		m.screens[m.active].Focus(),
 		m.fetchBlocking(),
-		logoutCmd(dropped),
+		m.logouts.cmd(dropped),
 	)
 }
 
@@ -756,7 +761,7 @@ func (m *AppModel) rebuildFleet(prevCfg *config.Config) tea.Cmd {
 	fleet, dropped := buildFleet(
 		m.cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
 	m.ctx.Fleet = fleet
-	return tea.Batch(m.fetchBlocking(), logoutCmd(dropped))
+	return tea.Batch(m.fetchBlocking(), m.logouts.cmd(dropped))
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.
@@ -903,17 +908,6 @@ func blockPollCmd() tea.Cmd {
 		blockPollInterval,
 		func(time.Time) tea.Msg { return blockPollMsg{} },
 	)
-}
-
-// logoutCmd best-effort logs out dropped clients off the Update loop.
-func logoutCmd(dropped []*pihole.Client) tea.Cmd {
-	if len(dropped) == 0 {
-		return nil
-	}
-	return func() tea.Msg {
-		logoutAll(dropped...)
-		return nil
-	}
 }
 
 // fetchBlocking loads the current blocking status.
