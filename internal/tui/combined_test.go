@@ -1,0 +1,494 @@
+package tui
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/z19r/tihole/internal/config"
+	"github.com/z19r/tihole/internal/pihole"
+	"github.com/z19r/tihole/internal/theme"
+	"github.com/z19r/tihole/internal/tui/components"
+	"github.com/z19r/tihole/internal/tui/core"
+)
+
+// withConfigPath points the model at a temp config file so saves stay local.
+func withConfigPath(t *testing.T, m *AppModel) *AppModel {
+	t.Helper()
+	m.cfgPath = filepath.Join(t.TempDir(), "tihole.yaml")
+	m.ctx.ConfigPath = m.cfgPath
+	return m
+}
+
+func TestBuildFleetSkipsUnbuildableMember(t *testing.T) {
+	cfg := testConfig()
+	api, err := clientFor(cfg, "home")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, _ := buildFleet(cfg, "home", api, nil, nil)
+
+	if f.Len() != 2 {
+		t.Fatalf("Len = %d, want 2", f.Len())
+	}
+	if u := f.Unreachable(); len(u) != 1 || u[0] != "envonly" {
+		t.Fatalf("Unreachable = %v, want [envonly]", u)
+	}
+}
+
+func TestToggleCombinedPersists(t *testing.T) {
+	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+
+	updated, cmd := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	if !m.ctx.Combined || !m.cfg.Combined {
+		t.Fatal("combined should be on")
+	}
+	if cmd == nil {
+		t.Fatal("expected refocus + blocking fetch cmd")
+	}
+	raw, err := os.ReadFile(m.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "combined: true") {
+		t.Fatalf("config not persisted:\n%s", raw)
+	}
+}
+
+func TestToggleCombinedSaveFailureKeepsFlip(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	file := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m.cfgPath = filepath.Join(file, "tihole.yaml") // parent is not a dir
+
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	if !m.ctx.Combined {
+		t.Fatal("flip should be kept for the session")
+	}
+	if m.err == "" {
+		t.Fatal("save failure should surface a banner")
+	}
+}
+
+func TestToggleCombinedNeedsTwo(t *testing.T) {
+	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+	m.cfg.Instances = m.cfg.Instances[:1]
+
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	if m.ctx.Combined {
+		t.Fatal("combined should stay off")
+	}
+	if m.err != "combined view needs two or more instances" {
+		t.Fatalf("err = %q", m.err)
+	}
+}
+
+func TestInstancesChangeRebuildsFleet(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	cfg := &config.Config{
+		Active:   "home",
+		Combined: true,
+		Instances: append(
+			append([]config.Instance(nil), m.cfg.Instances...),
+			config.Instance{
+				Name: "cabin", URL: "http://10.0.0.3", Password: "pw3",
+			},
+		),
+	}
+
+	updated, _ := m.Update(core.InstancesChangedMsg{Config: cfg})
+	m = updated.(*AppModel)
+
+	if got := m.ctx.Fleet.Len(); got != 3 {
+		t.Fatalf("Fleet.Len = %d, want 3", got)
+	}
+	if !m.ctx.Combined {
+		t.Fatal("Combined should sync from the incoming config")
+	}
+}
+
+func TestStatusLabelPerPage(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	m.ctx.Combined = true
+	statusBar := func() string {
+		return strings.SplitN(ansi.Strip(m.View().Content), "\n", 2)[0]
+	}
+
+	for _, p := range []core.PageID{
+		core.PageDashboard, core.PageQueryLog, core.PageBlocking,
+	} {
+		m.switchPage(p)
+		if bar := statusBar(); !strings.Contains(bar, "all (2)") {
+			t.Errorf("page %v status bar lacks all (2): %q", p, bar)
+		}
+	}
+
+	m.switchPage(core.PageAdlists)
+	if bar := statusBar(); strings.Contains(bar, "all (2)") ||
+		!strings.Contains(bar, "home") {
+		t.Fatalf("adlists status bar should show the active name: %q", bar)
+	}
+}
+
+func TestToggleBlockingPartialEnablesAll(t *testing.T) {
+	cases := []struct {
+		name string
+		b    components.BlockState
+		want bool
+	}{
+		{"unknown", components.BlockState{}, true},
+		{"single on", components.BlockState{Known: true, Enabled: true}, false},
+		{"single off", components.BlockState{Known: true}, true},
+		{"partial", components.BlockState{Known: true, On: 1, Total: 2}, true},
+		{"all on", components.BlockState{
+			Known: true, Enabled: true, On: 2, Total: 2,
+		}, false},
+		{"all off", components.BlockState{Known: true, Total: 2}, true},
+		{"on, one down", components.BlockState{
+			Known: true, Enabled: true, On: 1, Total: 2,
+		}, false},
+	}
+	for _, tc := range cases {
+		if got := desiredBlocking(tc.b); got != tc.want {
+			t.Errorf("%s: desired = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// hole is a fake Pi-hole reporting blocking on. failPost makes POST
+// /api/dns/blocking fail; logouts counts DELETE /api/auth. While hold is set,
+// each DELETE signals arrived and waits for release.
+type hole struct {
+	logouts          atomic.Int32
+	hold             atomic.Bool
+	arrived, release chan struct{}
+}
+
+func newHole(t *testing.T, failPost bool) (*pihole.Client, *hole) {
+	t.Helper()
+	h := &hole{
+		arrived: make(chan struct{}, 8),
+		release: make(chan struct{}),
+	}
+	srv := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case r.URL.Path == "/api/auth" && r.Method == http.MethodDelete:
+				h.logouts.Add(1)
+				if h.hold.Load() {
+					h.arrived <- struct{}{}
+					<-h.release
+				}
+				w.WriteHeader(http.StatusNoContent)
+			case r.URL.Path == "/api/auth":
+				_, _ = w.Write([]byte(`{"session":{"valid":true,` +
+					`"sid":"s","csrf":"c","validity":1800}}`))
+			case r.Method == http.MethodPost && failPost:
+				w.WriteHeader(http.StatusInternalServerError)
+			default:
+				_, _ = w.Write([]byte(`{"blocking":"enabled","took":0.1}`))
+			}
+		}))
+	t.Cleanup(srv.Close)
+	return pihole.New(srv.URL, "pw", pihole.WithHTTPClient(srv.Client())), h
+}
+
+func TestToggleCombinedSavesLiveConfig(t *testing.T) {
+	// Arrange: Settings' theme picker swaps in a fresh config copy.
+	m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+	next := *m.ctx.Config
+	next.Theme = theme.NameGloss
+	m.ctx.Config = &next
+
+	// Act
+	updated, _ := m.Update(keyPress("m", 'm'))
+	m = updated.(*AppModel)
+
+	// Assert: the new theme survives and the live copy holds the toggle.
+	raw, err := os.ReadFile(m.cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "theme: gloss") {
+		t.Fatalf("theme reverted on save:\n%s", raw)
+	}
+	if !m.ctx.Config.Combined {
+		t.Fatal("ctx.Config.Combined should be true")
+	}
+}
+
+func TestBuildFleetReusesUnchangedClients(t *testing.T) {
+	cfg := testConfig()
+	cfg.Instances[1].Password = "pw2"
+	api, _ := clientFor(cfg, "home")
+	prev, _ := buildFleet(cfg, "home", api, nil, nil)
+
+	next, dropped := buildFleet(cfg, "home", api, prev, cfg)
+
+	if next.Client("envonly") != prev.Client("envonly") {
+		t.Fatal("unchanged instance should keep its client")
+	}
+	if len(dropped) != 0 {
+		t.Fatalf("dropped = %v, want none", dropped)
+	}
+}
+
+func TestBuildFleetReplacesChangedClients(t *testing.T) {
+	cfg := testConfig()
+	cfg.Instances[1].Password = "pw2"
+	api, _ := clientFor(cfg, "home")
+	prev, _ := buildFleet(cfg, "home", api, nil, nil)
+	old := prev.Client("envonly")
+	edited := testConfig()
+	edited.Instances[1].Password = "changed"
+
+	next, dropped := buildFleet(edited, "home", api, prev, cfg)
+
+	if c := next.Client("envonly"); c == nil || c == old {
+		t.Fatal("changed instance should get a new client")
+	}
+	if len(dropped) != 1 || dropped[0] != old {
+		t.Fatalf("dropped = %v, want the old client", dropped)
+	}
+}
+
+func TestSwitchInstanceReusesFleetClient(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	want := m.ctx.Fleet.Client("office")
+
+	m.switchInstance("office")
+
+	if m.ctx.API != want {
+		t.Fatal("switch should reuse the fleet's client")
+	}
+	if m.ctx.Fleet.Client("home") == nil {
+		t.Fatal("previous active client should stay a member")
+	}
+}
+
+func TestLogoutAllEndsEachSessionOnce(t *testing.T) {
+	a, ha := newHole(t, false)
+	b, hb := newHole(t, false)
+	for _, c := range []*pihole.Client{a, b} {
+		if err := c.Login(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	logoutAll(a, b, a)
+
+	if ha.logouts.Load() != 1 || hb.logouts.Load() != 1 {
+		t.Fatalf("logouts = %d, %d; want 1, 1",
+			ha.logouts.Load(), hb.logouts.Load())
+	}
+}
+
+// partialFleet is a combined model whose second member fails writes.
+func partialFleet(t *testing.T) *AppModel {
+	t.Helper()
+	m := sized(t, newTestModel(t), 120, 36)
+	ok, _ := newHole(t, false)
+	bad, _ := newHole(t, true)
+	m.ctx.Fleet = pihole.NewFleet([]pihole.Member{
+		{Name: "home", Client: ok},
+		{Name: "office", Client: bad},
+	}, nil)
+	m.ctx.Combined = true
+	return m
+}
+
+func TestToggleBlockingPartialFailureRefreshes(t *testing.T) {
+	for name, cmd := range map[string]func(*AppModel) tea.Cmd{
+		"toggle":  (*AppModel).toggleBlocking,
+		"disable": func(m *AppModel) tea.Cmd { return m.setBlockingFor(30) },
+	} {
+		m := partialFleet(t)
+
+		updated, _ := m.Update(cmd(m)())
+		m = updated.(*AppModel)
+
+		if m.block.Total != 2 || !m.block.Known {
+			t.Errorf("%s: pill not refreshed: %+v", name, m.block)
+		}
+		if !strings.Contains(m.err, "office") {
+			t.Errorf("%s: err = %q, want office failure", name, m.err)
+		}
+	}
+}
+
+func TestInstancesChangeRefetchesPill(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	m.block = components.BlockState{Known: true, Enabled: true}
+	cfg := *m.cfg
+
+	_, cmd := m.Update(core.InstancesChangedMsg{Config: &cfg})
+
+	if m.block.Known {
+		t.Fatal("pill should reset on an instance edit")
+	}
+	if cmd == nil {
+		t.Fatal("expected a blocking refetch cmd")
+	}
+}
+
+func TestInstancesChangeDropsDeletedEvenIfSwitchFails(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	cfg := &config.Config{
+		Active:   "office",
+		Combined: true,
+		Instances: []config.Instance{
+			{
+				Name: "office", URL: "http://10.0.0.2",
+				PasswordEnv: "TIHOLE_TEST_UNSET_PW",
+			},
+			{Name: "cabin", URL: "http://10.0.0.3", Password: "pw3"},
+		},
+	}
+
+	m.applyInstancesChange(cfg)
+
+	if m.err == "" {
+		t.Fatal("failed switch should surface a banner")
+	}
+	if m.ctx.Fleet.Client("home") != nil {
+		t.Fatal("deleted instance must leave the fleet")
+	}
+	if m.ctx.Fleet.Client("cabin") == nil || m.ctx.Fleet.Len() != 2 {
+		t.Fatalf("fleet = %v (+failed), want cabin and office",
+			m.ctx.Fleet.Names())
+	}
+}
+
+func TestStaleBlockingResultDropped(t *testing.T) {
+	for name, change := range map[string]func(*AppModel){
+		"combined": func(m *AppModel) { m.Update(keyPress("m", 'm')) },
+		"switch":   func(m *AppModel) { m.Update(keyPress("s", 's')) },
+		"edit": func(m *AppModel) {
+			cfg := *m.cfg
+			m.Update(core.InstancesChangedMsg{Config: &cfg})
+		},
+	} {
+		m := withConfigPath(t, sized(t, newTestModel(t), 120, 36))
+		m.ctx.API, _ = newHole(t, false)
+		late := m.toggleBlocking()() // in flight across the change
+
+		change(m)
+		m.Update(late)
+
+		if m.block.Known {
+			t.Errorf("%s: stale result painted the pill: %+v", name, m.block)
+		}
+	}
+}
+
+func TestInstancesChangeRebuildsEditedActiveClient(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	old := m.ctx.API
+	cfg := *m.cfg
+	cfg.Instances = slices.Clone(m.cfg.Instances)
+	cfg.Instances[0].URL = "http://192.168.1.3"
+
+	m.Update(core.InstancesChangedMsg{Config: &cfg})
+
+	if m.ctx.API == old {
+		t.Fatal("edited active instance should get a new client")
+	}
+	if m.ctx.Fleet.Client("home") != m.ctx.API {
+		t.Fatal("fleet should share the new active client")
+	}
+}
+
+func TestPendingLogoutsFlushedAtExit(t *testing.T) {
+	m := newTestModel(t)
+	c, h := newHole(t, false)
+	if err := c.Login(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	cmd := m.logouts.cmd([]*pihole.Client{c}) // quit before it runs
+
+	m.logouts.flush()
+	cmd()
+
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("logouts = %d, want 1", n)
+	}
+}
+
+func TestInFlightLogoutNotRepeatedAtExit(t *testing.T) {
+	m := newTestModel(t)
+	c, h := newHole(t, false)
+	if err := c.Login(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	h.hold.Store(true)
+	cmd := m.logouts.cmd([]*pihole.Client{c})
+	go cmd()
+	<-h.arrived // the background DELETE is in flight, session still set
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(h.release)
+	}()
+	m.logouts.flush(c) // c passed as live too, like the startup client
+
+	if n := h.logouts.Load(); n != 1 {
+		t.Fatalf("DELETE /api/auth = %d, want 1", n)
+	}
+}
+
+func TestReplacedOrphanAPIIsLoggedOut(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	orphan, _ := newHole(t, false)
+	m.ctx.API = orphan
+	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", orphan, nil, nil)
+	cfg := &config.Config{
+		Active: "office",
+		Instances: []config.Instance{
+			{
+				Name: "office", URL: "http://10.0.0.2",
+				PasswordEnv: "TIHOLE_TEST_UNSET_PW",
+			},
+			{Name: "cabin", URL: "http://10.0.0.3", Password: "pw3"},
+		},
+	}
+	m.applyInstancesChange(cfg) // home deleted, switch to office fails
+
+	m.switchInstance("cabin")
+
+	if !m.logouts.pending[orphan] {
+		t.Fatal("replaced client outside the fleet should be logged out")
+	}
+}
+
+func TestStaleBlockingErrorsDropped(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	stale := m.blockGen
+	m.resetBlock() // an edit or delete since the request
+
+	m.Update(blockingResultMsg{err: pihole.ErrClosed, gen: stale})
+	m.Update(blockingErrMsg{err: pihole.ErrClosed, gen: stale})
+
+	if m.err != "" {
+		t.Fatalf("stale error reached the banner: %q", m.err)
+	}
+}

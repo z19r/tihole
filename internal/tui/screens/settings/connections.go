@@ -119,6 +119,7 @@ func cloneConfig(c *config.Config) *config.Config {
 		Theme:     c.Theme,
 		Refresh:   refresh,
 		Instances: insts,
+		Combined:  c.Combined,
 	}
 }
 

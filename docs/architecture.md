@@ -89,10 +89,20 @@ never reach into the root or each other directly.
 [`internal/pihole`](../internal/pihole) is the sole HTTP boundary. It manages a
 Pi-hole v6 session via the `X-FTL-SID` header, re-authenticating transparently
 when a session expires and logging out on exit so it doesn't leak a session seat.
+The combined-view fleet keeps one client per instance: rebuilding it reuses
+clients whose instance definition is unchanged, logs out the ones it drops, and
+every member is logged out on exit.
 Passwords and session IDs are never logged. Destructive endpoints (restart DNS,
 flush logs/network) return a `403 APIError` unless the server has
 `webserver.api.allow_destructive` enabled; the UI surfaces that as a clear hint
 rather than a stack trace.
+
+For redundant setups, `pihole.Fleet` fans each read out to every configured
+instance concurrently, with a 2s per-member deadline and a 30s cooldown for
+members that fail; `merge.go` holds the merge rules. Screens reach it through
+the `core.Source` seam (`AppContext.Source()`), which covers the nine
+combined-capable calls (stats, query log, blocking state and actions).
+Everything else still goes to `AppContext.API`, the active instance.
 
 ## Themes
 

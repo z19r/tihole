@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -59,20 +61,105 @@ func run(start core.PageID) error {
 		api = fallbackClient(cfg, cfg.Active)
 		start = core.PageSettings
 	}
-	defer logout(api)
 
 	m := New(cfg, path, api, th)
 	m.active = start
 	p := tea.NewProgram(m)
 	_, err = p.Run()
+	clients := []*pihole.Client{api, m.ctx.API}
+	for _, mem := range m.ctx.Fleet.Members() {
+		clients = append(clients, mem.Client)
+	}
+	m.logouts.flush(clients...)
 	return err
 }
 
-// logout best-effort ends the session on exit so we don't leak a seat.
-func logout(api *pihole.Client) {
-	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+// logouts tracks clients dropped from the fleet whose logout runs in a
+// background cmd, so exit can finish the ones that never ran.
+type logouts struct {
+	mu      sync.Mutex
+	pending map[*pihole.Client]bool
+	claimed map[*pihole.Client]bool // taken by a background logout
+	closed  bool                    // set by flush; later cmds do nothing
+	wg      sync.WaitGroup          // in-flight background logouts
+}
+
+// cmd marks cs pending and returns a cmd that logs out those still pending
+// when it runs, or nil when cs is empty.
+func (l *logouts) cmd(cs []*pihole.Client) tea.Cmd {
+	if len(cs) == 0 {
+		return nil
+	}
+	l.mu.Lock()
+	for _, c := range cs {
+		l.pending[c] = true
+	}
+	l.mu.Unlock()
+	return func() tea.Msg {
+		l.mu.Lock()
+		if l.closed { // flush already took them
+			l.mu.Unlock()
+			return nil
+		}
+		l.wg.Add(1) // under mu, so it happens before flush's Wait
+		l.mu.Unlock()
+		defer l.wg.Done()
+		logoutAll(l.claim(cs)...)
+		return nil
+	}
+}
+
+// claim removes and returns the clients of cs still pending.
+func (l *logouts) claim(cs []*pihole.Client) []*pihole.Client {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []*pihole.Client
+	for _, c := range cs {
+		if l.pending[c] {
+			delete(l.pending, c)
+			l.claimed[c] = true
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// flush logs out live (minus clients a background logout claimed) plus every
+// still-pending client, then waits for
+// in-flight background logouts. Each logout is bounded by logoutTimeout and
+// the in-flight ones started earlier, so this takes about logoutTimeout.
+func (l *logouts) flush(live ...*pihole.Client) {
+	l.mu.Lock()
+	l.closed = true
+	// A claimed client's logout is already in flight; don't repeat it.
+	live = slices.DeleteFunc(live, func(c *pihole.Client) bool {
+		return l.claimed[c]
+	})
+	for c := range l.pending {
+		live = append(live, c)
+	}
+	clear(l.pending)
+	l.mu.Unlock()
+	logoutAll(live...)
+	l.wg.Wait()
+}
+
+// logoutAll best-effort ends each distinct client's session concurrently so we
+// don't leak seats, and closes the client so it can't log in again. Errors
+// are ignored.
+func logoutAll(clients ...*pihole.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), logoutTimeout)
 	defer cancel()
-	_ = api.Logout(ctx)
+	seen := map[*pihole.Client]bool{}
+	var wg sync.WaitGroup
+	for _, c := range clients {
+		if c == nil || seen[c] {
+			continue
+		}
+		seen[c] = true
+		wg.Go(func() { _ = c.Close(ctx) })
+	}
+	wg.Wait()
 }
 
 // loadOrBootstrap loads the config file, or runs the first-run wizard if it

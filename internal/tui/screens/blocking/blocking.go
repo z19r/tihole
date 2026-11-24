@@ -5,6 +5,7 @@ package blocking
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,10 +39,12 @@ var actions = []action{
 	{label: "Disable indefinitely", secs: 0},
 }
 
-// statusMsg carries a fetched/refreshed blocking status (or an error).
+// statusMsg carries a fetched/refreshed blocking status (or a fetch error).
+// writeErr reports a failed write whose status was still refreshed.
 type statusMsg struct {
-	status pihole.BlockingStatus
-	err    error
+	status   pihole.BlockingStatus
+	err      error
+	writeErr error
 }
 
 // Model is the Blocking screen.
@@ -92,18 +95,18 @@ func (m *Model) Blur() {
 
 // fetch loads the current status.
 func (m *Model) fetch() tea.Cmd {
-	api := m.ctx.API
+	src := m.ctx.Source()
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		st, err := api.Blocking(ctx)
+		st, err := src.Blocking(ctx)
 		return statusMsg{status: st, err: err}
 	}
 }
 
 // apply performs the selected action, then refreshes the status.
 func (m *Model) apply(a action) tea.Cmd {
-	api := m.ctx.API
+	src := m.ctx.Source()
 	var timer *float64
 	if !a.enable && a.secs > 0 {
 		s := a.secs
@@ -112,11 +115,14 @@ func (m *Model) apply(a action) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		if err := api.SetBlocking(ctx, a.enable, timer); err != nil {
-			return statusMsg{err: err}
+		// Refresh even after a (partly) failed write so the real per-member
+		// state shows next to the error.
+		werr := src.SetBlocking(ctx, a.enable, timer)
+		st, err := src.Blocking(ctx)
+		if err != nil {
+			return statusMsg{err: errors.Join(werr, err)}
 		}
-		st, err := api.Blocking(ctx)
-		return statusMsg{status: st, err: err}
+		return statusMsg{status: st, writeErr: werr}
 	}
 }
 
@@ -127,9 +133,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		if msg.err != nil {
 			m.err = msg.err
+			m.known = false
 			return m, nil
 		}
-		m.err = nil
+		m.err = msg.writeErr
 		m.known = true
 		m.status = msg.status
 		return m, nil
@@ -159,7 +166,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() tea.View {
 	th := m.ctx.Theme
 
-	header := th.AccentStyle().Bold(true).Render("Blocking")
+	title := "Blocking"
+	if m.ctx.CombinedActive() {
+		title += fmt.Sprintf(" — all (%d)", m.ctx.Fleet.Len())
+	}
+	header := th.AccentStyle().Bold(true).Render(title)
 	status := m.statusLine(th)
 	menu := m.renderMenu(th)
 
@@ -172,20 +183,46 @@ func (m *Model) View() tea.View {
 
 // statusLine renders the current blocking state prominently.
 func (m *Model) statusLine(th *theme.Theme) string {
-	if m.err != nil {
-		return th.BlockStyle().Bold(true).Render("error: " + m.err.Error())
+	if m.err == nil {
+		return m.stateLine(th)
 	}
+	e := th.BlockStyle().Bold(true).Render("error: " + m.err.Error())
+	if !m.known {
+		return e
+	}
+	return e + "\n" + m.stateLine(th)
+}
+
+// stateLine renders the known blocking state.
+func (m *Model) stateLine(th *theme.Theme) string {
 	if !m.known {
 		return th.SubtleStyle().Render("loading status…")
 	}
-	if m.status.Blocking {
-		return th.AllowStyle().Bold(true).Render("● blocking is ON")
+	st := m.status
+	count := ""
+	if st.Total > 0 {
+		count = fmt.Sprintf(" (%d/%d on)", st.On, st.Total)
 	}
-	label := "○ blocking is OFF"
-	if m.status.Timer != nil && *m.status.Timer > 0 {
-		label += "  — re-enables in " + humanCountdown(int(*m.status.Timer))
+	if st.Blocking && st.On < st.Total { // the rest are unreachable
+		return th.WarnStyle().
+			Bold(true).
+			Render("● blocking is ON" + count + " ⚠")
 	}
-	return th.BlockStyle().Bold(true).Render(label)
+	if st.Blocking {
+		return th.AllowStyle().Bold(true).Render("● blocking is ON" + count)
+	}
+	timer := ""
+	if st.Timer != nil && *st.Timer > 0 {
+		timer = "  — re-enables in " + humanCountdown(int(*st.Timer))
+	}
+	if st.On > 0 && st.On < st.Total {
+		return th.WarnStyle().
+			Bold(true).
+			Render("◐ blocking is PARTIAL" + count + timer)
+	}
+	return th.BlockStyle().
+		Bold(true).
+		Render("○ blocking is OFF" + count + timer)
 }
 
 // renderMenu renders the action list with the cursor row highlighted.

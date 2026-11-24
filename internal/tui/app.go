@@ -4,6 +4,9 @@ package tui
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"slices"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -35,6 +38,9 @@ const (
 	chromeBottom = 1 // help bar
 	fetchTimeout = 8 * time.Second
 
+	// logoutTimeout bounds best-effort session logouts of dropped clients.
+	logoutTimeout = 2 * time.Second
+
 	// splashDuration is how long the ASCII boot screen lingers before the
 	// dashboard reveals. Any key dismisses it sooner.
 	splashDuration = 1600 * time.Millisecond
@@ -61,11 +67,23 @@ type blockPollMsg struct{}
 // theme while it's active.
 type partyTickMsg struct{}
 
-// blockingResultMsg carries a fresh blocking status.
-type blockingResultMsg struct{ status pihole.BlockingStatus }
+// blockingResultMsg carries a fresh blocking status and, after a write, the
+// write's error (if any). gen is the blockGen it was requested under.
+type blockingResultMsg struct {
+	status pihole.BlockingStatus
+	err    error
+	gen    int
+}
 
-// blockingErrMsg reports a failed blocking fetch/toggle.
-type blockingErrMsg struct{ err error }
+// toggleCombinedMsg asks the root to flip combined view (palette entry).
+type toggleCombinedMsg struct{}
+
+// blockingErrMsg reports a failed blocking fetch/toggle. gen is the blockGen
+// it was requested under.
+type blockingErrMsg struct {
+	err error
+	gen int
+}
 
 // focusZone is the input-owning region under the omarchy-style focus model.
 // The sidebar rail (focusNav) and the active screen (focusPanel) never both own
@@ -98,7 +116,14 @@ type AppModel struct {
 	focus         focusZone
 
 	block components.BlockState
-	err   string
+	// logouts tracks dropped clients until they are logged out, so exit can
+	// finish the ones still pending.
+	logouts *logouts
+
+	// blockGen bumps whenever the pill's source changes, so a blocking
+	// result requested before the change is dropped.
+	blockGen int
+	err      string
 
 	// konami/party back the Konami-code easter egg: entering the sequence
 	// toggles a wall-clock-driven rainbow theme, restoring the prior theme on
@@ -123,7 +148,9 @@ func New(
 		InstanceName: cfg.Active,
 		Config:       cfg,
 		ConfigPath:   cfgPath,
+		Combined:     cfg.Combined,
 	}
+	ctx.Fleet, _ = buildFleet(cfg, cfg.Active, api, nil, nil)
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 	m := &AppModel{
@@ -135,6 +162,10 @@ func New(
 		palette: components.NewPalette(),
 		booting: true,
 		splash:  sp,
+		logouts: &logouts{
+			pending: map[*pihole.Client]bool{},
+			claimed: map[*pihole.Client]bool{},
+		},
 	}
 	m.screens = buildScreens(ctx)
 	return m
@@ -168,7 +199,7 @@ func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor, // drives the auto theme's light/dark choice
 		m.screens[m.active].Focus(),
-		fetchBlocking(m.ctx.API),
+		m.fetchBlocking(),
 		blockPollCmd(),
 		m.splashCmd(),
 	)
@@ -257,8 +288,19 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.applyInstancesChange(msg.Config)
 
 	case blockingResultMsg:
+		if msg.gen != m.blockGen {
+			return m, nil // requested before a mode or instance change
+		}
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
 		st := msg.status
-		m.block = components.BlockState{Known: true, Enabled: st.Blocking}
+		m.block = components.BlockState{
+			Known:   true,
+			Enabled: st.Blocking,
+			On:      st.On,
+			Total:   st.Total,
+		}
 		if st.Timer != nil && *st.Timer > 0 {
 			m.block.CountdownSecs = int(*st.Timer)
 		}
@@ -275,10 +317,15 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Re-fetch in the background and reschedule the next tick. The pill
 		// keeps
 		// showing the last-known state until the fetch resolves.
-		return m, tea.Batch(fetchBlocking(m.ctx.API), blockPollCmd())
+		return m, tea.Batch(m.fetchBlocking(), blockPollCmd())
+
+	case toggleCombinedMsg:
+		return m, m.toggleCombined()
 
 	case blockingErrMsg:
-		m.err = msg.err.Error()
+		if msg.gen == m.blockGen {
+			m.err = msg.err.Error()
+		}
 		return m, nil
 
 	case core.ErrorMsg:
@@ -336,6 +383,8 @@ func (m *AppModel) handleKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return cmd, true
 	case key.Matches(msg, k.ToggleBlock):
 		return m.toggleBlocking(), true
+	case key.Matches(msg, k.ToggleCombined):
+		return m.toggleCombined(), true
 	case key.Matches(msg, k.CycleTheme):
 		return m.cycleTheme(), true
 	case key.Matches(msg, k.SwitchInst):
@@ -435,43 +484,48 @@ func (m *AppModel) relPage(delta int) core.PageID {
 	return order[next].ID
 }
 
+// desiredBlocking is the state the "d" toggle requests: enable unless
+// blocking is known to be on (on every reachable member, for a fleet), so a
+// partial fleet enables all.
+func desiredBlocking(b components.BlockState) bool {
+	return !b.Known || !b.Enabled
+}
+
+// resetBlock blanks the pill and invalidates in-flight blocking results.
+func (m *AppModel) resetBlock() {
+	m.block = components.BlockState{}
+	m.blockGen++
+}
+
 // toggleBlocking flips global blocking and refreshes status.
 func (m *AppModel) toggleBlocking() tea.Cmd {
-	desired := !(m.block.Known && m.block.Enabled)
-	api := m.ctx.API
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
-		defer cancel()
-		if err := api.SetBlocking(ctx, desired, nil); err != nil {
-			return blockingErrMsg{err}
-		}
-		st, err := api.Blocking(ctx)
-		if err != nil {
-			return blockingErrMsg{err}
-		}
-		return blockingResultMsg{st}
-	}
+	return m.writeBlocking(desiredBlocking(m.block), nil)
 }
 
 // setBlockingFor disables blocking for the given number of seconds, then
 // refreshes status. A zero duration disables until manually re-enabled.
 func (m *AppModel) setBlockingFor(secs float64) tea.Cmd {
-	api := m.ctx.API
 	var timer *float64
 	if secs > 0 {
 		timer = &secs
 	}
+	return m.writeBlocking(false, timer)
+}
+
+// writeBlocking sets blocking, then refreshes status even when the write
+// partly failed, so the pill shows the real per-member state alongside the
+// write error.
+func (m *AppModel) writeBlocking(on bool, timer *float64) tea.Cmd {
+	api, gen := m.ctx.Source(), m.blockGen
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		if err := api.SetBlocking(ctx, false, timer); err != nil {
-			return blockingErrMsg{err}
-		}
+		werr := api.SetBlocking(ctx, on, timer)
 		st, err := api.Blocking(ctx)
 		if err != nil {
-			return blockingErrMsg{err}
+			return blockingErrMsg{errors.Join(werr, err), gen}
 		}
-		return blockingResultMsg{st}
+		return blockingResultMsg{status: st, err: werr, gen: gen}
 	}
 }
 
@@ -495,6 +549,11 @@ func (m *AppModel) paletteCommands() []components.Command {
 			Title: "Toggle blocking",
 			Desc:  "enable / disable",
 			Run:   m.toggleBlocking(),
+		},
+		components.Command{
+			Title: "Toggle combined view",
+			Desc:  "all instances",
+			Run:   func() tea.Msg { return toggleCombinedMsg{} },
 		},
 		components.Command{
 			Title: "Disable blocking 30s",
@@ -612,20 +671,67 @@ func (m *AppModel) nextInstance() string {
 	return insts[(cur+1)%len(insts)].Name
 }
 
-// switchInstance rebuilds the client for the named instance and re-focuses.
+// switchInstance activates the named instance and re-focuses.
 func (m *AppModel) switchInstance(name string) tea.Cmd {
 	if name == m.ctx.InstanceName {
 		return nil
 	}
-	client, err := clientFor(m.cfg, name)
-	if err != nil {
-		m.err = err.Error()
-		return nil
+	return m.activate(name, m.cfg)
+}
+
+// activate makes name the active instance, reusing the fleet's client when
+// its definition in prevCfg (the config the fleet was built from) is
+// unchanged, and logs out clients the rebuilt fleet no longer uses.
+func (m *AppModel) activate(name string, prevCfg *config.Config) tea.Cmd {
+	var client *pihole.Client
+	if inst := findInstance(m.cfg, name); inst != nil {
+		client = reusable(m.ctx.Fleet, prevCfg, *inst)
 	}
+	if client == nil {
+		var err error
+		if client, err = clientFor(m.cfg, name); err != nil {
+			m.err = err.Error()
+			return nil
+		}
+	}
+	prevAPI := m.ctx.API
 	m.ctx.API = client
 	m.ctx.InstanceName = name
-	m.block = components.BlockState{}
-	return tea.Batch(m.screens[m.active].Focus(), fetchBlocking(client))
+	fleet, dropped := buildFleet(m.cfg, name, client, m.ctx.Fleet, prevCfg)
+	m.ctx.Fleet = fleet
+	// The old API may sit outside both fleets (its instance was deleted
+	// while a switch failed); it is unused now, so log it out too.
+	if !slices.ContainsFunc(fleet.Members(), func(mem pihole.Member) bool {
+		return mem.Client == prevAPI
+	}) && !slices.Contains(dropped, prevAPI) {
+		dropped = append(dropped, prevAPI)
+	}
+	m.resetBlock()
+	return tea.Batch(
+		m.screens[m.active].Focus(),
+		m.fetchBlocking(),
+		m.logouts.cmd(dropped),
+	)
+}
+
+// toggleCombined flips combined view, persists it, and refetches the current
+// screen and the blocking pill from the new source.
+func (m *AppModel) toggleCombined() tea.Cmd {
+	m.cfg = m.ctx.Config // Settings may have swapped in a newer copy
+	if len(m.cfg.Instances) < 2 {
+		m.err = "combined view needs two or more instances"
+		return nil
+	}
+	m.ctx.Combined = !m.ctx.Combined
+	m.cfg.Combined = m.ctx.Combined
+	m.resetBlock()
+	if err := config.Save(m.cfgPath, m.cfg); err != nil {
+		m.err = err.Error() // keep the flipped state for this session
+	}
+	return tea.Batch(
+		m.screens[m.active].Focus(),
+		m.fetchBlocking(),
+	)
 }
 
 // applyInstancesChange swaps in an edited config after Settings → Connections
@@ -635,18 +741,45 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 	if cfg == nil {
 		return nil
 	}
+	prevCfg := m.cfg
 	m.cfg = cfg
 	m.ctx.Config = cfg
+	m.ctx.Combined = cfg.Combined
+	m.resetBlock()
 
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
-			return nil // active instance survived
+			// active instance survived; its own definition or the member
+			// list may have changed. The old client is dropped and logged out.
+			old := findInstance(prevCfg, inst.Name)
+			if old != nil && !sameInstance(*old, inst) {
+				if c, err := clientFor(cfg, inst.Name); err != nil {
+					m.err = err.Error()
+				} else {
+					m.ctx.API = c
+				}
+			}
+			return m.rebuildFleet(prevCfg)
 		}
 	}
 	if len(cfg.Instances) == 0 {
 		return nil
 	}
-	return m.switchInstance(cfg.Instances[0].Name)
+	name := cfg.Instances[0].Name
+	if cmd := m.activate(name, prevCfg); m.ctx.InstanceName == name {
+		return cmd
+	}
+	// The switch failed: still drop the deleted instance from the fleet.
+	return m.rebuildFleet(prevCfg)
+}
+
+// rebuildFleet rebuilds the fleet from m.cfg around the active client, then
+// refetches the pill and logs out the clients it dropped.
+func (m *AppModel) rebuildFleet(prevCfg *config.Config) tea.Cmd {
+	fleet, dropped := buildFleet(
+		m.cfg, m.ctx.InstanceName, m.ctx.API, m.ctx.Fleet, prevCfg)
+	m.ctx.Fleet = fleet
+	return tea.Batch(m.fetchBlocking(), m.logouts.cmd(dropped))
 }
 
 // View composes the full screen: status bar, sidebar+content, help bar.
@@ -676,7 +809,7 @@ func (m *AppModel) View() tea.View {
 	cw, ch := m.contentSize()
 
 	status := components.StatusBar{
-		Instance:   m.ctx.InstanceName,
+		Instance:   m.statusLabel(),
 		ScreenName: m.screens[m.active].Title(),
 		Width:      m.width,
 		Blocking:   m.block,
@@ -724,6 +857,18 @@ func (m *AppModel) View() tea.View {
 	// terminal's own background (a solid colour or a background image) through.
 	v.BackgroundColor = th.Surface
 	return v
+}
+
+// statusLabel is the status-bar instance label: "all (N)" on the
+// combined-capable pages while combined view is active, else the active name.
+func (m *AppModel) statusLabel() string {
+	switch m.active {
+	case core.PageDashboard, core.PageQueryLog, core.PageBlocking:
+		if m.ctx.CombinedActive() {
+			return fmt.Sprintf("all (%d)", m.ctx.Fleet.Len())
+		}
+	}
+	return m.ctx.InstanceName
 }
 
 // helpSections builds the "?" cheat-sheet from the global key map plus the
@@ -784,15 +929,16 @@ func blockPollCmd() tea.Cmd {
 }
 
 // fetchBlocking loads the current blocking status.
-func fetchBlocking(api *pihole.Client) tea.Cmd {
+func (m *AppModel) fetchBlocking() tea.Cmd {
+	api, gen := m.ctx.Source(), m.blockGen
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
 		st, err := api.Blocking(ctx)
 		if err != nil {
-			return blockingErrMsg{err}
+			return blockingErrMsg{err, gen}
 		}
-		return blockingResultMsg{st}
+		return blockingResultMsg{status: st, gen: gen}
 	}
 }
 

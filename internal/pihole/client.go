@@ -24,8 +24,9 @@ type Client struct {
 	password string
 	totp     *int
 
-	mu  sync.Mutex // guards sid
-	sid string
+	mu     sync.Mutex // guards sid and closed
+	sid    string
+	closed bool // set by Close; requests then fail with ErrClosed
 
 	authMu sync.Mutex // single-flights re-authentication (see reauth)
 }
@@ -109,6 +110,9 @@ func (c *Client) do(
 	method, path string,
 	body, out any,
 ) error {
+	if c.isClosed() {
+		return ErrClosed
+	}
 	if err := c.doOnce(ctx, method, path, body, out, true, true); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package pihole
 
 import (
 	"context"
+	"errors"
 	"net/http"
 )
 
@@ -15,6 +16,9 @@ type loginRequest struct {
 // the returned session ID. It does not use do() so it cannot recurse on 401.
 // The password and SID are never logged.
 func (c *Client) login(ctx context.Context) error {
+	if c.isClosed() {
+		return ErrClosed
+	}
 	reqBody := loginRequest{Password: c.password, TOTP: c.totp}
 
 	var env sessionEnvelope
@@ -34,8 +38,28 @@ func (c *Client) login(ctx context.Context) error {
 		}
 		return &AuthError{Status: http.StatusUnauthorized, Message: msg}
 	}
-	c.setSID(env.Session.SID)
+	c.mu.Lock()
+	if c.closed { // Close ran while we waited; don't keep the session
+		c.mu.Unlock()
+		c.deleteSession(ctx, env.Session.SID)
+		return ErrClosed
+	}
+	c.sid = env.Session.SID
+	c.mu.Unlock()
 	return nil
+}
+
+// deleteSession best-effort ends sid without touching the stored session.
+func (c *Client) deleteSession(ctx context.Context, sid string) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.apiURL+"/auth", nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("X-FTL-SID", sid)
+	if resp, err := c.httpClient.Do(req); err == nil {
+		_ = resp.Body.Close()
+	}
 }
 
 // Login authenticates and stores a session. Callers may invoke this eagerly,
@@ -64,4 +88,29 @@ func (c *Client) Logout(ctx context.Context) error {
 	}
 	c.setSID("")
 	return nil
+}
+
+// ErrClosed is returned by every request on a Client after Close.
+var ErrClosed = errors.New("pihole: client closed")
+
+// Close logs out and retires the client: later requests fail with ErrClosed
+// instead of transparently logging in again, so a request still in flight
+// on a dropped client can't open an orphan session.
+func (c *Client) Close(ctx context.Context) error {
+	c.mu.Lock()
+	c.closed = true
+	sid := c.sid
+	c.mu.Unlock()
+	if sid == "" {
+		return nil
+	}
+	err := c.doOnce(ctx, http.MethodDelete, "/auth", nil, nil, false, true)
+	c.setSID("")
+	return err
+}
+
+func (c *Client) isClosed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
 }

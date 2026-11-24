@@ -36,6 +36,9 @@ func (b StatusBar) blockingPill(th *theme.Theme) string {
 			Background(th.Panel).
 			Render("◌ blocking …")
 	}
+	if b.Blocking.Total > 0 {
+		return b.fleetPill(th, base)
+	}
 	if b.Blocking.Enabled {
 		return base.
 			Foreground(th.Surface).
@@ -51,6 +54,27 @@ func (b StatusBar) blockingPill(th *theme.Theme) string {
 		Foreground(th.Surface).
 		Background(th.Block).
 		Render(label)
+}
+
+// fleetPill renders the combined-mode pill with the per-member count. It
+// never shows a bare ON while any member is off or unreachable.
+func (b StatusBar) fleetPill(th *theme.Theme, base lipgloss.Style) string {
+	on, total := b.Blocking.On, b.Blocking.Total
+	count := fmt.Sprintf("%d/%d", on, total)
+	base = base.Foreground(th.Surface)
+	switch {
+	case on == total:
+		return base.Background(th.Allow).Render("● ON " + count)
+	case b.Blocking.Enabled: // the rest are unreachable, not off
+		return base.Background(th.Warn).Render("● ON " + count + " ⚠")
+	case on == 0:
+		label := "⚠ OFF " + count
+		if b.Blocking.CountdownSecs > 0 {
+			label += " " + fmtCountdown(b.Blocking.CountdownSecs)
+		}
+		return base.Background(th.Block).Render(label)
+	}
+	return base.Background(th.Warn).Render("◐ PARTIAL " + count)
 }
 
 // fmtCountdown renders remaining seconds as m:ss (or h:mm:ss past an hour).

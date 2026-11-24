@@ -27,7 +27,8 @@ These are alive everywhere — on the rail, inside a panel, on any screen.
 | --- | --- |
 | `ctrl+k` | Open the command palette (fuzzy-jump to any screen, toggle blocking, change theme, switch instance) |
 | `s` | Switch to the next configured instance |
-| `d` | Toggle Pi-hole blocking on the active instance |
+| `d` | Toggle Pi-hole blocking on the active instance (every instance in combined view) |
+| `m` | Toggle the combined view across every configured instance (dashboard, query log, blocking) |
 | `ctrl+t` | Cycle to the next theme |
 | `i` | Replay the ASCII boot splash |
 | `?` | Toggle the help overlay |

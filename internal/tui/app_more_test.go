@@ -201,7 +201,7 @@ func TestBlockingResultWithTimerSetsCountdown(t *testing.T) {
 }
 
 func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
-	// Active instance still present: config swapped, nothing else changes.
+	// Active instance still present: config swapped, only the pill refetches.
 	m := sized(t, newTestModel(t), 120, 36)
 	verify := true
 	cfg2 := &config.Config{
@@ -240,8 +240,8 @@ func TestSwitchInstanceMsgSurvivesConfigChange(t *testing.T) {
 			m.ctx.InstanceName,
 		)
 	}
-	if cmd != nil {
-		t.Fatal("surviving active instance should not trigger a switch cmd")
+	if cmd == nil {
+		t.Fatal("surviving active instance should refetch the pill")
 	}
 }
 
@@ -330,6 +330,7 @@ func TestSwitchInstanceStructuralErrorSetsBanner(t *testing.T) {
 	// leaving the active instance unchanged.
 	m.cfg.Instances[1].Password = ""
 	m.cfg.Instances[1].PasswordEnv = "TIHOLE_TEST_UNSET_PW"
+	m.ctx.Fleet, _ = buildFleet(m.cfg, "home", m.ctx.API, nil, nil)
 
 	cmd := m.switchInstance("office")
 
@@ -530,7 +531,7 @@ func TestBlockingCommandClosuresReportErrors(t *testing.T) {
 		"toggle":        m.toggleBlocking(),
 		"disable-30s":   m.setBlockingFor(30),
 		"disable-indef": m.setBlockingFor(0),
-		"fetch":         fetchBlocking(m.ctx.API),
+		"fetch":         m.fetchBlocking(),
 	}
 	for name, cmd := range cases {
 		if cmd == nil {

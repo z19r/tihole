@@ -14,6 +14,7 @@ type Config struct {
 	Theme     string         `yaml:"theme,omitempty"`
 	Refresh   map[string]int `yaml:"refresh,omitempty"`
 	Instances []Instance     `yaml:"instances"`
+	Combined  bool           `yaml:"combined,omitempty"`
 }
 
 // Instance describes a single Pi-hole instance.
