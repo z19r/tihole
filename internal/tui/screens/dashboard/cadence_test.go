@@ -118,3 +118,17 @@ func TestCombinedProbesMembersOnSlowCadenceOnly(t *testing.T) {
 			full, m.inFlight, allCmds+1, fastCmds)
 	}
 }
+
+func TestRefocusMidRoundStartsFreshRound(t *testing.T) {
+	// A refocus bumps the epoch, so the old round's replies never settle; the
+	// count must reset or every later tick would stay "busy".
+	m := newTestModel()
+	m.Focus()
+	m.Update(summaryMsg{epoch: m.epoch})
+
+	m.Focus()
+
+	if m.inFlight != allCmds {
+		t.Fatalf("inFlight = %d, want a fresh round of %d", m.inFlight, allCmds)
+	}
+}
