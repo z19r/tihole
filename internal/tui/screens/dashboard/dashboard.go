@@ -536,8 +536,8 @@ func (m *Model) fetchAll() tea.Cmd {
 		fetchSystem(base, api, epoch),
 	}
 	if m.ctx.CombinedActive() {
-		cmds = append(cmds, fetchInstances(
-			base, m.ctx.Fleet, m.ctx.InstanceName, epoch))
+		cmds = append(cmds, fetchInstances(base, m.ctx.Fleet,
+			m.instanceOrder(), m.ctx.InstanceName, epoch))
 	}
 	return tea.Batch(cmds...)
 }

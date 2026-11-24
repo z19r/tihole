@@ -6,18 +6,33 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/z19r/tihole/internal/config"
 	"github.com/z19r/tihole/internal/pihole"
 )
 
 // healthClient is a real client against a fake Pi-hole that answers the
 // per-instance health calls, reporting gravity blocked domains.
 func healthClient(t *testing.T, gravity int) *pihole.Client {
+	t.Helper()
+	return slowHealthClient(t, gravity, 0)
+}
+
+// slowHealthClient is healthClient whose sensors, messages and summary
+// answers each take delay.
+func slowHealthClient(
+	t *testing.T,
+	gravity int,
+	delay time.Duration,
+) *pihole.Client {
 	t.Helper()
 	bodies := map[string]string{
 		"/api/auth": `{"session":{"valid":true,"sid":"s","csrf":"c",` +
@@ -34,6 +49,9 @@ func healthClient(t *testing.T, gravity int) *pihole.Client {
 	srv := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Path != "/api/auth" && r.URL.Path != "/api/info/system" {
+				time.Sleep(delay)
+			}
 			body, ok := bodies[r.URL.Path]
 			if !ok {
 				body = `{}`
@@ -44,30 +62,36 @@ func healthClient(t *testing.T, gravity int) *pihole.Client {
 	return pihole.New(srv.URL, "pw", pihole.WithHTTPClient(srv.Client()))
 }
 
-// instancesModel builds a combined dashboard over members (named
-// gravities, in config order) plus failed-at-build instances, runs one
-// full fetch and returns the model.
+// instancesModel builds a combined dashboard over the config instances in
+// order; those with a gravity are served over httptest, the rest failed to
+// build. It runs one full fetch and returns the model.
 func instancesModel(
 	t *testing.T,
 	active string,
-	names []string,
-	gravity []int,
-	failed ...string,
+	order []string,
+	gravity map[string]int,
 ) *Model {
 	t.Helper()
 	m := newTestModel()
-	members := make([]pihole.Member, len(names))
-	for i, n := range names {
-		members[i] = pihole.Member{Name: n, Client: healthClient(t, gravity[i])}
+	m.ctx.API = healthClient(t, 0)
+	m.ctx.Config = &config.Config{}
+	var members []pihole.Member
+	failed := map[string]error{}
+	for _, n := range order {
+		m.ctx.Config.Instances = append(m.ctx.Config.Instances,
+			config.Instance{Name: n})
+		g, ok := gravity[n]
+		if !ok {
+			failed[n] = errors.New("no url")
+			continue
+		}
+		members = append(members,
+			pihole.Member{Name: n, Client: healthClient(t, g)})
 		if n == active {
-			m.ctx.API = members[i].Client
+			m.ctx.API = members[len(members)-1].Client
 		}
 	}
-	f := map[string]error{}
-	for _, n := range failed {
-		f[n] = errors.New("no url")
-	}
-	m.ctx.Fleet = pihole.NewFleet(members, f)
+	m.ctx.Fleet = pihole.NewFleet(members, failed)
 	m.ctx.Combined = true
 	m.ctx.InstanceName = active
 	m.epoch = 1
@@ -95,7 +119,8 @@ func lineWith(out, s string) (int, string) {
 
 func TestInstancesRowsLabelled(t *testing.T) {
 	m := instancesModel(t, "primary",
-		[]string{"secondary", "primary"}, []int{100, 100})
+		[]string{"secondary", "primary"},
+		map[string]int{"secondary": 100, "primary": 100})
 
 	out := ansi.Strip(m.View().Content)
 
@@ -104,27 +129,100 @@ func TestInstancesRowsLabelled(t *testing.T) {
 			t.Errorf("view missing %q\n%s", want, out)
 		}
 	}
-	pi, _ := lineWith(out, "● primary")
-	si, _ := lineWith(out, "secondary")
+	pi, _ := lineWith(out, "▸ primary")
+	si, _ := lineWith(out, "● secondary")
 	if pi < 0 || si < 0 || pi > si {
 		t.Errorf("active not first and marked (%d, %d)\n%s", pi, si, out)
+	}
+	accent := m.ctx.Theme.AccentStyle().Render("▸")
+	if !strings.Contains(m.renderInstances(), accent) {
+		t.Error("active marker not in accent style")
 	}
 }
 
 func TestInstancesUnreachableRow(t *testing.T) {
 	m := instancesModel(t, "primary",
-		[]string{"primary"}, []int{100}, "basement")
+		[]string{"primary", "basement"}, map[string]int{"primary": 100})
 
-	_, row := lineWith(ansi.Strip(m.renderInstances()), "basement")
+	raw := m.renderInstances()
+	_, row := lineWith(ansi.Strip(raw), "basement")
 
-	if !strings.Contains(row, "unreachable") || !strings.Contains(row, "—") {
+	if !strings.Contains(row, "○ basement") ||
+		!strings.Contains(row, "unreachable") || !strings.Contains(row, "—") {
 		t.Errorf("unreachable row = %q", row)
+	}
+	subtle := m.ctx.Theme.SubtleStyle()
+	for _, want := range []string{"○", "basement", "unreachable"} {
+		if !strings.Contains(raw, subtle.Render(want)) {
+			t.Errorf("%q not dimmed", want)
+		}
+	}
+}
+
+func TestInstancesUnreachableActiveKeepsMark(t *testing.T) {
+	m := instancesModel(t, "primary",
+		[]string{"primary", "other"}, map[string]int{"other": 100})
+	raw := m.renderInstances()
+
+	i, row := lineWith(ansi.Strip(raw), "▸ primary")
+
+	if i != 2 || !strings.Contains(row, "unreachable") {
+		t.Errorf("active row = %d %q\n%s", i, row, ansi.Strip(raw))
+	}
+	if !strings.Contains(raw, m.ctx.Theme.SubtleStyle().Render("▸")) {
+		t.Error("unreachable active marker not dimmed")
+	}
+}
+
+func TestInstancesConfigOrder(t *testing.T) {
+	m := instancesModel(t, "c",
+		[]string{"a", "b", "c", "d"}, map[string]int{"a": 1, "c": 1, "d": 1})
+	out := ansi.Strip(m.renderInstances())
+
+	var got []int
+	for _, n := range []string{"c", "a", "b", "d"} {
+		i, _ := lineWith(out, " "+n+" ")
+		got = append(got, i)
+	}
+	if !slices.Equal(got, []int{2, 3, 4, 5}) {
+		t.Errorf(
+			"row lines for c,a,b,d = %v, want 2..5 (after border, header)\n%s",
+			got,
+			out,
+		)
+	}
+}
+
+func TestInstancesNarrowKeepsNameInColumn(t *testing.T) {
+	m := instancesModel(t, "primary",
+		[]string{"primary", "other"},
+		map[string]int{"primary": 1, "other": 1})
+	m.SetSize(30, 30)
+
+	out := ansi.Strip(m.renderInstances())
+
+	_, row := lineWith(out, "▸ ")
+	if !strings.Contains(row, "▸ p") && !strings.Contains(row, "▸ …") {
+		t.Errorf("active name dropped at width 30: %q", row)
+	}
+	// border, header, two rows, border: a wrapped row adds lines.
+	if n := strings.Count(out, "\n") + 1; n != 5 {
+		t.Errorf("%d lines, want 5 (rows wrapped?)\n%s", n, out)
+	}
+	for _, l := range strings.Split(out, "\n") {
+		if w := lipgloss.Width(l); w > 30 {
+			t.Errorf("line width %d > 30: %q", w, l)
+		}
 	}
 }
 
 func TestInstancesOverflow(t *testing.T) {
 	names := []string{"p1", "p2", "p3", "p4", "p5", "p6"}
-	m := instancesModel(t, "p1", names, []int{1, 1, 1, 1, 1, 1})
+	g := map[string]int{}
+	for _, n := range names {
+		g[n] = 1
+	}
+	m := instancesModel(t, "p1", names, g)
 
 	out := ansi.Strip(m.renderInstances())
 
@@ -141,7 +239,7 @@ func TestInstancesOverflow(t *testing.T) {
 
 func TestInstancesGravityOddOneOut(t *testing.T) {
 	m := instancesModel(t, "a",
-		[]string{"a", "b", "c"}, []int{100, 100, 90})
+		[]string{"a", "b", "c"}, map[string]int{"a": 100, "b": 100, "c": 90})
 	warn := m.ctx.Theme.WarnStyle()
 
 	out := m.renderInstances()
@@ -163,5 +261,18 @@ func TestSingleModeKeepsHealthStrip(t *testing.T) {
 
 	if !strings.Contains(out, "Memory") || strings.Contains(out, "Pi-holes") {
 		t.Errorf("single mode lost the health strip\n%s", out)
+	}
+}
+
+func TestProbeInstanceRunsDetailsConcurrently(t *testing.T) {
+	// Three 800ms calls only fit the 2s member deadline side by side.
+	c := slowHealthClient(t, 7, 800*time.Millisecond)
+	g := pihole.NewFleet([]pihole.Member{{Name: "a", Client: c}}, nil)
+
+	r := pihole.EachMember(context.Background(), g, probeInstance)["a"]
+
+	if r.Err != nil || r.Value.gravity != 7 || r.Value.messages != 0 ||
+		!r.Value.sensors.HasTemp {
+		t.Errorf("probe = %+v", r)
 	}
 }

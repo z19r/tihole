@@ -7,9 +7,11 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/z19r/tihole/internal/pihole"
 )
@@ -49,6 +51,7 @@ type instanceCol struct {
 func fetchInstances(
 	base context.Context,
 	f *pihole.Fleet,
+	order []string,
 	active string,
 	epoch int,
 ) tea.Cmd {
@@ -58,7 +61,7 @@ func fetchInstances(
 		res := pihole.EachMember(ctx, f, probeInstance)
 		return instancesMsg{
 			epoch: epoch,
-			rows:  instanceRows(res, f.Names(), active),
+			rows:  instanceRows(res, order, active),
 		}
 	}
 }
@@ -74,23 +77,43 @@ func probeInstance(
 		return instanceHealth{}, err
 	}
 	h := instanceHealth{system: sys, messages: -1, gravity: -1}
-	h.sensors, _ = c.SensorsInfo(ctx) // the zero value renders n/a
-	if msgs, err := c.Messages(ctx); err == nil {
-		h.messages = len(msgs)
-	}
-	if s, err := c.Summary(ctx); err == nil {
-		h.gravity = s.Gravity.DomainsBeingBlocked
-	}
+	var wg sync.WaitGroup
+	wg.Go(func() { h.sensors, _ = c.SensorsInfo(ctx) }) // zero renders n/a
+	wg.Go(func() {
+		if msgs, err := c.Messages(ctx); err == nil {
+			h.messages = len(msgs)
+		}
+	})
+	wg.Go(func() {
+		if s, err := c.Summary(ctx); err == nil {
+			h.gravity = s.Gravity.DomainsBeingBlocked
+		}
+	})
+	wg.Wait()
 	return h, nil
 }
 
-// instanceRows orders results by config (names), active first. Instances
-// that failed to build aren't in names; they follow, sorted.
+// instanceOrder returns instance names in config order, or the fleet's
+// member order when no config is loaded.
+func (m *Model) instanceOrder() []string {
+	if m.ctx.Config == nil {
+		return m.ctx.Fleet.Names()
+	}
+	names := make([]string, len(m.ctx.Config.Instances))
+	for i, inst := range m.ctx.Config.Instances {
+		names[i] = inst.Name
+	}
+	return names
+}
+
+// instanceRows orders results by order (config order), active first. Any
+// result missing from order follows, sorted.
 func instanceRows(
 	res map[string]pihole.MemberResult[instanceHealth],
-	names []string,
+	order []string,
 	active string,
 ) []instanceHealth {
+	names := slices.Clone(order)
 	for _, n := range slices.Sorted(maps.Keys(res)) {
 		if !slices.Contains(names, n) {
 			names = append(names, n)
@@ -98,8 +121,12 @@ func instanceRows(
 	}
 	rows := make([]instanceHealth, 0, len(names))
 	for _, n := range names {
-		h := res[n].Value
-		h.name, h.err, h.active = n, res[n].Err, n == active
+		r, ok := res[n]
+		if !ok {
+			continue // in config but not in the fleet
+		}
+		h := r.Value
+		h.name, h.err, h.active = n, r.Err, n == active
 		if h.active {
 			rows = slices.Insert(rows, 0, h)
 		} else {
@@ -202,7 +229,8 @@ func (m *Model) instanceCols(inner int) ([]instanceCol, int) {
 			return c.title == drop
 		})
 	}
-	return cols, max(nameW(), 1)
+	// Room for the marker, a space and at least one name character.
+	return cols, min(max(nameW(), 3), inner)
 }
 
 // renderInstances draws one plain-text row per fleet member, in place of
@@ -226,6 +254,9 @@ func (m *Model) renderInstances() string {
 		lines = append(lines,
 			subtle.Render(fmt.Sprintf("  and %d more…", extra)))
 	}
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, inner, "") // clip; card would wrap
+	}
 	return card(th, inner, strings.Join(lines, "\n"))
 }
 
@@ -241,10 +272,13 @@ func instanceRow(
 	subtle := th.SubtleStyle()
 	marker, mst, nst := "●", th.TextStyle(), th.TextStyle()
 	if h.active {
-		mst, nst = th.AccentStyle(), th.TextStyle().Bold(true)
+		marker, mst, nst = "▸", th.AccentStyle(), th.TextStyle().Bold(true)
 	}
 	if h.err != nil {
-		marker, mst, nst = "○", subtle, subtle
+		mst, nst = subtle, subtle
+		if !h.active {
+			marker = "○"
+		}
 	}
 	row := mst.Render(marker) + " " + padCell(nst, h.name, nameW-2)
 	for i, c := range cols {
