@@ -122,6 +122,12 @@ func writeAtomic(path string, data []byte) error {
 	// Write the link's target so a symlinked config (e.g. dotfiles) survives.
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
+	} else if dest, lerr := os.Readlink(path); lerr == nil {
+		// A dangling link: create its target rather than replace the link.
+		if !filepath.IsAbs(dest) {
+			dest = filepath.Join(filepath.Dir(path), dest)
+		}
+		path = dest
 	}
 	// A unique name, so concurrent saves never share a temp file.
 	f, err := os.CreateTemp(filepath.Dir(path), "config-*.yaml.tmp")

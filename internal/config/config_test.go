@@ -281,3 +281,28 @@ func TestSaveThroughSymlinkUpdatesTarget(t *testing.T) {
 		t.Fatalf("target not updated: %+v %v", got, err)
 	}
 }
+
+func TestSaveThroughDanglingSymlinkCreatesTarget(t *testing.T) {
+	// Arrange: the link exists but its dotfiles target doesn't yet.
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "dotfiles"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(filepath.Join("dotfiles", "config.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	// Act
+	if err := Save(link, validConfig()); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Assert
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("link replaced: %v %v", fi.Mode(), err)
+	}
+	if _, err := Load(filepath.Join(dir, "dotfiles", "config.yaml")); err != nil {
+		t.Fatalf("target not written: %v", err)
+	}
+}
