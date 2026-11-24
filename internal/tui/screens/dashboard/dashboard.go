@@ -138,6 +138,7 @@ type Model struct {
 	system    pihole.SystemInfo
 	sensors   pihole.Sensors
 	messages  []pihole.DiagnosisMessage
+	instances []instanceHealth // combined mode only
 
 	// hotTempPrompt offers to raise hotLimitDefault to hotLimitSuggested; once
 	// shown (accepted or declined) hotTempPrompted latches so it doesn't nag
@@ -487,6 +488,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		return m, m.applySystem(msg)
 
+	case instancesMsg:
+		if msg.epoch == m.epoch {
+			m.instances = msg.rows
+		}
+		return m, nil
+
 	case spinner.TickMsg:
 		if m.loaded || !m.focused {
 			return m, nil
@@ -520,13 +527,19 @@ func (m *Model) fetchAll() tea.Cmd {
 	base := m.baseCtx
 	src := m.ctx.Source()
 
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		fetchSummary(base, src, epoch),
 		fetchHistory(base, src, epoch),
 		fetchBreakdown(base, src, epoch),
 		fetchTop(base, src, epoch),
+		// Still fetched in combined mode: the hot-temp prompt reads it.
 		fetchSystem(base, api, epoch),
-	)
+	}
+	if m.ctx.CombinedActive() {
+		cmds = append(cmds, fetchInstances(
+			base, m.ctx.Fleet, m.ctx.InstanceName, epoch))
+	}
+	return tea.Batch(cmds...)
 }
 
 func fetchSummary(base context.Context, src core.Source, epoch int) tea.Cmd {
@@ -651,8 +664,12 @@ func (m *Model) View() tea.View {
 	if w := m.unreachableWarning(); w != "" {
 		sections = append(sections, w)
 	}
+	health := m.renderHealth
+	if m.ctx.CombinedActive() {
+		health = m.renderInstances
+	}
 	sections = append(
-		sections, m.renderHealth(), m.renderSparkline(), m.renderLower(),
+		sections, health(), m.renderSparkline(), m.renderLower(),
 	)
 	// strings.Join (not JoinVertical) so the surface wrapper repaints each
 	// line's right padding with the surface background: JoinVertical would

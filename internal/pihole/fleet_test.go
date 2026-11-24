@@ -371,3 +371,44 @@ func TestFleetBlockingCountsUnreachable(t *testing.T) {
 		t.Fatalf("got %+v, want Blocking, On 1, Total 3", got)
 	}
 }
+
+func TestEachMemberSkipsCooldownAndReportsFailed(t *testing.T) {
+	a, _ := fakeMember(t, "a", summaryHandler(10))
+	b, bHits := fakeMember(t, "b", failHandler)
+	buildErr := errors.New("no url")
+	g := NewFleet([]Member{a, b}, map[string]error{"c": buildErr})
+	now := time.Unix(1000, 0)
+	g.now = func() time.Time { return now }
+	ctx := context.Background()
+	call := flip((*Client).Summary)
+
+	got := EachMember(ctx, g, call)
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	if got["a"].Err != nil || got["a"].Value.Queries.Total != 10 {
+		t.Fatalf("a = %+v", got["a"])
+	}
+	if got["b"].Err == nil {
+		t.Fatal("b: want error")
+	}
+	if !errors.Is(got["c"].Err, buildErr) {
+		t.Fatalf("c err = %v, want build error", got["c"].Err)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"b", "c"}) {
+		t.Fatalf("Unreachable = %v, want [b c]", u)
+	}
+
+	hits := bHits.Load()
+	now = now.Add(10 * time.Second)
+	got = EachMember(ctx, g, call)
+	if bHits.Load() != hits {
+		t.Fatal("b was called during cooldown")
+	}
+	if !errors.Is(got["b"].Err, ErrUnreachable) {
+		t.Fatalf("b err = %v, want ErrUnreachable", got["b"].Err)
+	}
+	if got["a"].Err != nil {
+		t.Fatalf("a err = %v", got["a"].Err)
+	}
+}
