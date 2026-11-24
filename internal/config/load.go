@@ -123,19 +123,15 @@ func writeAtomic(path string, data []byte) error {
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
 	}
-	tmp := path + ".tmp"
-	f, err := os.OpenFile(
-		tmp,
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		configFileMode,
-	)
+	// A unique name, so concurrent saves never share a temp file.
+	f, err := os.CreateTemp(filepath.Dir(path), "config-*.yaml.tmp")
 	if err != nil {
 		return fmt.Errorf("write config %q: %w", path, err)
 	}
-	_, err = f.Write(data)
+	tmp := f.Name()
+	err = f.Chmod(configFileMode)
 	if err == nil {
-		// OpenFile only applies the mode on creation.
-		err = f.Chmod(configFileMode)
+		_, err = f.Write(data)
 	}
 	if err == nil {
 		err = f.Sync()

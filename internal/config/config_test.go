@@ -162,15 +162,18 @@ func TestLoadInvalidYAMLReturnsError(t *testing.T) {
 }
 
 func TestSaveFailureLeavesOriginalIntact(t *testing.T) {
-	// Arrange: a valid file, then make the temp path unwritable (a dir).
-	path := filepath.Join(t.TempDir(), "config.yaml")
+	// Arrange: a valid file in a directory that then turns read-only, so the
+	// temp file can't be created.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
 	if err := Save(path, validConfig()); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	before, _ := os.ReadFile(path)
-	if err := os.Mkdir(path+".tmp", 0o700); err != nil {
-		t.Fatalf("mkdir: %v", err)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 	changed := validConfig()
 	changed.Theme = "other"
 
@@ -179,7 +182,7 @@ func TestSaveFailureLeavesOriginalIntact(t *testing.T) {
 
 	// Assert
 	if err == nil {
-		t.Fatal("expected error when temp path is a directory")
+		t.Skip("directory still writable (running as root?)")
 	}
 	after, _ := os.ReadFile(path)
 	if string(after) != string(before) {
@@ -187,6 +190,26 @@ func TestSaveFailureLeavesOriginalIntact(t *testing.T) {
 	}
 	if _, err := Load(path); err != nil {
 		t.Fatalf("original no longer loads: %v", err)
+	}
+}
+
+func TestSaveUsesUniqueTempFile(t *testing.T) {
+	// Arrange: a leftover at a fixed temp name must not block or race saves.
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.Mkdir(path+".tmp", 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	// Act
+	err := Save(path, validConfig())
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	entries, _ := os.ReadDir(filepath.Dir(path))
+	if len(entries) != 2 {
+		t.Fatalf("temp file left behind: %v", entries)
 	}
 }
 
