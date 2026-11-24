@@ -130,9 +130,9 @@ everything`.
   every time.
 - **Status bar (decided by the designer):** the root picks the label per
   page. On Dashboard, Query Log and Blocking in combined mode it reads
-  `all (N)`. On
-  every other page it shows the active instance name as today. The root keeps
-  a small set of combined-capable `core.PageID`s; screens are not changed.
+  `all (N)`. On every other page it shows the active instance name as today.
+  The root keeps a small set of combined-capable `core.PageID`s; screens are
+  not changed.
   The blocking indicator and `d`: see *Blocking in combined mode*.
 
 ### Dashboard
