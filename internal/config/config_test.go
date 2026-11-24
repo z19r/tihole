@@ -229,3 +229,32 @@ func TestSavePreservesCommentsAndUnknownKeys(t *testing.T) {
 		t.Fatalf("reload mismatch: %+v err=%v", got, err)
 	}
 }
+
+func TestSaveThroughSymlinkUpdatesTarget(t *testing.T) {
+	// Arrange: config.yaml links into a dotfiles dir.
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles", "config.yaml")
+	if err := Save(target, validConfig()); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	changed := validConfig()
+	changed.Theme = "other"
+
+	// Act
+	if err := Save(link, changed); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Assert
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("link replaced: %v %v", fi.Mode(), err)
+	}
+	got, err := Load(target)
+	if err != nil || got.Theme != "other" {
+		t.Fatalf("target not updated: %+v %v", got, err)
+	}
+}

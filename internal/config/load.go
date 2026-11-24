@@ -119,6 +119,10 @@ func keyIndex(m *yaml.Node, key string) int {
 // writeAtomic writes data to a 0600 temp file beside path, syncs it, and
 // renames it over path, so a failed write never truncates the original.
 func writeAtomic(path string, data []byte) error {
+	// Write the link's target so a symlinked config (e.g. dotfiles) survives.
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
 	tmp := path + ".tmp"
 	f, err := os.OpenFile(
 		tmp,
