@@ -205,3 +205,42 @@ func TestCloseStopsReauth(t *testing.T) {
 			logins.Load(), deletes.Load())
 	}
 }
+
+func TestCloseDuringLoginDiscardsNewSession(t *testing.T) {
+	arrived, release := make(chan struct{}), make(chan struct{})
+	deleted := make(chan string, 2)
+	c, _ := mockFTL(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			deleted <- r.Header.Get("X-FTL-SID")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		close(arrived)
+		<-release
+		authOK(w, "SID-2")
+	})
+	ctx := context.Background()
+	errc := make(chan error, 1)
+	go func() { errc <- c.Login(ctx) }()
+	<-arrived // login is awaiting its response
+
+	if err := c.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+
+	if err := <-errc; !errors.Is(err, ErrClosed) {
+		t.Fatalf("Login err = %v, want ErrClosed", err)
+	}
+	select {
+	case sid := <-deleted:
+		if sid != "SID-2" {
+			t.Fatalf("DELETE sid = %q, want SID-2", sid)
+		}
+	default:
+		t.Fatal("new session was not deleted")
+	}
+	if c.sessionID() != "" || !c.isClosed() {
+		t.Fatal("client should stay closed with no session")
+	}
+}

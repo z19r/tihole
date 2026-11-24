@@ -38,8 +38,28 @@ func (c *Client) login(ctx context.Context) error {
 		}
 		return &AuthError{Status: http.StatusUnauthorized, Message: msg}
 	}
-	c.setSID(env.Session.SID)
+	c.mu.Lock()
+	if c.closed { // Close ran while we waited; don't keep the session
+		c.mu.Unlock()
+		c.deleteSession(ctx, env.Session.SID)
+		return ErrClosed
+	}
+	c.sid = env.Session.SID
+	c.mu.Unlock()
 	return nil
+}
+
+// deleteSession best-effort ends sid without touching the stored session.
+func (c *Client) deleteSession(ctx context.Context, sid string) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodDelete, c.apiURL+"/auth", nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("X-FTL-SID", sid)
+	if resp, err := c.httpClient.Do(req); err == nil {
+		_ = resp.Body.Close()
+	}
 }
 
 // Login authenticates and stores a session. Callers may invoke this eagerly,
