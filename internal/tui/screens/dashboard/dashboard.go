@@ -165,6 +165,7 @@ type Model struct {
 	errBlocked   string
 	errClients   string
 	errSystem    string
+	errPatch     string // the hot-temp threshold PATCH failed
 	errMessages  string
 }
 
@@ -375,7 +376,8 @@ func (m *Model) Focus() tea.Cmd {
 		m.cancel()
 	}
 	m.baseCtx, m.cancel = context.WithCancel(context.Background())
-	m.inFlight = 0 // the old round's replies carry a stale epoch
+	m.inFlight = 0  // the old round's replies carry a stale epoch
+	m.errPatch = "" // shown until the next refocus (page switch or r)
 	return tea.Batch(m.fetchAll(true), m.tick(), m.spinner.Tick)
 }
 
@@ -424,9 +426,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if msg.err != nil {
-			m.errSystem = msg.err.Error()
+			// Not errSystem: a failed PATCH says nothing about host health.
+			m.errPatch = msg.err.Error()
 			return m, nil
 		}
+		m.errPatch = ""
 		return m, m.fetchAll(false)
 
 	case summaryMsg:
@@ -725,6 +729,10 @@ func (m *Model) View() tea.View {
 	sections := []string{m.renderTiles()}
 	if w := m.unreachableWarning(); w != "" {
 		sections = append(sections, w)
+	}
+	if m.errPatch != "" {
+		sections = append(sections, th.WarnStyle().Render(truncate(
+			"hot-temperature threshold not changed: "+m.errPatch, m.w)))
 	}
 	health := m.renderHealth
 	if m.ctx.CombinedActive() {

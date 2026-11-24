@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -156,24 +157,30 @@ func TestUpdate_HotLimitPatchMsgDropsStaleEpoch(t *testing.T) {
 	}
 }
 
-func TestUpdate_HotLimitPatchMsgErrorRecordedOnErrSystem(t *testing.T) {
-	// Arrange
-	m := newTestModel()
+func TestUpdate_HotLimitPatchMsgErrorKeptApartFromSystem(t *testing.T) {
+	// Arrange: a combined dashboard whose active row mirrors fetchSystem.
+	m := combinedModel()
 	m.epoch = 2
-	errBoom := errors.New("boom")
+	m.instances = []instanceHealth{
+		{name: "primary", active: true, mirror: true},
+	}
 
 	// Act
-	_, cmd := m.Update(hotLimitPatchMsg{epoch: 2, err: errBoom})
+	_, cmd := m.Update(hotLimitPatchMsg{epoch: 2, err: errors.New("boom")})
 
 	// Assert
-	if m.errSystem != errBoom.Error() {
-		t.Fatalf(
-			"expected errSystem to record the patch failure, got %q",
-			m.errSystem,
-		)
-	}
 	if cmd != nil {
 		t.Fatal("a failed patch should not trigger a refetch")
+	}
+	if m.errSystem != "" {
+		t.Fatalf("patch error leaked into errSystem: %q", m.errSystem)
+	}
+	m.overlayInstances()
+	if m.instances[0].err != nil {
+		t.Fatalf("active row marked unreachable: %v", m.instances[0].err)
+	}
+	if out := m.View().Content; !strings.Contains(out, "boom") {
+		t.Fatalf("patch error not shown:\n%s", out)
 	}
 }
 
