@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -384,5 +385,22 @@ func TestStaleBlockingResultDropped(t *testing.T) {
 		if m.block.Known {
 			t.Errorf("%s: stale result painted the pill: %+v", name, m.block)
 		}
+	}
+}
+
+func TestInstancesChangeRebuildsEditedActiveClient(t *testing.T) {
+	m := sized(t, newTestModel(t), 120, 36)
+	old := m.ctx.API
+	cfg := *m.cfg
+	cfg.Instances = slices.Clone(m.cfg.Instances)
+	cfg.Instances[0].URL = "http://192.168.1.3"
+
+	m.Update(core.InstancesChangedMsg{Config: &cfg})
+
+	if m.ctx.API == old {
+		t.Fatal("edited active instance should get a new client")
+	}
+	if m.ctx.Fleet.Client("home") != m.ctx.API {
+		t.Fatal("fleet should share the new active client")
 	}
 }

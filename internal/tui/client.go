@@ -81,12 +81,17 @@ func reusable(
 		return nil
 	}
 	old := findInstance(prevCfg, inst.Name)
-	if old == nil || old.URL != inst.URL || old.Password != inst.Password ||
-		old.PasswordEnv != inst.PasswordEnv ||
-		old.VerifyTLSValue() != inst.VerifyTLSValue() {
+	if old == nil || !sameInstance(*old, inst) {
 		return nil
 	}
 	return prev.Client(inst.Name)
+}
+
+// sameInstance reports whether a and b would build the same client.
+func sameInstance(a, b config.Instance) bool {
+	return a.URL == b.URL && a.Password == b.Password &&
+		a.PasswordEnv == b.PasswordEnv &&
+		a.VerifyTLSValue() == b.VerifyTLSValue()
 }
 
 // fallbackClient builds a best-effort, unauthenticated client so the TUI can

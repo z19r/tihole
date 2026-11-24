@@ -726,7 +726,16 @@ func (m *AppModel) applyInstancesChange(cfg *config.Config) tea.Cmd {
 
 	for _, inst := range cfg.Instances {
 		if inst.Name == m.ctx.InstanceName {
-			// active instance survived; the member list may have changed
+			// active instance survived; its own definition or the member
+			// list may have changed. The old client is dropped and logged out.
+			old := findInstance(prevCfg, inst.Name)
+			if old != nil && !sameInstance(*old, inst) {
+				if c, err := clientFor(cfg, inst.Name); err != nil {
+					m.err = err.Error()
+				} else {
+					m.ctx.API = c
+				}
+			}
 			return m.rebuildFleet(prevCfg)
 		}
 	}
