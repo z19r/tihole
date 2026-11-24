@@ -324,3 +324,31 @@ func TestFleetCallerCancelSkipsCooldown(t *testing.T) {
 		t.Fatalf("Unreachable = %v, want none", u)
 	}
 }
+
+func TestFleetSlowSuccessKeepsNewerCooldown(t *testing.T) {
+	var g *Fleet
+	t0 := time.Unix(1000, 0)
+	// a fails in a newer call while this one is still in flight.
+	markDown := func(w http.ResponseWriter, r *http.Request) {
+		g.mu.Lock()
+		g.down["a"] = t0.Add(time.Second)
+		g.mu.Unlock()
+		summaryHandler(1)(w, r)
+	}
+	a, _ := fakeMember(t, "a", markDown)
+	g = NewFleet([]Member{a}, nil)
+	g.now = func() time.Time { return t0 }
+
+	if _, err := g.Summary(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"a"}) {
+		t.Fatalf("Summary: Unreachable = %v, want [a]", u)
+	}
+	if err := g.SetBlocking(context.Background(), true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if u := g.Unreachable(); !slices.Equal(u, []string{"a"}) {
+		t.Fatalf("SetBlocking: Unreachable = %v, want [a]", u)
+	}
+}

@@ -93,6 +93,14 @@ func (g *Fleet) cooling(name string) bool {
 	return ok && g.now().Sub(t) < memberCooldown
 }
 
+// recovered clears name's failure mark unless a call newer than start set
+// it. Caller holds mu.
+func (g *Fleet) recovered(name string, start time.Time) {
+	if t, ok := g.down[name]; ok && t.Before(start) {
+		delete(g.down, name)
+	}
+}
+
 // fanOut calls every member not in cooldown concurrently, each with its own
 // deadline. It returns the successful results and their member names in
 // config order, and errors only when no member answered.
@@ -102,6 +110,7 @@ func fanOut[T any](
 	call func(context.Context, *Client) (T, error),
 ) ([]T, []string, error) {
 	g.mu.Lock()
+	start := g.now()
 	var live []Member
 	for _, m := range g.members {
 		if !g.cooling(m.Name) {
@@ -135,7 +144,7 @@ func fanOut[T any](
 			errs[i] = fmt.Errorf("%s: %w", m.Name, errs[i])
 			continue
 		}
-		delete(g.down, m.Name)
+		g.recovered(m.Name, start)
 		out = append(out, res[i])
 		names = append(names, m.Name)
 	}
@@ -261,6 +270,9 @@ func (g *Fleet) SetBlocking(
 	blocking bool,
 	timer *float64,
 ) error {
+	g.mu.Lock()
+	start := g.now()
+	g.mu.Unlock()
 	errs := make([]error, len(g.members))
 	var wg sync.WaitGroup
 	for i, m := range g.members {
@@ -278,7 +290,7 @@ func (g *Fleet) SetBlocking(
 		g.mu.Lock()
 		for i, m := range g.members {
 			if errs[i] == nil {
-				delete(g.down, m.Name)
+				g.recovered(m.Name, start)
 			}
 		}
 		g.mu.Unlock()
