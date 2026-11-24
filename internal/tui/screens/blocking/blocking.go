@@ -92,18 +92,18 @@ func (m *Model) Blur() {
 
 // fetch loads the current status.
 func (m *Model) fetch() tea.Cmd {
-	api := m.ctx.API
+	src := m.ctx.Source()
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		st, err := api.Blocking(ctx)
+		st, err := src.Blocking(ctx)
 		return statusMsg{status: st, err: err}
 	}
 }
 
 // apply performs the selected action, then refreshes the status.
 func (m *Model) apply(a action) tea.Cmd {
-	api := m.ctx.API
+	src := m.ctx.Source()
 	var timer *float64
 	if !a.enable && a.secs > 0 {
 		s := a.secs
@@ -112,10 +112,10 @@ func (m *Model) apply(a action) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
 		defer cancel()
-		if err := api.SetBlocking(ctx, a.enable, timer); err != nil {
+		if err := src.SetBlocking(ctx, a.enable, timer); err != nil {
 			return statusMsg{err: err}
 		}
-		st, err := api.Blocking(ctx)
+		st, err := src.Blocking(ctx)
 		return statusMsg{status: st, err: err}
 	}
 }
@@ -159,7 +159,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) View() tea.View {
 	th := m.ctx.Theme
 
-	header := th.AccentStyle().Bold(true).Render("Blocking")
+	title := "Blocking"
+	if m.ctx.CombinedActive() {
+		title += fmt.Sprintf(" — all (%d)", m.ctx.Fleet.Len())
+	}
+	header := th.AccentStyle().Bold(true).Render(title)
 	status := m.statusLine(th)
 	menu := m.renderMenu(th)
 
@@ -178,10 +182,22 @@ func (m *Model) statusLine(th *theme.Theme) string {
 	if !m.known {
 		return th.SubtleStyle().Render("loading status…")
 	}
-	if m.status.Blocking {
-		return th.AllowStyle().Bold(true).Render("● blocking is ON")
+	st := m.status
+	count := ""
+	if st.Total > 0 {
+		count = fmt.Sprintf(" (%d/%d on)", st.On, st.Total)
 	}
-	label := "○ blocking is OFF"
+	if st.Blocking {
+		return th.AllowStyle().Bold(true).Render("● blocking is ON" + count)
+	}
+	label := "○ blocking is OFF" + count
+	if st.On > 0 && st.On < st.Total {
+		label = "◐ blocking is PARTIAL" + count
+		if st.Timer != nil && *st.Timer > 0 {
+			label += "  — re-enables in " + humanCountdown(int(*st.Timer))
+		}
+		return th.WarnStyle().Bold(true).Render(label)
+	}
 	if m.status.Timer != nil && *m.status.Timer > 0 {
 		label += "  — re-enables in " + humanCountdown(int(*m.status.Timer))
 	}
