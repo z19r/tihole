@@ -24,6 +24,10 @@ const (
 	colGap   = "  "
 )
 
+// dashCols are the columns an unreachable row fills with "—" before its
+// "unreachable" label.
+var dashCols = []string{"CPU", "Mem", "Temp"}
+
 // instanceHealth is one fleet member's row in the combined health block.
 type instanceHealth struct {
 	name     string
@@ -163,9 +167,9 @@ func padCell(st lipgloss.Style, s string, w int) string {
 	return st.Render(s) + strings.Repeat(" ", max(w-lipgloss.Width(s), 0))
 }
 
-// instanceCols returns the metric columns, dropping Gravity and then
-// Load · Up when the name column would fall below minNameW, plus the name
-// column's width.
+// instanceCols returns the metric columns, dropping Gravity, Load · Up,
+// Temp, Mem and then CPU while the name column would fall below minNameW,
+// plus the name column's width.
 func (m *Model) instanceCols(inner int) ([]instanceCol, int) {
 	th := m.ctx.Theme
 	plain, subtle := th.TextStyle(), th.SubtleStyle()
@@ -221,7 +225,10 @@ func (m *Model) instanceCols(inner int) ([]instanceCol, int) {
 		}
 		return w
 	}
-	for _, drop := range []string{"Gravity", "Load · Up"} {
+	// Health, the only diagnostics signal, is never dropped.
+	for _, drop := range []string{
+		"Gravity", "Load · Up", "Temp", "Mem", "CPU",
+	} {
 		if nameW() >= minNameW {
 			break
 		}
@@ -281,9 +288,9 @@ func instanceRow(
 		}
 	}
 	row := mst.Render(marker) + " " + padCell(nst, h.name, nameW-2)
-	for i, c := range cols {
+	for _, c := range cols {
 		if h.err != nil {
-			if i == 3 { // past CPU, Mem, Temp
+			if !slices.Contains(dashCols, c.title) {
 				return row + colGap + subtle.Render("unreachable")
 			}
 			row += colGap + padCell(subtle, "—", c.w)

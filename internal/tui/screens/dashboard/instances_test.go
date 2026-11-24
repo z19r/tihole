@@ -276,3 +276,25 @@ func TestProbeInstanceRunsDetailsConcurrently(t *testing.T) {
 		t.Errorf("probe = %+v", r)
 	}
 }
+
+func TestInstancesNarrowKeepsHealth(t *testing.T) {
+	for _, w := range []int{40, 24} {
+		m := instancesModel(t, "primary",
+			[]string{"primary", "other", "down"},
+			map[string]int{"primary": 1, "other": 1})
+		m.SetSize(w, 30)
+
+		out := ansi.Strip(m.renderInstances())
+
+		for _, want := range []string{"Health", "✓ clear", "unreachable"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("width %d missing %q\n%s", w, want, out)
+			}
+		}
+		for _, l := range strings.Split(out, "\n") {
+			if lw := lipgloss.Width(l); lw > w {
+				t.Errorf("width %d: line %d wide: %q", w, lw, l)
+			}
+		}
+	}
+}

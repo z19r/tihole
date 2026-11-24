@@ -175,6 +175,10 @@ Health strip is replaced by one labelled row per configured instance:
   per-member deadline. Members in cooldown are not called; they render as
   unreachable. Results arrive as one message keyed by instance name, guarded
   by the screen epoch.
+- **Narrow widths:** while the name column would be under 12 columns,
+  drop Gravity, then Load · Up, Temp, Mem and CPU, in that order. Health is
+  never dropped. After that, names truncate (to `…` at worst) and lines are
+  clipped to the panel instead of wrapping.
 - **Single mode:** the strip is unchanged, with its animated gauges.
 
 ### Query log
