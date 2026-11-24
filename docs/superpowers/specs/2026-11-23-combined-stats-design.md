@@ -155,14 +155,15 @@ Health strip is replaced by one labelled row per configured instance:
 
 ```
  Pi-holes        CPU    Mem    Temp   Load · Up      Gravity    Health
- ● primary       12%    41%    48°C   3% · 4d 2h     1,204,331  ✓ clear
+ ▸ primary       12%    41%    48°C   3% · 4d 2h     1,204,331  ✓ clear
  ● secondary      9%    37%    n/a    2% · 11d       1,204,331  ⚠ 2 issues
  ○ basement       —      —      —     unreachable
    and 2 more…
 ```
 
-- **Rows:** config order, with the active instance first and marked. Plain
-  text, no animated gauges.
+- **Rows:** config order, with the active instance first and marked `▸`
+  (other reachable rows `●`, unreachable `○`), so the mark survives without
+  colour. Plain text, no animated gauges.
 - **Unreachable or failed-at-build instances** (`Fleet.Unreachable()`) get a
   dimmed `unreachable` row with `—` cells.
 - **Cap:** at most **4** instance rows. If more exist, the last line reads
