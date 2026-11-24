@@ -167,8 +167,11 @@ member, on every page.
 
 - `pihole.BlockingStatus` gains `On, Total int` (`json:"-"`; `Total == 0`
   means a single instance). `Fleet.Blocking(ctx) (BlockingStatus, error)`
-  sets them, `Blocking = On == Total`, and `Timer` is the shortest remaining
-  disable timer among the members that are off.
+  sets them: `Total` counts every instance, including unreachable ones and
+  ones that failed to build; `Blocking` means every reachable member blocks;
+  and `Timer` is the shortest remaining disable timer among the members that
+  are off. When `Blocking` holds but `On < Total`, the pill reads `ON x/N ⚠`
+  in the warn colour.
 - `Fleet.SetBlocking(ctx, blocking, timer) error` fans the POST out to every
   member with the same timer. It returns an error naming each member that
   failed, for example `blocking not changed on secondary: <err>`, even when
