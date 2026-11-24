@@ -102,7 +102,9 @@ func (m *Model) diagnosticsCell(inner int) string {
 	th := m.ctx.Theme
 	title := "Health"
 	if m.ctx.CombinedActive() {
-		title += " · " + m.ctx.InstanceName
+		// Shorten "Health" first so the instance name stays visible.
+		suffix := " · " + m.ctx.InstanceName
+		title = truncate(title, inner-lipgloss.Width(suffix)) + suffix
 	}
 	lbl := th.SubtleStyle().Render(truncate(title, inner))
 

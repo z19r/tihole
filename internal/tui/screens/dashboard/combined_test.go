@@ -118,3 +118,23 @@ func TestSystemPanelNamesActiveWhenCombined(t *testing.T) {
 		t.Error("single-mode health panel names instance")
 	}
 }
+
+func TestUnreachableWarningSharesSummaryError(t *testing.T) {
+	m := combinedModel("secondary")
+	m.errSummary = "all instances unreachable: secondary: x"
+
+	out := m.View().Content
+
+	if !strings.Contains(out, "summary unavailable") ||
+		strings.Contains(out, "secondary unreachable") {
+		t.Errorf("want the summary error alone, no extra row:\n%s", out)
+	}
+}
+
+func TestHealthTitleKeepsInstanceWhenNarrow(t *testing.T) {
+	m := combinedModel()
+
+	if out := m.diagnosticsCell(12); !strings.Contains(out, "· primary") {
+		t.Errorf("narrow title lost the instance name:\n%s", out)
+	}
+}

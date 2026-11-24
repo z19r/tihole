@@ -392,10 +392,10 @@ func (m *Model) gravityValue() string {
 	return v
 }
 
-// unreachableWarning names fleet members that failed, or "" when none (or
-// when combined mode is off).
+// unreachableWarning names fleet members that failed, or "" when none, when
+// combined mode is off, or when the summary error card already names them.
 func (m *Model) unreachableWarning() string {
-	if !m.ctx.CombinedActive() {
+	if !m.ctx.CombinedActive() || m.errSummary != "" {
 		return ""
 	}
 	down := m.ctx.Fleet.Unreachable()
